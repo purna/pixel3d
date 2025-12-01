@@ -1,4 +1,4 @@
- <link rel="stylesheet" href="css/styles.css">
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,9 +6,12 @@
     <title>3D Staging Studio</title>
     <!-- Fonts & Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style type="text/css">@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/cyrillic-ext/wght/normal.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/latin/wght/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/greek/wght/normal.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/greek-ext/wght/normal.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/cyrillic/wght/normal.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/latin-ext/wght/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:400;src:url(/cf-fonts/v/inter/5.0.16/vietnamese/wght/normal.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/cyrillic/wght/normal.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/latin-ext/wght/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/vietnamese/wght/normal.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/greek-ext/wght/normal.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/latin/wght/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/greek/wght/normal.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:500;src:url(/cf-fonts/v/inter/5.0.16/cyrillic-ext/wght/normal.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/greek-ext/wght/normal.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/cyrillic/wght/normal.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/cyrillic-ext/wght/normal.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/latin-ext/wght/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/vietnamese/wght/normal.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/greek/wght/normal.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:600;src:url(/cf-fonts/v/inter/5.0.16/latin/wght/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/cyrillic/wght/normal.woff2);unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/latin/wght/normal.woff2);unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/vietnamese/wght/normal.woff2);unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/cyrillic-ext/wght/normal.woff2);unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/greek-ext/wght/normal.woff2);unicode-range:U+1F00-1FFF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/greek/wght/normal.woff2);unicode-range:U+0370-03FF;font-display:swap;}@font-face {font-family:Inter;font-style:normal;font-weight:700;src:url(/cf-fonts/v/inter/5.0.16/latin-ext/wght/normal.woff2);unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;font-display:swap;}</style>
     
-    <!-- Three.js (using modules for modern syntax) -->
+    <!-- External Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Three.js Import Map -->
     <script type="importmap">
         {
             "imports": {
@@ -17,9 +20,6 @@
             }
         }
     </script>
-   
-
-   
 </head>
 <body>
 
@@ -40,47 +40,114 @@
     <!-- WORKSPACE -->
     <div class="workspace">
         
-        <!-- LEFT TOOLBAR -->
-        <div class="tools-panel">
-            <div class="tool-btn" id="tool-select" data-tooltip="Select (Q)" class="active"><i class="fas fa-mouse-pointer"></i></div>
+           <!-- LEFT TOOLBAR -->
+        <div class="tools-panel" id="tools-container">
+            <div class="tool-btn active" id="tool-select" data-tooltip="**Select Tool**
+Click objects to select them
+--Keyboard: Q--"><i class="fas fa-mouse-pointer"></i></div>
             <div class="tool-divider"></div>
             
-            <!-- Shapes -->
-            <div class="tool-btn" onclick="app.addShape('box')" data-tooltip="Add Box"><i class="fas fa-cube"></i></div>
-            <div class="tool-btn" onclick="app.addShape('sphere')" data-tooltip="Add Sphere"><i class="fas fa-circle"></i></div>
-            <div class="tool-btn" onclick="app.addShape('cone')" data-tooltip="Add Cone"><i class="fas fa-caret-up"></i></div>
-            <div class="tool-btn" onclick="app.addShape('cylinder')" data-tooltip="Add Cylinder"><i class="fas fa-database"></i></div>
-            <div class="tool-btn" onclick="app.addShape('plane')" data-tooltip="Add Plane"><i class="fas fa-vector-square"></i></div>
-            <div class="tool-btn" onclick="app.addShape('torus')" data-tooltip="Add Ring"><i class="fas fa-life-ring"></i></div>
-            
-            <div class="tool-divider"></div>
-            
-            <!-- Figures -->
-            <div class="tool-btn" onclick="app.addFigure('male')" data-tooltip="Add Male"><i class="fas fa-male"></i></div>
-            <div class="tool-btn" onclick="app.addFigure('female')" data-tooltip="Add Female"><i class="fas fa-female"></i></div>
+            <!-- AI Tools -->
+            <div class="tool-btn ai-tool" id="tool-ai-scene" data-tooltip="**Magic Scene Generator**
+Describe a scene and let AI create it
+Uses Gemini AI for generation"><i class="fas fa-wand-magic-sparkles"></i></div>
             
             <div class="tool-divider"></div>
 
-            <!-- Lights -->
-            <div class="tool-btn" onclick="app.addLight('point')" data-tooltip="Point Light"><i class="far fa-lightbulb"></i></div>
-            <div class="tool-btn" onclick="app.addLight('spot')" data-tooltip="Spot Light"><i class="fas fa-bullseye"></i></div>
-            <div class="tool-btn" onclick="app.addLight('directional')" data-tooltip="Sun Light"><i class="fas fa-sun"></i></div>
+            <!-- Shapes Menu -->
+            <div class="tool-btn menu-parent" data-tooltip="**Shapes**
+Hover to see all available shapes">
+                <i class="fas fa-shapes"></i>
+                <div class="tool-submenu">
+                    <div class="tool-btn" data-action="addShape" data-type="box" data-tooltip="**Box**"><i class="fas fa-cube"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="sphere" data-tooltip="**Sphere**"><i class="fas fa-circle"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="cone" data-tooltip="**Cone**"><i class="fas fa-caret-up"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="cylinder" data-tooltip="**Cylinder**"><i class="fas fa-database"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="plane" data-tooltip="**Plane**
+Great for floors"><i class="fas fa-vector-square"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="torus" data-tooltip="**Torus**
+Donut shape"><i class="fas fa-life-ring"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="tetrahedron" data-tooltip="**Tetrahedron**"><i class="fas fa-gem"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="octahedron" data-tooltip="**Octahedron**"><i class="fas fa-dice-d8"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="dodecahedron" data-tooltip="**Dodecahedron**"><i class="fas fa-dice-d20"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="icosahedron" data-tooltip="**Icosahedron**"><i class="fas fa-star"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="torusknot" data-tooltip="**Torus Knot**
+Complex twisted shape"><i class="fas fa-bezier-curve"></i></div>
+                </div>
+            </div>
+            
+            <!-- Characters Menu -->
+            <div class="tool-btn menu-parent" data-tooltip="**Characters**
+Add poseable human figures">
+                <i class="fas fa-user"></i>
+                <div class="tool-submenu">
+                    <div class="tool-btn" data-action="addFigure" data-type="male" data-tooltip="**Male Figure**
+Fully poseable with joints"><i class="fas fa-male"></i></div>
+                    <div class="tool-btn" data-action="addFigure" data-type="female" data-tooltip="**Female Figure**
+Fully poseable with joints"><i class="fas fa-female"></i></div>
+                </div>
+            </div>
+
+            <!-- Lights Menu -->
+            <div class="tool-btn menu-parent" data-tooltip="**Lights**
+Illuminate your scene">
+                <i class="fas fa-lightbulb"></i>
+                <div class="tool-submenu">
+                    <div class="tool-btn" data-action="addLight" data-type="point" data-tooltip="**Point Light**
+Radiates in all directions"><i class="far fa-lightbulb"></i></div>
+                    <div class="tool-btn" data-action="addLight" data-type="spot" data-tooltip="**Spot Light**
+Focused beam of light"><i class="fas fa-bullseye"></i></div>
+                    <div class="tool-btn" data-action="addLight" data-type="directional" data-tooltip="**Directional Light**
+Like sunlight, parallel rays"><i class="fas fa-sun"></i></div>
+                    <div class="tool-btn" data-action="addLight" data-type="ambient" data-tooltip="**Ambient Light**
+Overall scene lighting"><i class="fas fa-globe"></i></div>
+                    <div class="tool-btn" data-action="addLight" data-type="hemisphere" data-tooltip="**Hemisphere Light**
+Sky and ground lighting"><i class="fas fa-adjust"></i></div>
+                </div>
+            </div>
+            
+            <!-- Settings at bottom -->
+            <div style="margin-top: auto;"></div>
+            <div class="tool-divider"></div>
+            <div class="tool-btn" id="tool-settings" data-tooltip="**Settings**
+Configure application"><i class="fas fa-cog"></i></div>
         </div>
 
+        
         <!-- CENTER CANVAS -->
         <div class="canvas-area">
             <div class="overlay-controls">
-                <button class="btn icon-only" id="mode-translate" title="Translate (W)"><i class="fas fa-arrows-alt"></i></button>
-                <button class="btn icon-only" id="mode-rotate" title="Rotate (E)"><i class="fas fa-sync-alt"></i></button>
-                <button class="btn icon-only" id="mode-scale" title="Scale (R)"><i class="fas fa-expand-arrows-alt"></i></button>
+                <button class="btn icon-only" id="mode-translate" title="Translate (G)" data-tooltip="**Translate Mode**
+Move objects in 3D space
+--Keyboard: G--"><i class="fas fa-arrows-alt"></i></button>
+                <button class="btn icon-only" id="mode-rotate" title="Rotate (R)" data-tooltip="**Rotate Mode**
+Rotate objects around axes
+--Keyboard: R--"><i class="fas fa-sync-alt"></i></button>
+                <button class="btn icon-only" id="mode-scale" title="Scale (S)" data-tooltip="**Scale Mode**
+Resize objects
+--Keyboard: S--"><i class="fas fa-expand-arrows-alt"></i></button>
             </div>
             <div id="canvas-container" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <!-- Floating Toggle -->
+        <div id="panel-toggle" title="Toggle Panel">
+            <i class="fas fa-chevron-right"></i>
         </div>
 
         <!-- RIGHT PROPERTIES PANEL -->
         <div class="properties-panel" id="properties-panel">
             <div class="panel-header">
-                <i class="fas fa-sliders-h"></i> Properties
+                <div class="panel-header-title"><i class="fas fa-layer-group"></i> Scene Objects</div>
+            </div>
+            
+            <!-- LAYERS LIST (Managed by LayerManager.js) -->
+            <div id="layers-list" class="layers-container">
+                <!-- Layer items will be injected here dynamically -->
+            </div>
+            
+            <div class="panel-header" style="border-top:1px solid var(--border-color);">
+                <div class="panel-header-title"><i class="fas fa-sliders-h"></i> Properties</div>
             </div>
             <div id="props-content" class="panel-content">
                 <div class="empty-state">Select an object to edit properties</div>
@@ -89,687 +156,73 @@
 
     </div>
 
-    <!-- MAIN APP SCRIPT -->
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { TransformControls } from 'three/addons/controls/TransformControls.js';
-
-        class StageApp {
-            constructor() {
-                this.container = document.getElementById('canvas-container');
-                this.propsContent = document.getElementById('props-content');
-                
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.orbit = null;
-                this.transformControl = null;
-                this.raycaster = new THREE.Raycaster();
-                this.mouse = new THREE.Vector2();
-                
-                this.selectedObject = null;
-                this.objects = []; // Keep track of interactable objects
-                
-                this.init();
-                this.setupEvents();
-                this.animate();
-            }
-
-            init() {
-                // Scene
-                this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x1a1a2e); // Matches bg-dark
-                
-                // Fog to blend floor into distance
-                this.scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
-
-                // Camera
-                this.camera = new THREE.PerspectiveCamera(60, this.container.offsetWidth / this.container.offsetHeight, 0.1, 1000);
-                this.camera.position.set(5, 5, 8);
-                this.camera.lookAt(0, 0, 0);
-
-                // Renderer
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
-                this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                this.container.appendChild(this.renderer.domElement);
-
-                // Lighting (Base ambient)
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-                this.scene.add(ambientLight);
-
-                // Grid
-                const gridHelper = new THREE.GridHelper(20, 20, 0x2d3748, 0x222222);
-                this.scene.add(gridHelper);
-
-                // Controls
-                this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
-                this.orbit.enableDamping = true;
-                this.orbit.dampingFactor = 0.05;
-
-                this.transformControl = new TransformControls(this.camera, this.renderer.domElement);
-                this.transformControl.addEventListener('dragging-changed', (event) => {
-                    this.orbit.enabled = !event.value;
-                });
-                this.transformControl.addEventListener('change', () => {
-                    if (this.selectedObject) this.updateUI();
-                });
-                this.scene.add(this.transformControl);
-            }
-
-            setupEvents() {
-                window.addEventListener('resize', () => this.onWindowResize());
-                
-                // Raycasting for selection
-                this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
-                
-                // Keyboard shortcuts
-                window.addEventListener('keydown', (e) => {
-                    switch(e.key.toLowerCase()) {
-                        case 'w': this.setTransformMode('translate'); break;
-                        case 'e': this.setTransformMode('rotate'); break;
-                        case 'r': this.setTransformMode('scale'); break;
-                        case 'delete': 
-                        case 'backspace':
-                            this.deleteSelected(); 
-                            break;
-                    }
-                });
-
-                // UI Buttons
-                document.getElementById('mode-translate').addEventListener('click', () => this.setTransformMode('translate'));
-                document.getElementById('mode-rotate').addEventListener('click', () => this.setTransformMode('rotate'));
-                document.getElementById('mode-scale').addEventListener('click', () => this.setTransformMode('scale'));
-                
-                document.getElementById('btn-clear').addEventListener('click', () => this.clearScene());
-                document.getElementById('btn-save').addEventListener('click', () => this.saveScene());
-                document.getElementById('btn-load').addEventListener('click', () => document.getElementById('file-input').click());
-                
-                document.getElementById('file-input').addEventListener('change', (e) => this.loadScene(e));
-            }
-
-            // --- OBJECT CREATION ---
-
-            createMaterial(color = 0x00ff41) {
-                return new THREE.MeshStandardMaterial({ 
-                    color: color, 
-                    roughness: 0.5,
-                    metalness: 0.1 
-                });
-            }
-
-            addShape(type) {
-                let geometry, mesh;
-                const material = this.createMaterial();
-
-                switch(type) {
-                    case 'box': geometry = new THREE.BoxGeometry(1, 1, 1); break;
-                    case 'sphere': geometry = new THREE.SphereGeometry(0.6, 32, 16); break;
-                    case 'cone': geometry = new THREE.ConeGeometry(0.6, 1.5, 32); break;
-                    case 'cylinder': geometry = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 32); break;
-                    case 'pyramid': geometry = new THREE.ConeGeometry(0.8, 1.2, 4); break; // 4 sided cone
-                    case 'plane': 
-                        geometry = new THREE.PlaneGeometry(2, 2); 
-                        material.side = THREE.DoubleSide;
-                        break;
-                    case 'torus': geometry = new THREE.TorusGeometry(0.6, 0.2, 16, 50); break;
-                }
-
-                mesh = new THREE.Mesh(geometry, material);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                mesh.position.y = 1;
-                
-                if (type === 'plane') {
-                    mesh.rotation.x = -Math.PI / 2;
-                    mesh.position.y = 0.01; // Just above grid
-                    mesh.receiveShadow = true;
-                    mesh.castShadow = false;
-                }
-
-                mesh.userData = { type: 'shape', shapeType: type, id: Date.now() };
-                this.addToScene(mesh);
-                this.selectObject(mesh);
-            }
-
-            addFigure(gender) {
-                const group = new THREE.Group();
-                const material = this.createMaterial(gender === 'male' ? 0x00d9ff : 0xff006e);
-                
-                // Basic measurements
-                const w = gender === 'male' ? 1.0 : 0.8; // Shoulder width
-                const h = gender === 'male' ? 0.9 : 0.8; // Hip width
-
-                // Torso
-                const torsoGeo = new THREE.BoxGeometry(w, 1.2, 0.5);
-                const torso = new THREE.Mesh(torsoGeo, material);
-                torso.position.y = 0.6; // Center of torso
-                torso.castShadow = true;
-                torso.userData = { name: 'Torso' };
-                group.add(torso);
-
-                // Head
-                const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
-                const head = new THREE.Mesh(headGeo, material);
-                head.position.y = 0.8; // Relative to torso
-                head.castShadow = true;
-                head.userData = { name: 'Head' };
-                torso.add(head);
-
-                // Function to make limb
-                const createLimb = (name, x, y, z, width, length) => {
-                    const limbGroup = new THREE.Group();
-                    limbGroup.position.set(x, y, z);
-                    limbGroup.userData = { name: name + ' Joint' };
-
-                    const limbGeo = new THREE.BoxGeometry(width, length, width);
-                    const limb = new THREE.Mesh(limbGeo, material);
-                    limb.position.y = -length / 2; // Pivot at top
-                    limb.castShadow = true;
-                    limb.userData = { name: name };
-                    
-                    limbGroup.add(limb);
-                    return limbGroup;
-                };
-
-                // Arms
-                const armW = 0.2;
-                const armL = 0.7;
-                const shoulderX = w / 2 + armW / 2;
-                
-                const leftArm = createLimb('Left Arm', -shoulderX, 0.5, 0, armW, armL);
-                const rightArm = createLimb('Right Arm', shoulderX, 0.5, 0, armW, armL);
-                torso.add(leftArm);
-                torso.add(rightArm);
-
-                // Legs
-                const legW = 0.22;
-                const legL = 0.8;
-                const hipX = w / 4;
-
-                const leftLeg = createLimb('Left Leg', -hipX, -0.6, 0, legW, legL);
-                const rightLeg = createLimb('Right Leg', hipX, -0.6, 0, legW, legL);
-                torso.add(leftLeg);
-                torso.add(rightLeg);
-
-                // Main Group position
-                group.position.y = 1.4; // Lift off ground (legs length + torso offset)
-                
-                group.userData = { type: 'figure', gender: gender, id: Date.now() };
-                
-                // Add group to scene
-                this.addToScene(group);
-                
-                // Track interactable parts
-                this.objects.push(torso, head, leftArm.children[0], rightArm.children[0], leftLeg.children[0], rightLeg.children[0]);
-                
-                this.selectObject(group);
-            }
-
-            addLight(type) {
-                let light, helper;
-                const color = 0xffffff;
-                const intensity = 2;
-
-                if (type === 'point') {
-                    light = new THREE.PointLight(color, intensity * 20, 20);
-                    light.position.set(0, 3, 0);
-                    helper = new THREE.PointLightHelper(light, 0.5);
-                } else if (type === 'spot') {
-                    light = new THREE.SpotLight(color, intensity * 30);
-                    light.position.set(0, 5, 2);
-                    light.angle = Math.PI / 6;
-                    light.penumbra = 0.2;
-                    light.target.position.set(0, 0, 0);
-                    // We need to add target to scene to move it, but keeping it simple for now
-                    helper = new THREE.SpotLightHelper(light);
-                } else if (type === 'directional') {
-                    light = new THREE.DirectionalLight(color, intensity);
-                    light.position.set(5, 5, 5);
-                    helper = new THREE.DirectionalLightHelper(light, 1);
-                }
-
-                light.castShadow = true;
-                light.userData = { type: 'light', lightType: type, id: Date.now() };
-                
-                // Create a container for light and helper so we can select/move both
-                const container = new THREE.Group();
-                container.add(light);
-                if (helper) {
-                    container.add(helper);
-                    light.userData.helper = helper; // Ref to update helper
-                }
-                
-                container.userData = light.userData; // Copy data to container
-                container.position.copy(light.position);
-                light.position.set(0,0,0); // Reset light relative to container
-
-                this.addToScene(container);
-                this.selectObject(container);
-            }
-
-            addToScene(obj) {
-                this.scene.add(obj);
-                // If it's a simple shape or light container, it's directly selectable
-                // Figures add their parts to selectables individually in addFigure
-                if (obj.userData.type === 'shape' || obj.userData.type === 'light') {
-                    this.objects.push(obj);
-                } else if (obj.userData.type === 'figure') {
-                     // For figures, the group is the root, but we might want to select the whole thing by default
-                     this.objects.push(obj);
-                }
-            }
-
-            deleteSelected() {
-                if (!this.selectedObject) return;
-                
-                this.transformControl.detach();
-                
-                // If it's part of a figure (like an arm), don't delete just the arm, delete the whole figure?
-                // Or maybe just disable deleting parts.
-                // Let's find the root.
-                let root = this.selectedObject;
-                while(root.parent && root.parent !== this.scene) {
-                    root = root.parent;
-                }
-
-                this.scene.remove(root);
-                
-                // Clean up objects array
-                // If figure, remove all children from interactables
-                if (root.userData.type === 'figure') {
-                    // Recursive remove from objects array
-                    root.traverse(child => {
-                        const idx = this.objects.indexOf(child);
-                        if(idx > -1) this.objects.splice(idx, 1);
-                    });
-                } else {
-                    const idx = this.objects.indexOf(root);
-                    if(idx > -1) this.objects.splice(idx, 1);
-                }
-
-                this.selectedObject = null;
-                this.renderPropertiesPanel();
-            }
-
-            clearScene() {
-                // Remove all valid user objects
-                const toRemove = [];
-                this.scene.traverse(obj => {
-                    if (obj.userData.type) toRemove.push(obj);
-                });
-                
-                toRemove.forEach(obj => {
-                    // Find root in scene
-                    let root = obj;
-                    while(root.parent && root.parent !== this.scene) root = root.parent;
-                    if (toRemove.includes(root)) {
-                         this.scene.remove(root);
-                    }
-                });
-
-                this.objects = [];
-                this.selectedObject = null;
-                this.transformControl.detach();
-                this.renderPropertiesPanel();
-            }
-
-            // --- INTERACTION ---
-
-            onPointerDown(event) {
-                // Calculate mouse position in normalized device coordinates
-                const rect = this.renderer.domElement.getBoundingClientRect();
-                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-                this.raycaster.setFromCamera(this.mouse, this.camera);
-
-                // Raycast against all interactable objects
-                // We need to traverse figures to find meshes
-                const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-                if (intersects.length > 0) {
-                    // Find the first object that is part of our "managed" objects or is a child of one
-                    let target = null;
-                    for (let hit of intersects) {
-                         if (hit.object.type === 'GridHelper') continue;
-                         // Traverse up to find significant parent
-                         let curr = hit.object;
-                         while (curr) {
-                             if (curr.userData && (curr.userData.type || curr.userData.name)) {
-                                 target = curr;
-                                 break;
-                             }
-                             if (curr.parent === this.scene) break;
-                             curr = curr.parent;
-                         }
-                         if (target) break;
-                    }
-
-                    if (target) {
-                        // If it's a part of a figure (like arm), we select the joint group for rotation, or root for movement?
-                        // Logic: If tool is rotate, select the part. If translate, select the whole figure.
-                        // For simplicity: Clicking a part selects that part. Clicking root selects root.
-                        this.selectObject(target);
-                    } else {
-                        this.deselect();
-                    }
-                } else {
-                    this.deselect();
-                }
-            }
-
-            selectObject(obj) {
-                // If it's a mesh inside a group (limb), we probably want to control its parent group (the joint)
-                if (obj.userData.name && obj.parent.userData.name && obj.parent.userData.name.includes('Joint')) {
-                    this.selectedObject = obj.parent;
-                } else {
-                    this.selectedObject = obj;
-                }
-
-                this.transformControl.attach(this.selectedObject);
-                this.renderPropertiesPanel();
-            }
-
-            deselect() {
-                this.selectedObject = null;
-                this.transformControl.detach();
-                this.renderPropertiesPanel();
-            }
-
-            setTransformMode(mode) {
-                this.transformControl.setMode(mode);
-            }
-
-            updateUI() {
-                if (!this.selectedObject) return;
-                
-                const pos = this.selectedObject.position;
-                const rot = this.selectedObject.rotation;
-                const scale = this.selectedObject.scale;
-
-                const setVal = (id, val) => {
-                    const el = document.getElementById(id);
-                    if(el && document.activeElement !== el) el.value = val.toFixed(2);
-                };
-
-                setVal('pos-x', pos.x);
-                setVal('pos-y', pos.y);
-                setVal('pos-z', pos.z);
-                
-                setVal('rot-x', rot.x);
-                setVal('rot-y', rot.y);
-                setVal('rot-z', rot.z);
-                
-                setVal('scl-x', scale.x);
-                setVal('scl-y', scale.y);
-                setVal('scl-z', scale.z);
-            }
-
-            // --- UI RENDERING ---
-
-            renderPropertiesPanel() {
-                this.propsContent.innerHTML = '';
-
-                if (!this.selectedObject) {
-                    this.propsContent.innerHTML = '<div class="empty-state">Select an object to edit properties</div>';
-                    return;
-                }
-
-                const obj = this.selectedObject;
-                let title = "Object";
-                let isLight = false;
-                let isShape = false;
-                let isFigurePart = false;
-
-                if (obj.userData.type === 'shape') { title = obj.userData.shapeType.toUpperCase(); isShape = true; }
-                else if (obj.userData.type === 'light') { title = obj.userData.lightType.toUpperCase() + " LIGHT"; isLight = true; }
-                else if (obj.userData.type === 'figure') { title = obj.userData.gender.toUpperCase() + " FIGURE"; }
-                else if (obj.userData.name) { title = obj.userData.name; isFigurePart = true; }
-
-                // Header
-                const header = document.createElement('div');
-                header.className = 'property-group';
-                header.innerHTML = `<div style="font-weight:bold; color:var(--accent-primary); border-bottom:1px solid #333; padding-bottom:5px;">${title}</div>`;
-                this.propsContent.appendChild(header);
-
-                // Transform Inputs Helper
-                const createInput = (label, id, value, onChange) => {
-                    const div = document.createElement('div');
-                    div.className = 'input-group';
-                    div.innerHTML = `<span>${label}</span><input type="number" id="${id}" value="${value.toFixed(2)}" step="0.1">`;
-                    div.querySelector('input').addEventListener('input', (e) => onChange(parseFloat(e.target.value)));
-                    return div;
-                };
-
-                const createVec3 = (label, prefix, vec, onChangeObj) => {
-                    const group = document.createElement('div');
-                    group.className = 'property-group';
-                    group.innerHTML = `<div class="property-label">${label}</div>`;
-                    const row = document.createElement('div');
-                    row.className = 'input-row';
-                    
-                    row.appendChild(createInput('X', `${prefix}-x`, vec.x, (v) => { vec.x = v; onChangeObj(); }));
-                    row.appendChild(createInput('Y', `${prefix}-y`, vec.y, (v) => { vec.y = v; onChangeObj(); }));
-                    row.appendChild(createInput('Z', `${prefix}-z`, vec.z, (v) => { vec.z = v; onChangeObj(); }));
-                    
-                    group.appendChild(row);
-                    this.propsContent.appendChild(group);
-                };
-
-                // TRANSFORM
-                createVec3('Position', 'pos', obj.position, () => {});
-                createVec3('Rotation', 'rot', obj.rotation, () => {});
-                createVec3('Scale', 'scl', obj.scale, () => {});
-
-                // COLOR (Shapes & Figure Parts)
-                let targetMesh = null;
-                if (isShape) targetMesh = obj;
-                if (isFigurePart) {
-                    // Find the mesh inside the group (limbs are groups with mesh children)
-                    targetMesh = obj.children.find(c => c.isMesh);
-                } else if (obj.userData.type === 'figure') {
-                    // Try to color torso
-                    targetMesh = obj.children.find(c => c.userData.name === 'Torso');
-                }
-
-                if (targetMesh && targetMesh.material) {
-                    const colorGroup = document.createElement('div');
-                    colorGroup.className = 'property-group';
-                    colorGroup.innerHTML = `<div class="property-label">Color</div>`;
-                    const colInput = document.createElement('input');
-                    colInput.type = 'color';
-                    colInput.value = '#' + targetMesh.material.color.getHexString();
-                    colInput.addEventListener('input', (e) => {
-                        const hex = e.target.value;
-                        if (obj.userData.type === 'figure') {
-                            // Color whole figure
-                            obj.traverse(c => { if(c.isMesh) c.material.color.set(hex); });
-                        } else {
-                            targetMesh.material.color.set(hex);
-                        }
-                    });
-                    colorGroup.appendChild(colInput);
-                    this.propsContent.appendChild(colorGroup);
-                }
-
-                // LIGHT PROPERTIES
-                if (isLight) {
-                    const lightObj = obj.children[0]; // The actual light is inside the container
-                    
-                    const intGroup = document.createElement('div');
-                    intGroup.className = 'property-group';
-                    intGroup.innerHTML = `<div class="property-label">Intensity</div>`;
-                    const intInput = document.createElement('input');
-                    intInput.type = 'range';
-                    intInput.min = 0; intInput.max = 100;
-                    intInput.value = lightObj.intensity;
-                    intInput.style.width = '100%';
-                    intInput.addEventListener('input', (e) => {
-                        lightObj.intensity = parseFloat(e.target.value);
-                    });
-                    intGroup.appendChild(intInput);
-                    this.propsContent.appendChild(intGroup);
-
-                    const lColGroup = document.createElement('div');
-                    lColGroup.className = 'property-group';
-                    lColGroup.innerHTML = `<div class="property-label">Light Color</div>`;
-                    const lColInput = document.createElement('input');
-                    lColInput.type = 'color';
-                    lColInput.value = '#' + lightObj.color.getHexString();
-                    lColInput.addEventListener('input', (e) => {
-                        lightObj.color.set(e.target.value);
-                    });
-                    lColGroup.appendChild(lColInput);
-                    this.propsContent.appendChild(lColGroup);
-                }
-            }
-
-            // --- ANIMATION LOOP ---
-
-            onWindowResize() {
-                this.camera.aspect = this.container.offsetWidth / this.container.offsetHeight;
-                this.camera.updateProjectionMatrix();
-                this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
-            }
-
-            animate() {
-                requestAnimationFrame(() => this.animate());
-                
-                // Update light helpers
-                this.scene.traverse(obj => {
-                    if (obj.userData.type === 'light' && obj.children[1]) {
-                        obj.children[1].update();
-                    }
-                });
-
-                this.orbit.update();
-                this.renderer.render(this.scene, this.camera);
-            }
-
-            // --- SAVE / LOAD ---
-
-            saveScene() {
-                const data = [];
-                
-                const processObj = (obj) => {
-                    // Only process root objects we care about
-                    if (obj.userData.type) {
-                        const item = {
-                            type: obj.userData.type,
-                            position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
-                            rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
-                            scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
-                            userData: obj.userData
-                        };
-
-                        if (obj.userData.type === 'shape') {
-                            item.shapeType = obj.userData.shapeType;
-                            item.color = '#' + obj.material.color.getHexString();
-                        } else if (obj.userData.type === 'light') {
-                            const l = obj.children[0];
-                            item.lightType = obj.userData.lightType;
-                            item.color = '#' + l.color.getHexString();
-                            item.intensity = l.intensity;
-                        } else if (obj.userData.type === 'figure') {
-                            item.gender = obj.userData.gender;
-                            // Save posing data (rotation of limbs)
-                            item.joints = {};
-                            obj.traverse(child => {
-                                if (child.userData.name && child.userData.name.includes('Joint')) {
-                                    item.joints[child.userData.name] = {
-                                        x: child.rotation.x,
-                                        y: child.rotation.y,
-                                        z: child.rotation.z
-                                    };
-                                }
-                            });
-                        }
-                        data.push(item);
-                    }
-                };
-
-                // Traverse only direct children of scene to find our roots
-                this.scene.children.forEach(child => {
-                    processObj(child);
-                });
-
-                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'scene.json';
-                a.click();
-            }
-
-            loadScene(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const data = JSON.parse(e.target.result);
-                    this.clearScene();
-                    
-                    data.forEach(item => {
-                        let newObj = null;
-
-                        if (item.type === 'shape') {
-                            this.addShape(item.shapeType);
-                            // Get the last added object (it's selected automatically)
-                            newObj = this.selectedObject;
-                            if (newObj && item.color) newObj.material.color.set(item.color);
-                        } 
-                        else if (item.type === 'light') {
-                            this.addLight(item.lightType);
-                            newObj = this.selectedObject;
-                            if (newObj) {
-                                newObj.children[0].color.set(item.color);
-                                newObj.children[0].intensity = item.intensity;
-                            }
-                        }
-                        else if (item.type === 'figure') {
-                            this.addFigure(item.gender);
-                            newObj = this.selectedObject;
-                            
-                            // Restore posing
-                            if (item.joints) {
-                                newObj.traverse(child => {
-                                    if (child.userData.name && item.joints[child.userData.name]) {
-                                        const rot = item.joints[child.userData.name];
-                                        child.rotation.set(rot.x, rot.y, rot.z);
-                                    }
-                                });
-                            }
-                        }
-
-                        if (newObj) {
-                            newObj.position.set(item.position.x, item.position.y, item.position.z);
-                            newObj.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
-                            newObj.scale.set(item.scale.x, item.scale.y, item.scale.z);
-                        }
-                    });
-                    
-                    this.deselect(); // Clear selection after loading
-                };
-                reader.readAsText(file);
-                event.target.value = ''; // Reset input
-            }
-        }
-
-        // Initialize App
-        window.onload = () => {
-            window.app = new StageApp();
-        };
-
-        // Expose add functions to global scope for HTML onclick attributes
-        window.app = {
-            addShape: () => {}, // Placeholder until initialized
-            addFigure: () => {},
-            addLight: () => {}
-        };
-    </script>
-</body>
+    <!-- AI MODAL -->
+    <div class="modal-overlay" id="ai-modal">
+        <div class="modal">
+            <div class="modal-title">
+                <i class="fas fa-sparkles"></i> <span id="modal-title-text">Magic Scene Generator</span>
+            </div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;" id="modal-desc">
+                Describe the scene you want to build.
+            </div>
+            <textarea id="ai-prompt-input" placeholder="e.g. A circle of blue boxes with a red sphere in the middle..."></textarea>
+            <div class="modal-actions">
+                <div class="loading-spinner" id="ai-spinner"><i class="fas fa-circle-notch fa-spin"></i> Generating...</div>
+                <button class="btn" id="btn-ai-cancel">Cancel</button>
+                <button class="btn ai-magic" id="btn-ai-generate">Generate ✨</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <div class="modal-title">
+                <i class="fas fa-cog"></i> Settings
+            </div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;">
+                Configure your 3D Studio preferences
+            </div>
+            <div class="settings-content">
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="setting-grid" checked>
+                        Show Grid
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="setting-axes" checked>
+                        Show Axes
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="setting-snap" checked>
+                        Snap to Grid
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="setting-tooltips" checked>
+                        Show Tooltips
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="range" id="setting-camera-speed" min="0.1" max="5" step="0.1" value="1">
+                        Camera Speed: <span id="camera-speed-value">1.0</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="btn-settings-reset">Reset</button>
+                <button class="btn" id="btn-settings-close">Close</button>
+                <button class="btn primary" id="btn-settings-save">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP ENTRY POINT -->
+    <script type="module" src="js/main.js"></script>
 </html>
