@@ -7,6 +7,7 @@ import { ObjectFactory } from './factory.js';
 import { GeminiManager } from './gemini.js';
 import { LayerManager } from './layerManager.js';
 import { ToolTip } from './tooltip.js';
+import { HistoryManager, TransformObjectCommand, AddObjectCommand, DeleteObjectCommand, ClearSceneCommand, AddCharacterCommand } from './historyManager.js';
 import { CharacterManager } from './characterManager.js';
 
 class StageApp {
@@ -28,6 +29,8 @@ class StageApp {
         this.fileManager = new FileManager(this);
         this.gemini = new GeminiManager(this);
         this.layerManager = new LayerManager(this); // Init Layer Manager
+        this.characterManager = new CharacterManager(this); // Init Character Manager
+        this.historyManager = new HistoryManager(this); // Init History Manager
         this.ui = new UI(this); // UI initialized last so it can access layerManager
 
         this.init();
@@ -106,6 +109,13 @@ class StageApp {
         this.transformControl.addEventListener('change', () => {
             if (this.selectedObject) this.ui.updateUI(this.selectedObject);
         });
+
+        // Track transform changes for history
+        this.transformControl.addEventListener('mouseUp', () => {
+            if (this.selectedObject) {
+                this.captureTransformChange(this.selectedObject);
+            }
+        });
         this.scene.add(this.transformControl);
 
         // Events
@@ -122,32 +132,73 @@ class StageApp {
         // Add some default objects for immediate visibility
         this.addDefaultTestObjects();
 
+        // Initialize undo/redo buttons state
+        this.historyManager.updateUndoRedoButtons();
+
         // Start Loop
         this.animate();
+    }
+
+    // --- UNDO/REDO METHODS ---
+    undo() {
+        return this.historyManager.undo();
+    }
+
+    redo() {
+        return this.historyManager.redo();
+    }
+
+    // Capture transform changes for history
+    captureTransformChange(object) {
+        if (!object) return;
+
+        // Store current transform
+        const currentTransform = {
+            position: { x: object.position.x, y: object.position.y, z: object.position.z },
+            rotation: { x: object.rotation.x, y: object.rotation.y, z: object.rotation.z },
+            scale: { x: object.scale.x, y: object.scale.y, z: object.scale.z }
+        };
+
+        // Store previous transform (from before the change)
+        if (!object.userData.previousTransform) {
+            object.userData.previousTransform = currentTransform;
+            return;
+        }
+
+        // Create and execute transform command
+        const oldTransform = object.userData.previousTransform;
+        const transformCommand = new TransformObjectCommand(
+            this, object, oldTransform, currentTransform
+        );
+        
+        this.historyManager.executeCommand(transformCommand);
+        
+        // Update previous transform for next change
+        object.userData.previousTransform = currentTransform;
     }
 
     // --- OBJECT CREATION PROXY ---
 
     addShape(type) {
         const mesh = this.factory.createShape(type);
-        this.addToScene(mesh);
-        this.selectObject(mesh);
+        const addCommand = new AddObjectCommand(this, mesh);
+        this.historyManager.executeCommand(addCommand);
     }
 
-    addFigure(gender) {
-        const figure = this.factory.createFigure(gender);
-        this.addToScene(figure);
-        // Add parts to raycast list
-        figure.traverse(child => {
-            if (child.isMesh) this.objects.push(child);
-        });
-        this.selectObject(figure);
+    async addCharacter(type = 'xbot') {
+        try {
+            // Create and execute character command
+            const characterCommand = new AddCharacterCommand(this, type);
+            await this.historyManager.executeCommand(characterCommand);
+        } catch (error) {
+            console.error('Failed to add character:', error);
+        }
     }
 
     addLight(type) {
         const lightContainer = this.factory.createLight(type);
-        this.addToScene(lightContainer);
-        this.selectObject(lightContainer);
+        const addCommand = new AddObjectCommand(this, lightContainer);
+        this.historyManager.executeCommand(addCommand);
     }
 
     addToScene(obj) {
@@ -318,44 +369,19 @@ class StageApp {
 
     deleteSelected() {
         if (!this.selectedObject) return;
-        this.transformControl.detach();
-
+        
         let root = this.selectedObject;
         while (root.parent && root.parent !== this.scene) {
             root = root.parent;
         }
 
-        this.scene.remove(root);
-
-        // Cleanup from objects array
-        if (root.userData.type === 'figure') {
-            const idx = this.objects.indexOf(root);
-            if (idx > -1) this.objects.splice(idx, 1);
-        } else {
-            const idx = this.objects.indexOf(root);
-            if (idx > -1) this.objects.splice(idx, 1);
-        }
-
-        this.selectedObject = null;
-        this.ui.updateUI(null);
+        const deleteCommand = new DeleteObjectCommand(this, root);
+        this.historyManager.executeCommand(deleteCommand);
     }
 
     clearScene() {
-        const toRemove = [];
-        this.scene.traverse(obj => {
-            if (obj.userData.type) toRemove.push(obj);
-        });
-
-        toRemove.forEach(obj => {
-            let root = obj;
-            while (root.parent && root.parent !== this.scene) root = root.parent;
-            if (toRemove.includes(root)) this.scene.remove(root);
-        });
-
-        this.objects = [];
-        this.selectedObject = null;
-        this.transformControl.detach();
-        this.ui.updateUI(null);
+        const clearCommand = new ClearSceneCommand(this);
+        this.historyManager.executeCommand(clearCommand);
     }
 
     // --- LOOP ---
@@ -427,12 +453,18 @@ class StageApp {
     animate() {
         requestAnimationFrame(() => this.animate());
 
+        // Calculate delta time for animations
+        const delta = 0.016; // Assuming 60fps, you might want to use a proper clock
+        
         // Update light helpers
         this.scene.traverse(obj => {
             if (obj.userData.type === 'light' && obj.children[1]) {
                 obj.children[1].update();
             }
         });
+
+        // Update character animations
+        this.characterManager.update(delta);
 
         this.orbit.update();
         this.renderer.render(this.scene, this.camera);

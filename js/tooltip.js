@@ -1,6 +1,9 @@
 // js/tooltip.js
 export let tooltipsEnabled = true;
 
+// Initialize window variable for settings integration
+window.tooltipsEnabled = tooltipsEnabled;
+
 export class ToolTip {
     constructor() {
         this.tooltip = null;
@@ -119,12 +122,12 @@ export class ToolTip {
     attachTooltipListeners(el) {
         el.style.cursor = 'help';
         el.addEventListener('mouseenter', () => {
-            if (!tooltipsEnabled) return;
+            if (!window.tooltipsEnabled) return;
             const text = el.getAttribute('data-tooltip');
             if (text) this.show(text, el);
         });
         el.addEventListener('mouseleave', () => {
-            if (!tooltipsEnabled) return;
+            if (!window.tooltipsEnabled) return;
             if (!this.tooltip.matches(':hover')) {
                 this.hide();
             }
@@ -139,12 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-tooltip]').forEach(el => {
         el.style.cursor = 'help';
         el.addEventListener('mouseenter', () => {
-            if (!tooltipsEnabled) return;
+            if (!window.tooltipsEnabled) return;
             const text = el.getAttribute('data-tooltip');
             if (text) tooltip.show(text, el);
         });
         el.addEventListener('mouseleave', () => {
-            if (!tooltipsEnabled) return;
+            if (!window.tooltipsEnabled) return;
             if (!tooltip.tooltip.matches(':hover')) {
                 tooltip.hide();
             }

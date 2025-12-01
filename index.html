@@ -30,10 +30,14 @@
             <span class="badge">Pro Staging Studio V1.0</span>
         </div>
         <div class="header-controls">
+            <button id="undoBtn" class="btn icon-only" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+            <button id="redoBtn" class="btn icon-only" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i></button>
+            <div class="separator" style="height: 20px; width: 1px; margin: 0 10px;"></div>
             <button class="btn" id="btn-clear"><i class="fas fa-trash-alt"></i> Clear</button>
             <input type="file" id="file-input" accept=".json" style="display:none">
             <button class="btn" id="btn-load"><i class="fas fa-folder-open"></i> Load</button>
-            <button class="btn primary" id="btn-save"><i class="fas fa-save"></i> Save</button>
+            <button class="btn primary" id="btn-save"><i class="fas fa-save"></i> Save to Browser</button>
+            <button class="btn" id="btn-export"><i class="fas fa-download"></i> Export</button>
         </div>
     </header>
 
@@ -78,13 +82,13 @@ Complex twisted shape"><i class="fas fa-bezier-curve"></i></div>
             
             <!-- Characters Menu -->
             <div class="tool-btn menu-parent" data-tooltip="**Characters**
-Add poseable human figures">
+Add animated 3D characters">
                 <i class="fas fa-user"></i>
                 <div class="tool-submenu">
-                    <div class="tool-btn" data-action="addFigure" data-type="male" data-tooltip="**Male Figure**
-Fully poseable with joints"><i class="fas fa-male"></i></div>
-                    <div class="tool-btn" data-action="addFigure" data-type="female" data-tooltip="**Female Figure**
-Fully poseable with joints"><i class="fas fa-female"></i></div>
+                    <div class="tool-btn" data-action="addCharacter" data-type="xbot" data-tooltip="**Xbot Character**
+Animated female character with idle/walk/run animations"><i class="fas fa-female"></i></div>
+                    <div class="tool-btn" data-action="addCharacter" data-type="ybot" data-tooltip="**Ybot Character**
+Animated male character with idle/walk/run animations"><i class="fas fa-male"></i></div>
                 </div>
             </div>
 

@@ -60,6 +60,56 @@ export class FileManager {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    saveToBrowser() {
+        const data = [];
+        
+        // Helper to serialize an object
+        const processObj = (obj) => {
+            // Only process objects with our specific types
+            if (obj.userData.type) {
+                const item = {
+                    type: obj.userData.type,
+                    position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+                    rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                    scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                    userData: obj.userData
+                };
+
+                if (obj.userData.type === 'shape') {
+                    item.shapeType = obj.userData.shapeType;
+                    item.color = '#' + obj.material.color.getHexString();
+                } else if (obj.userData.type === 'light') {
+                    const l = obj.children[0];
+                    item.lightType = obj.userData.lightType;
+                    item.color = '#' + l.color.getHexString();
+                    item.intensity = l.intensity;
+                } else if (obj.userData.type === 'figure') {
+                    item.gender = obj.userData.gender;
+                    // Save posing data (rotation of limbs)
+                    item.joints = {};
+                    obj.traverse(child => {
+                        if (child.userData.name && child.userData.name.includes('Joint')) {
+                            item.joints[child.userData.name] = {
+                                x: child.rotation.x,
+                                y: child.rotation.y,
+                                z: child.rotation.z
+                            };
+                        }
+                    });
+                }
+                data.push(item);
+            }
+        };
+
+        // Traverse only direct children of scene to find our managed roots
+        this.app.scene.children.forEach(child => {
+            processObj(child);
+        });
+
+        // Save to localStorage
+        localStorage.setItem('pixel3d-scene', JSON.stringify(data));
+    }
+
     loadScene(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -71,6 +121,7 @@ export class FileManager {
                 this.loadData(data); // Refactored to separate method so AI can call it
             } catch (err) {
                 console.error("Failed to load scene:", err);
+                // Note: FileManager doesn't have access to UI, so alerts are still used here
                 alert("Error loading scene file");
             }
         };
@@ -82,6 +133,7 @@ export class FileManager {
     loadData(data) {
         this.app.clearScene();
         
+        let loadedCount = 0;
         data.forEach(item => {
             let newObj = null;
 
@@ -117,9 +169,15 @@ export class FileManager {
                 if (item.position) newObj.position.set(item.position.x, item.position.y, item.position.z);
                 if (item.rotation) newObj.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
                 if (item.scale) newObj.scale.set(item.scale.x, item.scale.y, item.scale.z);
+                loadedCount++;
             }
         });
         
         this.app.deselect(); // Clear selection after loading
+        
+        // Show notification via UI (if available)
+        if (this.app.ui && this.app.ui.showNotification) {
+            this.app.ui.showNotification(`Scene loaded! (${loadedCount} objects)`, 'success');
+        }
     }
 }
