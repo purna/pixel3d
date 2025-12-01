@@ -38,31 +38,60 @@ class StageApp {
 
         // Scene
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a2e); // Matches bg-dark
-        this.scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+        this.scene.background = new THREE.Color(0x2a2a4e); // Lighter background for better visibility
+        this.scene.fog = new THREE.Fog(0x2a2a4e, 20, 100); // Less aggressive fog
 
         // Camera
         this.camera = new THREE.PerspectiveCamera(60, container.offsetWidth / container.offsetHeight, 0.1, 1000);
-        this.camera.position.set(5, 5, 8);
-        this.camera.lookAt(0, 0, 0);
+        this.camera.position.set(8, 6, 10);
+        this.camera.lookAt(0, 2, 0);
 
         // Renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            powerPreference: "high-performance",
+            alpha: false
+        });
         this.renderer.setSize(container.offsetWidth, container.offsetHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
         container.appendChild(this.renderer.domElement);
 
         // Lighting (Base ambient)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
 
-        // Grid
-        const gridHelper = new THREE.GridHelper(20, 20, 0x2d3748, 0x222222);
+        // Main directional light (like sunlight)
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        directionalLight.position.set(10, 10, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -10;
+        directionalLight.shadow.camera.right = 10;
+        directionalLight.shadow.camera.top = 10;
+        directionalLight.shadow.camera.bottom = -10;
+        this.scene.add(directionalLight);
+
+        // Grid - Larger and more visible
+        const gridHelper = new THREE.GridHelper(40, 40, 0x6b7280, 0x4b5563);
+        gridHelper.position.y = 0;
+        gridHelper.material.opacity = 0.8;
+        gridHelper.material.transparent = true;
+        gridHelper.renderOrder = -1; // Render behind other objects
         this.scene.add(gridHelper);
 
-        // Axes
-        const axesHelper = new THREE.AxesHelper(5);
+        // Axes - Larger and more visible with bright colors
+        const axesHelper = new THREE.AxesHelper(10);
+        axesHelper.position.y = 0.01; // Slightly above ground
+        axesHelper.material.depthTest = false; // Always visible
+        axesHelper.renderOrder = 999; // Render on top
         this.scene.add(axesHelper);
 
         // Controls
@@ -85,6 +114,13 @@ class StageApp {
 
         // Initialize UI Logic
         this.ui.init();
+
+        // Ensure grid and axes are visible by default
+        this.setGridVisible(true);
+        this.setAxesVisible(true);
+
+        // Add some default objects for immediate visibility
+        this.addDefaultTestObjects();
 
         // Start Loop
         this.animate();
@@ -361,6 +397,31 @@ class StageApp {
         this.orbit.rotateSpeed = speed;
         this.orbit.panSpeed = speed;
         this.orbit.zoomSpeed = speed;
+    }
+
+    addDefaultTestObjects() {
+        // Add a test box to verify the scene is working
+        const testBox = this.factory.createShape('box');
+        testBox.position.set(-2, 1, 0);
+        testBox.material.color.setHex(0xff4444);
+        this.addToScene(testBox);
+
+        // Add a test sphere
+        const testSphere = this.factory.createShape('sphere');
+        testSphere.position.set(2, 1, 0);
+        testSphere.material.color.setHex(0x4444ff);
+        this.addToScene(testSphere);
+
+        // Add a test cylinder
+        const testCylinder = this.factory.createShape('cylinder');
+        testCylinder.position.set(0, 1, -2);
+        testCylinder.material.color.setHex(0x44ff44);
+        this.addToScene(testCylinder);
+
+        // Add a point light for better visibility
+        const pointLight = this.factory.createLight('point');
+        pointLight.position.set(0, 4, 0);
+        this.addToScene(pointLight);
     }
 
     animate() {

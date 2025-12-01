@@ -1,4 +1,4 @@
-import { tooltipsEnabled } from './tooltip.js';
+// import { tooltipsEnabled } from './tooltip.js'; // Using window.tooltipsEnabled instead
 
 export class UI {
     constructor(app) {
@@ -302,7 +302,7 @@ export class UI {
             if (this.app.setSnapEnabled) this.app.setSnapEnabled(settings.snap);
             if (this.app.setCameraSpeed) this.app.setCameraSpeed(settings.cameraSpeed);
             // Apply tooltips
-            tooltipsEnabled = settings.tooltips !== false;
+            window.tooltipsEnabled = settings.tooltips !== false;
         }
     }
 

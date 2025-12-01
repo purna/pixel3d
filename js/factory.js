@@ -8,8 +8,10 @@ export class ObjectFactory {
     createMaterial(color = 0x00ff41) {
         return new THREE.MeshStandardMaterial({
             color: color,
-            roughness: 0.5,
-            metalness: 0.1
+            roughness: 0.3,
+            metalness: 0.2,
+            emissive: 0x000000,
+            emissiveIntensity: 0.1
         });
     }
 
