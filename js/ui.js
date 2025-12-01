@@ -190,6 +190,14 @@ export class UI {
                         document.getElementById('btn-load').click();
                     }
                     break;
+                case 'x':
+                    if (this.app.selectedObject && this.app.deleteSelected) {
+                        this.app.deleteSelected();
+                        this.showNotification('Object deleted!', 'success');
+                    } else {
+                        this.showNotification('No object selected to delete', 'info');
+                    }
+                    break;
             }
         });
     }
