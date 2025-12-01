@@ -1,0 +1,775 @@
+ <link rel="stylesheet" href="css/styles.css">
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Staging Studio</title>
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js (using modules for modern syntax) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+   
+
+   
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="logo-area">
+            <h1>3D Stage</h1>
+            <span class="badge">Studio</span>
+        </div>
+        <div class="header-controls">
+            <button class="btn" id="btn-clear"><i class="fas fa-trash-alt"></i> Clear</button>
+            <input type="file" id="file-input" accept=".json" style="display:none">
+            <button class="btn" id="btn-load"><i class="fas fa-folder-open"></i> Load</button>
+            <button class="btn primary" id="btn-save"><i class="fas fa-save"></i> Save</button>
+        </div>
+    </header>
+
+    <!-- WORKSPACE -->
+    <div class="workspace">
+        
+        <!-- LEFT TOOLBAR -->
+        <div class="tools-panel">
+            <div class="tool-btn" id="tool-select" data-tooltip="Select (Q)" class="active"><i class="fas fa-mouse-pointer"></i></div>
+            <div class="tool-divider"></div>
+            
+            <!-- Shapes -->
+            <div class="tool-btn" onclick="app.addShape('box')" data-tooltip="Add Box"><i class="fas fa-cube"></i></div>
+            <div class="tool-btn" onclick="app.addShape('sphere')" data-tooltip="Add Sphere"><i class="fas fa-circle"></i></div>
+            <div class="tool-btn" onclick="app.addShape('cone')" data-tooltip="Add Cone"><i class="fas fa-caret-up"></i></div>
+            <div class="tool-btn" onclick="app.addShape('cylinder')" data-tooltip="Add Cylinder"><i class="fas fa-database"></i></div>
+            <div class="tool-btn" onclick="app.addShape('plane')" data-tooltip="Add Plane"><i class="fas fa-vector-square"></i></div>
+            <div class="tool-btn" onclick="app.addShape('torus')" data-tooltip="Add Ring"><i class="fas fa-life-ring"></i></div>
+            
+            <div class="tool-divider"></div>
+            
+            <!-- Figures -->
+            <div class="tool-btn" onclick="app.addFigure('male')" data-tooltip="Add Male"><i class="fas fa-male"></i></div>
+            <div class="tool-btn" onclick="app.addFigure('female')" data-tooltip="Add Female"><i class="fas fa-female"></i></div>
+            
+            <div class="tool-divider"></div>
+
+            <!-- Lights -->
+            <div class="tool-btn" onclick="app.addLight('point')" data-tooltip="Point Light"><i class="far fa-lightbulb"></i></div>
+            <div class="tool-btn" onclick="app.addLight('spot')" data-tooltip="Spot Light"><i class="fas fa-bullseye"></i></div>
+            <div class="tool-btn" onclick="app.addLight('directional')" data-tooltip="Sun Light"><i class="fas fa-sun"></i></div>
+        </div>
+
+        <!-- CENTER CANVAS -->
+        <div class="canvas-area">
+            <div class="overlay-controls">
+                <button class="btn icon-only" id="mode-translate" title="Translate (W)"><i class="fas fa-arrows-alt"></i></button>
+                <button class="btn icon-only" id="mode-rotate" title="Rotate (E)"><i class="fas fa-sync-alt"></i></button>
+                <button class="btn icon-only" id="mode-scale" title="Scale (R)"><i class="fas fa-expand-arrows-alt"></i></button>
+            </div>
+            <div id="canvas-container" style="width: 100%; height: 100%;"></div>
+        </div>
+
+        <!-- RIGHT PROPERTIES PANEL -->
+        <div class="properties-panel" id="properties-panel">
+            <div class="panel-header">
+                <i class="fas fa-sliders-h"></i> Properties
+            </div>
+            <div id="props-content" class="panel-content">
+                <div class="empty-state">Select an object to edit properties</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MAIN APP SCRIPT -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+        class StageApp {
+            constructor() {
+                this.container = document.getElementById('canvas-container');
+                this.propsContent = document.getElementById('props-content');
+                
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.orbit = null;
+                this.transformControl = null;
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                
+                this.selectedObject = null;
+                this.objects = []; // Keep track of interactable objects
+                
+                this.init();
+                this.setupEvents();
+                this.animate();
+            }
+
+            init() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a1a2e); // Matches bg-dark
+                
+                // Fog to blend floor into distance
+                this.scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(60, this.container.offsetWidth / this.container.offsetHeight, 0.1, 1000);
+                this.camera.position.set(5, 5, 8);
+                this.camera.lookAt(0, 0, 0);
+
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.container.appendChild(this.renderer.domElement);
+
+                // Lighting (Base ambient)
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                this.scene.add(ambientLight);
+
+                // Grid
+                const gridHelper = new THREE.GridHelper(20, 20, 0x2d3748, 0x222222);
+                this.scene.add(gridHelper);
+
+                // Controls
+                this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
+                this.orbit.enableDamping = true;
+                this.orbit.dampingFactor = 0.05;
+
+                this.transformControl = new TransformControls(this.camera, this.renderer.domElement);
+                this.transformControl.addEventListener('dragging-changed', (event) => {
+                    this.orbit.enabled = !event.value;
+                });
+                this.transformControl.addEventListener('change', () => {
+                    if (this.selectedObject) this.updateUI();
+                });
+                this.scene.add(this.transformControl);
+            }
+
+            setupEvents() {
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                // Raycasting for selection
+                this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+                
+                // Keyboard shortcuts
+                window.addEventListener('keydown', (e) => {
+                    switch(e.key.toLowerCase()) {
+                        case 'w': this.setTransformMode('translate'); break;
+                        case 'e': this.setTransformMode('rotate'); break;
+                        case 'r': this.setTransformMode('scale'); break;
+                        case 'delete': 
+                        case 'backspace':
+                            this.deleteSelected(); 
+                            break;
+                    }
+                });
+
+                // UI Buttons
+                document.getElementById('mode-translate').addEventListener('click', () => this.setTransformMode('translate'));
+                document.getElementById('mode-rotate').addEventListener('click', () => this.setTransformMode('rotate'));
+                document.getElementById('mode-scale').addEventListener('click', () => this.setTransformMode('scale'));
+                
+                document.getElementById('btn-clear').addEventListener('click', () => this.clearScene());
+                document.getElementById('btn-save').addEventListener('click', () => this.saveScene());
+                document.getElementById('btn-load').addEventListener('click', () => document.getElementById('file-input').click());
+                
+                document.getElementById('file-input').addEventListener('change', (e) => this.loadScene(e));
+            }
+
+            // --- OBJECT CREATION ---
+
+            createMaterial(color = 0x00ff41) {
+                return new THREE.MeshStandardMaterial({ 
+                    color: color, 
+                    roughness: 0.5,
+                    metalness: 0.1 
+                });
+            }
+
+            addShape(type) {
+                let geometry, mesh;
+                const material = this.createMaterial();
+
+                switch(type) {
+                    case 'box': geometry = new THREE.BoxGeometry(1, 1, 1); break;
+                    case 'sphere': geometry = new THREE.SphereGeometry(0.6, 32, 16); break;
+                    case 'cone': geometry = new THREE.ConeGeometry(0.6, 1.5, 32); break;
+                    case 'cylinder': geometry = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 32); break;
+                    case 'pyramid': geometry = new THREE.ConeGeometry(0.8, 1.2, 4); break; // 4 sided cone
+                    case 'plane': 
+                        geometry = new THREE.PlaneGeometry(2, 2); 
+                        material.side = THREE.DoubleSide;
+                        break;
+                    case 'torus': geometry = new THREE.TorusGeometry(0.6, 0.2, 16, 50); break;
+                }
+
+                mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                mesh.position.y = 1;
+                
+                if (type === 'plane') {
+                    mesh.rotation.x = -Math.PI / 2;
+                    mesh.position.y = 0.01; // Just above grid
+                    mesh.receiveShadow = true;
+                    mesh.castShadow = false;
+                }
+
+                mesh.userData = { type: 'shape', shapeType: type, id: Date.now() };
+                this.addToScene(mesh);
+                this.selectObject(mesh);
+            }
+
+            addFigure(gender) {
+                const group = new THREE.Group();
+                const material = this.createMaterial(gender === 'male' ? 0x00d9ff : 0xff006e);
+                
+                // Basic measurements
+                const w = gender === 'male' ? 1.0 : 0.8; // Shoulder width
+                const h = gender === 'male' ? 0.9 : 0.8; // Hip width
+
+                // Torso
+                const torsoGeo = new THREE.BoxGeometry(w, 1.2, 0.5);
+                const torso = new THREE.Mesh(torsoGeo, material);
+                torso.position.y = 0.6; // Center of torso
+                torso.castShadow = true;
+                torso.userData = { name: 'Torso' };
+                group.add(torso);
+
+                // Head
+                const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
+                const head = new THREE.Mesh(headGeo, material);
+                head.position.y = 0.8; // Relative to torso
+                head.castShadow = true;
+                head.userData = { name: 'Head' };
+                torso.add(head);
+
+                // Function to make limb
+                const createLimb = (name, x, y, z, width, length) => {
+                    const limbGroup = new THREE.Group();
+                    limbGroup.position.set(x, y, z);
+                    limbGroup.userData = { name: name + ' Joint' };
+
+                    const limbGeo = new THREE.BoxGeometry(width, length, width);
+                    const limb = new THREE.Mesh(limbGeo, material);
+                    limb.position.y = -length / 2; // Pivot at top
+                    limb.castShadow = true;
+                    limb.userData = { name: name };
+                    
+                    limbGroup.add(limb);
+                    return limbGroup;
+                };
+
+                // Arms
+                const armW = 0.2;
+                const armL = 0.7;
+                const shoulderX = w / 2 + armW / 2;
+                
+                const leftArm = createLimb('Left Arm', -shoulderX, 0.5, 0, armW, armL);
+                const rightArm = createLimb('Right Arm', shoulderX, 0.5, 0, armW, armL);
+                torso.add(leftArm);
+                torso.add(rightArm);
+
+                // Legs
+                const legW = 0.22;
+                const legL = 0.8;
+                const hipX = w / 4;
+
+                const leftLeg = createLimb('Left Leg', -hipX, -0.6, 0, legW, legL);
+                const rightLeg = createLimb('Right Leg', hipX, -0.6, 0, legW, legL);
+                torso.add(leftLeg);
+                torso.add(rightLeg);
+
+                // Main Group position
+                group.position.y = 1.4; // Lift off ground (legs length + torso offset)
+                
+                group.userData = { type: 'figure', gender: gender, id: Date.now() };
+                
+                // Add group to scene
+                this.addToScene(group);
+                
+                // Track interactable parts
+                this.objects.push(torso, head, leftArm.children[0], rightArm.children[0], leftLeg.children[0], rightLeg.children[0]);
+                
+                this.selectObject(group);
+            }
+
+            addLight(type) {
+                let light, helper;
+                const color = 0xffffff;
+                const intensity = 2;
+
+                if (type === 'point') {
+                    light = new THREE.PointLight(color, intensity * 20, 20);
+                    light.position.set(0, 3, 0);
+                    helper = new THREE.PointLightHelper(light, 0.5);
+                } else if (type === 'spot') {
+                    light = new THREE.SpotLight(color, intensity * 30);
+                    light.position.set(0, 5, 2);
+                    light.angle = Math.PI / 6;
+                    light.penumbra = 0.2;
+                    light.target.position.set(0, 0, 0);
+                    // We need to add target to scene to move it, but keeping it simple for now
+                    helper = new THREE.SpotLightHelper(light);
+                } else if (type === 'directional') {
+                    light = new THREE.DirectionalLight(color, intensity);
+                    light.position.set(5, 5, 5);
+                    helper = new THREE.DirectionalLightHelper(light, 1);
+                }
+
+                light.castShadow = true;
+                light.userData = { type: 'light', lightType: type, id: Date.now() };
+                
+                // Create a container for light and helper so we can select/move both
+                const container = new THREE.Group();
+                container.add(light);
+                if (helper) {
+                    container.add(helper);
+                    light.userData.helper = helper; // Ref to update helper
+                }
+                
+                container.userData = light.userData; // Copy data to container
+                container.position.copy(light.position);
+                light.position.set(0,0,0); // Reset light relative to container
+
+                this.addToScene(container);
+                this.selectObject(container);
+            }
+
+            addToScene(obj) {
+                this.scene.add(obj);
+                // If it's a simple shape or light container, it's directly selectable
+                // Figures add their parts to selectables individually in addFigure
+                if (obj.userData.type === 'shape' || obj.userData.type === 'light') {
+                    this.objects.push(obj);
+                } else if (obj.userData.type === 'figure') {
+                     // For figures, the group is the root, but we might want to select the whole thing by default
+                     this.objects.push(obj);
+                }
+            }
+
+            deleteSelected() {
+                if (!this.selectedObject) return;
+                
+                this.transformControl.detach();
+                
+                // If it's part of a figure (like an arm), don't delete just the arm, delete the whole figure?
+                // Or maybe just disable deleting parts.
+                // Let's find the root.
+                let root = this.selectedObject;
+                while(root.parent && root.parent !== this.scene) {
+                    root = root.parent;
+                }
+
+                this.scene.remove(root);
+                
+                // Clean up objects array
+                // If figure, remove all children from interactables
+                if (root.userData.type === 'figure') {
+                    // Recursive remove from objects array
+                    root.traverse(child => {
+                        const idx = this.objects.indexOf(child);
+                        if(idx > -1) this.objects.splice(idx, 1);
+                    });
+                } else {
+                    const idx = this.objects.indexOf(root);
+                    if(idx > -1) this.objects.splice(idx, 1);
+                }
+
+                this.selectedObject = null;
+                this.renderPropertiesPanel();
+            }
+
+            clearScene() {
+                // Remove all valid user objects
+                const toRemove = [];
+                this.scene.traverse(obj => {
+                    if (obj.userData.type) toRemove.push(obj);
+                });
+                
+                toRemove.forEach(obj => {
+                    // Find root in scene
+                    let root = obj;
+                    while(root.parent && root.parent !== this.scene) root = root.parent;
+                    if (toRemove.includes(root)) {
+                         this.scene.remove(root);
+                    }
+                });
+
+                this.objects = [];
+                this.selectedObject = null;
+                this.transformControl.detach();
+                this.renderPropertiesPanel();
+            }
+
+            // --- INTERACTION ---
+
+            onPointerDown(event) {
+                // Calculate mouse position in normalized device coordinates
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+
+                // Raycast against all interactable objects
+                // We need to traverse figures to find meshes
+                const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+                if (intersects.length > 0) {
+                    // Find the first object that is part of our "managed" objects or is a child of one
+                    let target = null;
+                    for (let hit of intersects) {
+                         if (hit.object.type === 'GridHelper') continue;
+                         // Traverse up to find significant parent
+                         let curr = hit.object;
+                         while (curr) {
+                             if (curr.userData && (curr.userData.type || curr.userData.name)) {
+                                 target = curr;
+                                 break;
+                             }
+                             if (curr.parent === this.scene) break;
+                             curr = curr.parent;
+                         }
+                         if (target) break;
+                    }
+
+                    if (target) {
+                        // If it's a part of a figure (like arm), we select the joint group for rotation, or root for movement?
+                        // Logic: If tool is rotate, select the part. If translate, select the whole figure.
+                        // For simplicity: Clicking a part selects that part. Clicking root selects root.
+                        this.selectObject(target);
+                    } else {
+                        this.deselect();
+                    }
+                } else {
+                    this.deselect();
+                }
+            }
+
+            selectObject(obj) {
+                // If it's a mesh inside a group (limb), we probably want to control its parent group (the joint)
+                if (obj.userData.name && obj.parent.userData.name && obj.parent.userData.name.includes('Joint')) {
+                    this.selectedObject = obj.parent;
+                } else {
+                    this.selectedObject = obj;
+                }
+
+                this.transformControl.attach(this.selectedObject);
+                this.renderPropertiesPanel();
+            }
+
+            deselect() {
+                this.selectedObject = null;
+                this.transformControl.detach();
+                this.renderPropertiesPanel();
+            }
+
+            setTransformMode(mode) {
+                this.transformControl.setMode(mode);
+            }
+
+            updateUI() {
+                if (!this.selectedObject) return;
+                
+                const pos = this.selectedObject.position;
+                const rot = this.selectedObject.rotation;
+                const scale = this.selectedObject.scale;
+
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if(el && document.activeElement !== el) el.value = val.toFixed(2);
+                };
+
+                setVal('pos-x', pos.x);
+                setVal('pos-y', pos.y);
+                setVal('pos-z', pos.z);
+                
+                setVal('rot-x', rot.x);
+                setVal('rot-y', rot.y);
+                setVal('rot-z', rot.z);
+                
+                setVal('scl-x', scale.x);
+                setVal('scl-y', scale.y);
+                setVal('scl-z', scale.z);
+            }
+
+            // --- UI RENDERING ---
+
+            renderPropertiesPanel() {
+                this.propsContent.innerHTML = '';
+
+                if (!this.selectedObject) {
+                    this.propsContent.innerHTML = '<div class="empty-state">Select an object to edit properties</div>';
+                    return;
+                }
+
+                const obj = this.selectedObject;
+                let title = "Object";
+                let isLight = false;
+                let isShape = false;
+                let isFigurePart = false;
+
+                if (obj.userData.type === 'shape') { title = obj.userData.shapeType.toUpperCase(); isShape = true; }
+                else if (obj.userData.type === 'light') { title = obj.userData.lightType.toUpperCase() + " LIGHT"; isLight = true; }
+                else if (obj.userData.type === 'figure') { title = obj.userData.gender.toUpperCase() + " FIGURE"; }
+                else if (obj.userData.name) { title = obj.userData.name; isFigurePart = true; }
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'property-group';
+                header.innerHTML = `<div style="font-weight:bold; color:var(--accent-primary); border-bottom:1px solid #333; padding-bottom:5px;">${title}</div>`;
+                this.propsContent.appendChild(header);
+
+                // Transform Inputs Helper
+                const createInput = (label, id, value, onChange) => {
+                    const div = document.createElement('div');
+                    div.className = 'input-group';
+                    div.innerHTML = `<span>${label}</span><input type="number" id="${id}" value="${value.toFixed(2)}" step="0.1">`;
+                    div.querySelector('input').addEventListener('input', (e) => onChange(parseFloat(e.target.value)));
+                    return div;
+                };
+
+                const createVec3 = (label, prefix, vec, onChangeObj) => {
+                    const group = document.createElement('div');
+                    group.className = 'property-group';
+                    group.innerHTML = `<div class="property-label">${label}</div>`;
+                    const row = document.createElement('div');
+                    row.className = 'input-row';
+                    
+                    row.appendChild(createInput('X', `${prefix}-x`, vec.x, (v) => { vec.x = v; onChangeObj(); }));
+                    row.appendChild(createInput('Y', `${prefix}-y`, vec.y, (v) => { vec.y = v; onChangeObj(); }));
+                    row.appendChild(createInput('Z', `${prefix}-z`, vec.z, (v) => { vec.z = v; onChangeObj(); }));
+                    
+                    group.appendChild(row);
+                    this.propsContent.appendChild(group);
+                };
+
+                // TRANSFORM
+                createVec3('Position', 'pos', obj.position, () => {});
+                createVec3('Rotation', 'rot', obj.rotation, () => {});
+                createVec3('Scale', 'scl', obj.scale, () => {});
+
+                // COLOR (Shapes & Figure Parts)
+                let targetMesh = null;
+                if (isShape) targetMesh = obj;
+                if (isFigurePart) {
+                    // Find the mesh inside the group (limbs are groups with mesh children)
+                    targetMesh = obj.children.find(c => c.isMesh);
+                } else if (obj.userData.type === 'figure') {
+                    // Try to color torso
+                    targetMesh = obj.children.find(c => c.userData.name === 'Torso');
+                }
+
+                if (targetMesh && targetMesh.material) {
+                    const colorGroup = document.createElement('div');
+                    colorGroup.className = 'property-group';
+                    colorGroup.innerHTML = `<div class="property-label">Color</div>`;
+                    const colInput = document.createElement('input');
+                    colInput.type = 'color';
+                    colInput.value = '#' + targetMesh.material.color.getHexString();
+                    colInput.addEventListener('input', (e) => {
+                        const hex = e.target.value;
+                        if (obj.userData.type === 'figure') {
+                            // Color whole figure
+                            obj.traverse(c => { if(c.isMesh) c.material.color.set(hex); });
+                        } else {
+                            targetMesh.material.color.set(hex);
+                        }
+                    });
+                    colorGroup.appendChild(colInput);
+                    this.propsContent.appendChild(colorGroup);
+                }
+
+                // LIGHT PROPERTIES
+                if (isLight) {
+                    const lightObj = obj.children[0]; // The actual light is inside the container
+                    
+                    const intGroup = document.createElement('div');
+                    intGroup.className = 'property-group';
+                    intGroup.innerHTML = `<div class="property-label">Intensity</div>`;
+                    const intInput = document.createElement('input');
+                    intInput.type = 'range';
+                    intInput.min = 0; intInput.max = 100;
+                    intInput.value = lightObj.intensity;
+                    intInput.style.width = '100%';
+                    intInput.addEventListener('input', (e) => {
+                        lightObj.intensity = parseFloat(e.target.value);
+                    });
+                    intGroup.appendChild(intInput);
+                    this.propsContent.appendChild(intGroup);
+
+                    const lColGroup = document.createElement('div');
+                    lColGroup.className = 'property-group';
+                    lColGroup.innerHTML = `<div class="property-label">Light Color</div>`;
+                    const lColInput = document.createElement('input');
+                    lColInput.type = 'color';
+                    lColInput.value = '#' + lightObj.color.getHexString();
+                    lColInput.addEventListener('input', (e) => {
+                        lightObj.color.set(e.target.value);
+                    });
+                    lColGroup.appendChild(lColInput);
+                    this.propsContent.appendChild(lColGroup);
+                }
+            }
+
+            // --- ANIMATION LOOP ---
+
+            onWindowResize() {
+                this.camera.aspect = this.container.offsetWidth / this.container.offsetHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(this.container.offsetWidth, this.container.offsetHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // Update light helpers
+                this.scene.traverse(obj => {
+                    if (obj.userData.type === 'light' && obj.children[1]) {
+                        obj.children[1].update();
+                    }
+                });
+
+                this.orbit.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            // --- SAVE / LOAD ---
+
+            saveScene() {
+                const data = [];
+                
+                const processObj = (obj) => {
+                    // Only process root objects we care about
+                    if (obj.userData.type) {
+                        const item = {
+                            type: obj.userData.type,
+                            position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
+                            rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
+                            scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
+                            userData: obj.userData
+                        };
+
+                        if (obj.userData.type === 'shape') {
+                            item.shapeType = obj.userData.shapeType;
+                            item.color = '#' + obj.material.color.getHexString();
+                        } else if (obj.userData.type === 'light') {
+                            const l = obj.children[0];
+                            item.lightType = obj.userData.lightType;
+                            item.color = '#' + l.color.getHexString();
+                            item.intensity = l.intensity;
+                        } else if (obj.userData.type === 'figure') {
+                            item.gender = obj.userData.gender;
+                            // Save posing data (rotation of limbs)
+                            item.joints = {};
+                            obj.traverse(child => {
+                                if (child.userData.name && child.userData.name.includes('Joint')) {
+                                    item.joints[child.userData.name] = {
+                                        x: child.rotation.x,
+                                        y: child.rotation.y,
+                                        z: child.rotation.z
+                                    };
+                                }
+                            });
+                        }
+                        data.push(item);
+                    }
+                };
+
+                // Traverse only direct children of scene to find our roots
+                this.scene.children.forEach(child => {
+                    processObj(child);
+                });
+
+                const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scene.json';
+                a.click();
+            }
+
+            loadScene(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = JSON.parse(e.target.result);
+                    this.clearScene();
+                    
+                    data.forEach(item => {
+                        let newObj = null;
+
+                        if (item.type === 'shape') {
+                            this.addShape(item.shapeType);
+                            // Get the last added object (it's selected automatically)
+                            newObj = this.selectedObject;
+                            if (newObj && item.color) newObj.material.color.set(item.color);
+                        } 
+                        else if (item.type === 'light') {
+                            this.addLight(item.lightType);
+                            newObj = this.selectedObject;
+                            if (newObj) {
+                                newObj.children[0].color.set(item.color);
+                                newObj.children[0].intensity = item.intensity;
+                            }
+                        }
+                        else if (item.type === 'figure') {
+                            this.addFigure(item.gender);
+                            newObj = this.selectedObject;
+                            
+                            // Restore posing
+                            if (item.joints) {
+                                newObj.traverse(child => {
+                                    if (child.userData.name && item.joints[child.userData.name]) {
+                                        const rot = item.joints[child.userData.name];
+                                        child.rotation.set(rot.x, rot.y, rot.z);
+                                    }
+                                });
+                            }
+                        }
+
+                        if (newObj) {
+                            newObj.position.set(item.position.x, item.position.y, item.position.z);
+                            newObj.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
+                            newObj.scale.set(item.scale.x, item.scale.y, item.scale.z);
+                        }
+                    });
+                    
+                    this.deselect(); // Clear selection after loading
+                };
+                reader.readAsText(file);
+                event.target.value = ''; // Reset input
+            }
+        }
+
+        // Initialize App
+        window.onload = () => {
+            window.app = new StageApp();
+        };
+
+        // Expose add functions to global scope for HTML onclick attributes
+        window.app = {
+            addShape: () => {}, // Placeholder until initialized
+            addFigure: () => {},
+            addLight: () => {}
+        };
+    </script>
+</body>
+</html>
