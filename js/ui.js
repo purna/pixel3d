@@ -1,5 +1,3 @@
-// import { tooltipsEnabled } from './tooltip.js'; // Using window.tooltipsEnabled instead
-
 export class UI {
     constructor(app) {
         this.app = app;
@@ -20,6 +18,10 @@ export class UI {
         this.settingsModal = document.getElementById('settings-modal');
         this.settingsInitialized = false;
 
+        // Scene Settings Modal
+        this.sceneSettingsModal = document.getElementById('scene-settings-modal');
+        this.sceneSettingsInitialized = false;
+
         this.currentAIMode = 'scene';
     }
 
@@ -27,6 +29,7 @@ export class UI {
         this.setupEventListeners();
         this.loadSettings();
         this.activeSubmenu = null; // Track currently open submenu
+        this.setupPanelTabs();
     }
 
     setupEventListeners() {
@@ -54,8 +57,8 @@ export class UI {
             }
 
             // Show panel if hidden when clicking action buttons
-            const panel = document.getElementById('properties-panel');
-            if (panel.classList.contains('hidden') && btn.dataset.action) {
+            const panel = document.getElementById('right-panel');
+            if (panel && panel.classList.contains('hidden') && btn.dataset.action) {
                 this.togglePropertiesPanel();
             }
 
@@ -115,14 +118,35 @@ export class UI {
         }
 
         // Mode buttons
+        document.getElementById('mode-hand').addEventListener('click', () => {
+            if (this.app.setTransformMode) this.app.setTransformMode('hand');
+            console.log('Hand mode clicked');
+        });
         document.getElementById('mode-translate').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('translate');
+            console.log('Translate mode clicked');
         });
         document.getElementById('mode-rotate').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('rotate');
+            console.log('Rotate mode clicked');
         });
         document.getElementById('mode-scale').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('scale');
+            console.log('Scale mode clicked');
+        });
+
+        // Zoom controls
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            this.zoomCamera(1.2); // Zoom in
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            this.zoomCamera(0.8); // Zoom out
+        });
+
+        document.getElementById('zoom-slider').addEventListener('input', (e) => {
+            const zoomLevel = parseFloat(e.target.value);
+            this.setCameraZoom(zoomLevel);
         });
 
         // AI modal buttons
@@ -141,10 +165,40 @@ export class UI {
             }
         });
 
+        // Materials toolbar button
+        document.getElementById('tool-materials')?.addEventListener('click', () => {
+            // Show panel if hidden when clicking materials button
+            const panel = document.getElementById('right-panel');
+            if (panel && panel.classList.contains('hidden')) {
+                this.togglePropertiesPanel();
+            }
+            this.toggleMaterialsView();
+        });
+
+        // Scene settings toolbar button - now opens scene panel in right menu
+        document.getElementById('tool-scene-settings')?.addEventListener('click', () => {
+            // Show panel if hidden when clicking scene settings button
+            const panel = document.getElementById('right-panel');
+            if (panel && panel.classList.contains('hidden')) {
+                this.togglePropertiesPanel();
+            }
+            this.toggleSceneView();
+        });
+
+        // Settings toolbar button - now opens unified settings
+        document.getElementById('tool-settings')?.addEventListener('click', () => {
+            this.openUnifiedSettingsModal('general');
+        });
+
+        // Overlay toggle toolbar button
+        document.getElementById('tool-toggle-overlays')?.addEventListener('click', () => {
+            this.toggleAllOverlays();
+        });
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
+
             // Handle undo/redo shortcuts first
             if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
                 switch (e.key.toLowerCase()) {
@@ -158,7 +212,17 @@ export class UI {
                         return;
                 }
             }
-            
+
+            // Handle overlay toggle shortcut (Ctrl+Shift+O)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+                switch (e.key.toLowerCase()) {
+                    case 'o':
+                        e.preventDefault();
+                        this.toggleAllOverlays();
+                        return;
+                }
+            }
+
             const key = e.key.toLowerCase();
             switch (key) {
                 case 'q':
@@ -166,9 +230,15 @@ export class UI {
                     break;
                 case 'g':
                     document.getElementById('mode-translate').click();
+                    console.log('G key pressed - translate mode');
                     break;
                 case 'r':
                     document.getElementById('mode-rotate').click();
+                    console.log('R key pressed - rotate mode');
+                    break;
+                case 'h':
+                    document.getElementById('mode-hand').click();
+                    console.log('H key pressed - hand mode');
                     break;
                 case 's':
                     if (e.ctrlKey || e.metaKey) {
@@ -179,6 +249,7 @@ export class UI {
                         }
                     } else {
                         document.getElementById('mode-scale').click();
+                        console.log('S key pressed - scale mode');
                     }
                     break;
                 case 'c':
@@ -216,6 +287,273 @@ export class UI {
         this.settingsModal.classList.remove('open');
     }
 
+    // Toggle all overlays (grid, axes, helpers)
+    toggleAllOverlays() {
+        // Get current state of grid visibility
+        let gridVisible = false;
+        let axesVisible = false;
+
+        this.app.scene.traverse(obj => {
+            if (obj.type === 'GridHelper') gridVisible = obj.visible;
+            if (obj.type === 'AxesHelper') axesVisible = obj.visible;
+        });
+
+        // Determine if we should show or hide all overlays
+        const shouldShow = !gridVisible || !axesVisible;
+
+        // Toggle grid
+        if (this.app.setGridVisible) this.app.setGridVisible(shouldShow);
+
+        // Toggle axes
+        if (this.app.setAxesVisible) this.app.setAxesVisible(shouldShow);
+
+        // Toggle other helpers (light helpers, etc.)
+        this.app.scene.traverse(obj => {
+            if (obj.type === 'LightHelper' || obj.type === 'CameraHelper' ||
+                obj.type === 'DirectionalLightHelper' || obj.type === 'PointLightHelper' ||
+                obj.type === 'SpotLightHelper' || obj.type === 'HemisphereLightHelper' ||
+                obj.type.includes('LightHelper')) {
+                obj.visible = shouldShow;
+            }
+        });
+
+        // Update button active state
+        const overlayBtn = document.getElementById('tool-toggle-overlays');
+        if (overlayBtn) {
+            if (shouldShow) {
+                overlayBtn.classList.add('active');
+                overlayBtn.querySelector('i').className = 'fas fa-eye';
+            } else {
+                overlayBtn.classList.remove('active');
+                overlayBtn.querySelector('i').className = 'fas fa-eye-slash';
+            }
+        }
+
+        // Show notification
+        const action = shouldShow ? 'shown' : 'hidden';
+        this.showNotification(`All overlays ${action}`, 'success');
+    }
+
+    // --- SCENE SETTINGS MODAL ---
+    openSceneSettingsModal() {
+        if (!this.sceneSettingsInitialized) {
+            this.initSceneSettingsModal();
+            this.sceneSettingsInitialized = true;
+        }
+        this.loadSceneSettingsToUI();
+        this.sceneSettingsModal.classList.add('open');
+    }
+
+    closeSceneSettingsModal() {
+        this.sceneSettingsModal.classList.remove('open');
+    }
+
+    initSceneSettingsModal() {
+        // Initialize scene settings modal
+        this.sceneSettingsModal = document.getElementById('scene-settings-modal');
+
+        // Close button
+        const closeBtn = document.getElementById('btn-scene-settings-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeSceneSettingsModal());
+        }
+
+        // Reset button
+        const resetBtn = document.getElementById('btn-scene-settings-reset');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.resetSceneSettings();
+            });
+        }
+
+        // Apply button
+        const applyBtn = document.getElementById('btn-scene-settings-apply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                this.applySceneSettings();
+                this.closeSceneSettingsModal();
+            });
+        }
+
+        // Resolution dropdown change handler
+        const resolutionDropdown = document.getElementById('setting-export-resolution');
+        if (resolutionDropdown) {
+            resolutionDropdown.addEventListener('change', (e) => {
+                const customGroup = document.getElementById('custom-resolution-group');
+                if (e.target.value === 'custom') {
+                    customGroup.style.display = 'block';
+                } else {
+                    customGroup.style.display = 'none';
+                }
+            });
+        }
+
+        // Close on overlay click
+        this.sceneSettingsModal.addEventListener('click', (e) => {
+            if (e.target.id === 'scene-settings-modal') this.closeSceneSettingsModal();
+        });
+    }
+
+    resetSceneSettings() {
+        // Reset to default values from config or use hardcoded defaults
+        const defaults = (typeof APP_DEFAULTS !== 'undefined' && APP_DEFAULTS.scene)
+            ? APP_DEFAULTS.scene
+            : {
+                backgroundEnabled: true,
+                backgroundColor: '#1a1a2e',
+                ambientLight: true,
+                ambientColor: '#ffffff',
+                exportTransparent: false,
+                exportResolution: '1920x1080',
+                customWidth: 1920,
+                customHeight: 1080
+            };
+
+        // Apply defaults to UI
+        document.getElementById('setting-background-enabled').checked = defaults.backgroundEnabled;
+        document.getElementById('setting-background-color').value = defaults.backgroundColor;
+        document.getElementById('setting-ambient-light').checked = defaults.ambientLight;
+        document.getElementById('setting-ambient-color').value = defaults.ambientColor;
+        document.getElementById('setting-export-transparent').checked = defaults.exportTransparent;
+        document.getElementById('setting-export-resolution').value = defaults.exportResolution;
+        document.getElementById('setting-custom-width').value = defaults.customWidth;
+        document.getElementById('setting-custom-height').value = defaults.customHeight;
+
+        // Hide custom resolution group if not custom
+        document.getElementById('custom-resolution-group').style.display = 'none';
+
+        this.showNotification('Scene settings reset to defaults!', 'success');
+    }
+
+    loadSceneSettingsToUI() {
+        const saved = localStorage.getItem('pixel3d-scene-settings');
+        if (saved) {
+            const settings = JSON.parse(saved);
+
+            // Set UI values
+            const bgEnabledEl = document.getElementById('setting-background-enabled');
+            const bgColorEl = document.getElementById('setting-background-color');
+            const ambientEl = document.getElementById('setting-ambient-light');
+            const ambientColorEl = document.getElementById('setting-ambient-color');
+            const transparentEl = document.getElementById('setting-export-transparent');
+            const resolutionEl = document.getElementById('setting-export-resolution');
+            const customWidthEl = document.getElementById('setting-custom-width');
+            const customHeightEl = document.getElementById('setting-custom-height');
+
+            if (bgEnabledEl) bgEnabledEl.checked = settings.backgroundEnabled !== false;
+            if (bgColorEl) bgColorEl.value = settings.backgroundColor || '#1a1a2e';
+            if (ambientEl) ambientEl.checked = settings.ambientLight !== false;
+            if (ambientColorEl) ambientColorEl.value = settings.ambientColor || '#ffffff';
+            if (transparentEl) transparentEl.checked = settings.exportTransparent !== false;
+            if (resolutionEl) resolutionEl.value = settings.exportResolution || '1920x1080';
+            if (customWidthEl) customWidthEl.value = settings.customWidth || 1920;
+            if (customHeightEl) customHeightEl.value = settings.customHeight || 1080;
+
+            // Update custom resolution group visibility
+            const customGroup = document.getElementById('custom-resolution-group');
+            if (customGroup && resolutionEl) {
+                customGroup.style.display = resolutionEl.value === 'custom' ? 'block' : 'none';
+            }
+        }
+    }
+
+    applySceneSettings() {
+        const settings = {
+            backgroundEnabled: document.getElementById('setting-background-enabled').checked,
+            backgroundColor: document.getElementById('setting-background-color').value,
+            ambientLight: document.getElementById('setting-ambient-light').checked,
+            ambientColor: document.getElementById('setting-ambient-color').value,
+            exportTransparent: document.getElementById('setting-export-transparent').checked,
+            exportResolution: document.getElementById('setting-export-resolution').value,
+            customWidth: parseInt(document.getElementById('setting-custom-width').value),
+            customHeight: parseInt(document.getElementById('setting-custom-height').value)
+        };
+
+        // Save settings
+        localStorage.setItem('pixel3d-scene-settings', JSON.stringify(settings));
+
+        // Apply settings to the scene
+        if (this.app.setBackgroundColor) {
+            this.app.setBackgroundColor(settings.backgroundEnabled ? settings.backgroundColor : null);
+        }
+
+        if (this.app.setAmbientLight) {
+            this.app.setAmbientLight(settings.ambientLight, settings.ambientColor);
+        }
+
+        // Store export settings for later use
+        window.exportSettings = {
+            transparent: settings.exportTransparent,
+            resolution: settings.exportResolution,
+            customWidth: settings.customWidth,
+            customHeight: settings.customHeight
+        };
+
+        this.showNotification('Scene settings applied successfully!', 'success');
+    }
+
+    toggleMaterialsView() {
+        const materialsSection = document.getElementById('materials-section');
+        const sceneSection = document.getElementById('scene-section');
+        const propsContent = document.getElementById('props-content');
+        const layersList = document.getElementById('layers-list');
+
+        if (materialsSection && sceneSection && propsContent && layersList) {
+            const isMaterialsVisible = materialsSection.style.display !== 'none';
+
+            if (isMaterialsVisible) {
+                // Switch to normal view
+                materialsSection.style.display = 'none';
+                sceneSection.style.display = 'none';
+                propsContent.style.display = 'block';
+                layersList.style.display = 'block';
+                document.querySelectorAll('.panel-header').forEach(header => {
+                    header.style.display = 'flex';
+                });
+            } else {
+                // Switch to materials view
+                materialsSection.style.display = 'flex';
+                sceneSection.style.display = 'none';
+                propsContent.style.display = 'none';
+                layersList.style.display = 'none';
+                document.querySelectorAll('.panel-header').forEach((header, index) => {
+                    if (index === 2) { // Materials header
+                        header.style.display = 'flex';
+                    } else {
+                        header.style.display = 'none';
+                    }
+                });
+            }
+
+            // Update materials content
+            if (this.app.materialsManager) {
+                this.app.materialsManager.renderMaterialsSection();
+            }
+        }
+    }
+
+    setupPanelTabs() {
+        // Add event listeners for panel tabs
+        document.querySelectorAll('.panel-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel-tab-content').forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.querySelector(`.panel-tab-content[data-tab-content="${tabId}"]`).classList.add('active');
+
+                // Update layer manager if switching to scene objects tab
+                if (tabId === 'scene-objects' && this.app.layerManager) {
+                    this.app.layerManager.render();
+                }
+            });
+        });
+    }
+
     initSettingsModal() {
         // Close button
         const closeBtn = document.getElementById('btn-settings-close');
@@ -244,6 +582,28 @@ export class UI {
         if (speedRange && speedValue) {
             speedRange.addEventListener('input', (e) => {
                 speedValue.textContent = e.target.value;
+            });
+        }
+
+        // Autosave checkbox
+        const autosaveCheckbox = document.getElementById('setting-autosave');
+        if (autosaveCheckbox) {
+            autosaveCheckbox.addEventListener('change', (e) => {
+                if (this.app.fileManager && this.app.fileManager.setAutosaveEnabled) {
+                    this.app.fileManager.setAutosaveEnabled(e.target.checked);
+                }
+            });
+        }
+
+        // Autosave interval
+        const autosaveInterval = document.getElementById('setting-autosave-interval');
+        const autosaveIntervalValue = document.getElementById('autosave-interval-value');
+        if (autosaveInterval && autosaveIntervalValue) {
+            autosaveInterval.addEventListener('input', (e) => {
+                autosaveIntervalValue.textContent = e.target.value;
+                if (this.app.fileManager && this.app.fileManager.setAutosaveInterval) {
+                    this.app.fileManager.setAutosaveInterval(parseInt(e.target.value));
+                }
             });
         }
 
@@ -277,8 +637,8 @@ export class UI {
         const btn = e.currentTarget;
 
         // Show panel if hidden
-        const panel = document.getElementById('properties-panel');
-        if (panel.classList.contains('hidden')) {
+        const panel = document.getElementById('right-panel');
+        if (panel && panel.classList.contains('hidden')) {
             this.togglePropertiesPanel();
         }
 
@@ -305,25 +665,31 @@ export class UI {
     }
 
     togglePropertiesPanel() {
-        const panel = document.getElementById('properties-panel');
+        const panel = document.getElementById('right-panel');
         const toggle = document.getElementById('panel-toggle');
         const workspace = document.querySelector('.workspace');
-        const icon = toggle.querySelector('i');
+
+        if (!panel) return;
+
+        const icon = toggle ? toggle.querySelector('i') : null;
 
         if (panel.classList.contains('hidden')) {
             // Show panel
             panel.classList.remove('hidden');
-            toggle.classList.remove('panel-hidden');
-            workspace.classList.remove('panel-hidden');
-            icon.className = 'fas fa-chevron-right';
-            toggle.title = 'Hide Panel';
+            if (toggle) toggle.classList.remove('panel-hidden');
+            if (workspace) workspace.classList.remove('panel-hidden');
+            if (icon) icon.className = 'fas fa-chevron-right';
+            if (toggle) toggle.title = 'Hide Panel';
+
+            // Reset to default view when showing panel
+            this.resetPanelToDefault();
         } else {
             // Hide panel
             panel.classList.add('hidden');
-            toggle.classList.add('panel-hidden');
-            workspace.classList.add('panel-hidden');
-            icon.className = 'fas fa-chevron-left';
-            toggle.title = 'Show Panel';
+            if (toggle) toggle.classList.add('panel-hidden');
+            if (workspace) workspace.classList.add('panel-hidden');
+            if (icon) icon.className = 'fas fa-chevron-left';
+            if (toggle) toggle.title = 'Show Panel';
         }
 
         // Trigger resize to update 3D renderer
@@ -332,6 +698,24 @@ export class UI {
                 this.app.onWindowResize();
             }
         }, 300); // Wait for CSS transition to complete
+    }
+
+    resetPanelToDefault() {
+        // Show scene objects and properties, hide materials and scene export
+        const sceneSection = document.getElementById('scene-section');
+        const materialsSection = document.getElementById('materials-section');
+        const propsContent = document.getElementById('props-content');
+        const layersList = document.getElementById('layers-list');
+
+        if (sceneSection) sceneSection.style.display = 'none';
+        if (materialsSection) materialsSection.style.display = 'none';
+        if (propsContent) propsContent.style.display = 'block';
+        if (layersList) layersList.style.display = 'block';
+
+        // Show all panel headers
+        document.querySelectorAll('.panel-header').forEach(header => {
+            header.style.display = 'flex';
+        });
     }
 
     loadSettings() {
@@ -345,6 +729,13 @@ export class UI {
             if (this.app.setCameraSpeed) this.app.setCameraSpeed(settings.cameraSpeed);
             // Apply tooltips
             window.tooltipsEnabled = settings.tooltips !== false;
+            // Apply autosave
+            if (this.app.fileManager && this.app.fileManager.setAutosaveEnabled) {
+                this.app.fileManager.setAutosaveEnabled(settings.autosave !== false);
+                if (this.app.fileManager.setAutosaveInterval) {
+                    this.app.fileManager.setAutosaveInterval(settings.autosaveInterval || 5);
+                }
+            }
         }
     }
 
@@ -359,7 +750,10 @@ export class UI {
             const tooltipsEl = document.getElementById('setting-tooltips');
             const speedEl = document.getElementById('setting-camera-speed');
             const speedValueEl = document.getElementById('camera-speed-value');
-
+            const autosaveEl = document.getElementById('setting-autosave');
+            const autosaveIntervalEl = document.getElementById('setting-autosave-interval');
+            const autosaveIntervalValueEl = document.getElementById('autosave-interval-value');
+    
             if (gridEl) gridEl.checked = settings.grid !== false;
             if (axesEl) axesEl.checked = settings.axes !== false;
             if (snapEl) snapEl.checked = settings.snap !== false;
@@ -368,8 +762,14 @@ export class UI {
                 speedEl.value = settings.cameraSpeed || 1;
                 if (speedValueEl) speedValueEl.textContent = settings.cameraSpeed || 1;
             }
+            if (autosaveEl) autosaveEl.checked = settings.autosave !== false;
+            if (autosaveIntervalEl) {
+                autosaveIntervalEl.value = settings.autosaveInterval || 5;
+                if (autosaveIntervalValueEl) autosaveIntervalValueEl.textContent = settings.autosaveInterval || 5;
+            }
         }
     }
+
 
     saveSettings() {
         const settings = {
@@ -377,7 +777,9 @@ export class UI {
             axes: document.getElementById('setting-axes').checked,
             snap: document.getElementById('setting-snap').checked,
             tooltips: document.getElementById('setting-tooltips').checked,
-            cameraSpeed: parseFloat(document.getElementById('setting-camera-speed').value)
+            cameraSpeed: parseFloat(document.getElementById('setting-camera-speed').value),
+            autosave: document.getElementById('setting-autosave').checked,
+            autosaveInterval: parseInt(document.getElementById('setting-autosave-interval').value)
         };
 
         // Save
@@ -395,15 +797,28 @@ export class UI {
         this.showNotification('Settings saved successfully!', 'success');
     }
 
-
     resetSettings() {
+        // Use config defaults
         const defaults = {
             grid: true,
             axes: true,
             snap: true,
             tooltips: true,
-            cameraSpeed: 1
+            cameraSpeed: 1,
+            autosave: false,
+            autosaveInterval: 5
         };
+
+        // If config is available, use its defaults
+        if (typeof APP_DEFAULTS !== 'undefined') {
+            defaults.grid = APP_DEFAULTS.ui.gridVisible;
+            defaults.axes = APP_DEFAULTS.ui.axesVisible;
+            defaults.snap = APP_DEFAULTS.ui.snapEnabled;
+            defaults.tooltips = APP_DEFAULTS.ui.tooltipsEnabled;
+            defaults.cameraSpeed = APP_DEFAULTS.ui.cameraSpeed;
+            defaults.autosave = APP_DEFAULTS.ui.autosaveEnabled;
+            defaults.autosaveInterval = APP_DEFAULTS.ui.autosaveInterval;
+        }
 
         // Save reset
         localStorage.setItem('pixel3d-settings', JSON.stringify(defaults));
@@ -415,6 +830,13 @@ export class UI {
         if (this.app.setCameraSpeed) this.app.setCameraSpeed(1);
 
         window.tooltipsEnabled = true;
+        // Apply autosave
+        if (this.app.fileManager && this.app.fileManager.setAutosaveEnabled) {
+            this.app.fileManager.setAutosaveEnabled(false);
+            if (this.app.fileManager.setAutosaveInterval) {
+                this.app.fileManager.setAutosaveInterval(5);
+            }
+        }
 
         // Update UI elements visually
         this.loadSettingsToUI();
@@ -422,9 +844,7 @@ export class UI {
         this.showNotification('Settings reset to defaults!', 'success');
     }
 
-
     // --- AI MODAL LOGIC ---
-
     openAIModal(mode) {
         this.currentAIMode = mode;
         this.promptInput.value = '';
@@ -636,6 +1056,9 @@ export class UI {
         }
 
         if (targetMesh && targetMesh.material) {
+            // Add Materials Selector
+            this.addMaterialsSelector(obj, targetMesh);
+
             const colorGroup = document.createElement('div');
             colorGroup.className = 'property-group';
 
@@ -666,6 +1089,9 @@ export class UI {
             });
             colorGroup.appendChild(colInput);
             this.propsContent.appendChild(colorGroup);
+
+            // Add PBR Material Properties (Metallic and Roughness)
+            this.addMaterialProperties(obj, targetMesh);
         }
 
         // LIGHT PROPERTIES
@@ -700,13 +1126,199 @@ export class UI {
         }
     }
 
+    // Add PBR Material Properties (Metallic and Roughness)
+    addMaterialProperties(obj, targetMesh) {
+        // Create material properties group
+        const materialGroup = document.createElement('div');
+        materialGroup.className = 'property-group';
+        materialGroup.innerHTML = `<div class="property-label">Material Properties (PBR)</div>`;
+
+        // Metallic property
+        const metallicRow = document.createElement('div');
+        metallicRow.className = 'input-row';
+        metallicRow.style.marginBottom = '4px';
+
+        const metallicLabel = document.createElement('span');
+        metallicLabel.style.fontSize = '0.65rem';
+        metallicLabel.style.color = 'var(--text-secondary)';
+        metallicLabel.style.width = '60px';
+        metallicLabel.textContent = 'Metallic:';
+        metallicRow.appendChild(metallicLabel);
+
+        const metallicInput = document.createElement('input');
+        metallicInput.type = 'range';
+        metallicInput.min = '0';
+        metallicInput.max = '1';
+        metallicInput.step = '0.01';
+        metallicInput.style.flex = '1';
+
+        // Add info button for metallic
+        const metallicInfo = document.createElement('i');
+        metallicInfo.className = 'fas fa-info-circle material-info-btn';
+        metallicInfo.title = 'Metallic: Controls how metallic the surface appears (0 = non-metal, 1 = fully metallic). Affects reflectivity and edge sharpness.';
+        metallicInfo.style.marginLeft = '4px';
+        metallicInfo.style.cursor = 'help';
+        metallicInfo.style.color = 'var(--text-secondary)';
+        metallicInfo.style.fontSize = '0.7rem';
+        metallicRow.appendChild(metallicInfo);
+
+        // Initialize metallic value (default to 0 if not set)
+        const currentMetallic = targetMesh.material.metalness !== undefined
+            ? targetMesh.material.metalness
+            : 0;
+        metallicInput.value = currentMetallic;
+
+        metallicInput.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            if (obj.userData.type === 'figure') {
+                // Apply to whole figure
+                obj.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        c.material.metalness = value;
+                    }
+                });
+            } else {
+                targetMesh.material.metalness = value;
+            }
+        });
+
+        metallicRow.appendChild(metallicInput);
+        materialGroup.appendChild(metallicRow);
+
+        // Roughness property
+        const roughnessRow = document.createElement('div');
+        roughnessRow.className = 'input-row';
+
+        const roughnessLabel = document.createElement('span');
+        roughnessLabel.style.fontSize = '0.65rem';
+        roughnessLabel.style.color = 'var(--text-secondary)';
+        roughnessLabel.style.width = '60px';
+        roughnessLabel.textContent = 'Roughness:';
+        roughnessRow.appendChild(roughnessLabel);
+
+        const roughnessInput = document.createElement('input');
+        roughnessInput.type = 'range';
+        roughnessInput.min = '0';
+        roughnessInput.max = '1';
+        roughnessInput.step = '0.01';
+        roughnessInput.style.flex = '1';
+
+        // Add info button for roughness
+        const roughnessInfo = document.createElement('i');
+        roughnessInfo.className = 'fas fa-info-circle material-info-btn';
+        roughnessInfo.title = 'Roughness: Controls surface smoothness (0 = perfectly smooth/mirror-like, 1 = very rough). Affects how light scatters across the surface.';
+        roughnessInfo.style.marginLeft = '4px';
+        roughnessInfo.style.cursor = 'help';
+        roughnessInfo.style.color = 'var(--text-secondary)';
+        roughnessInfo.style.fontSize = '0.7rem';
+        roughnessRow.appendChild(roughnessInfo);
+
+        // Initialize roughness value (default to 0.5 if not set)
+        const currentRoughness = targetMesh.material.roughness !== undefined
+            ? targetMesh.material.roughness
+            : 0.5;
+        roughnessInput.value = currentRoughness;
+
+        roughnessInput.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            if (obj.userData.type === 'figure') {
+                // Apply to whole figure
+                obj.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        c.material.roughness = value;
+                    }
+                });
+            } else {
+                targetMesh.material.roughness = value;
+            }
+        });
+
+        roughnessRow.appendChild(roughnessInput);
+        materialGroup.appendChild(roughnessRow);
+
+        this.propsContent.appendChild(materialGroup);
+    }
+
+    // Add Materials Selector to Properties Panel
+    addMaterialsSelector(obj, targetMesh) {
+        if (!this.app.materialsManager) return;
+
+        const materialsGroup = document.createElement('div');
+        materialsGroup.className = 'property-group';
+
+        // Create materials selector header
+        const selectorHeader = document.createElement('div');
+        selectorHeader.style.display = 'flex';
+        selectorHeader.style.justifyContent = 'space-between';
+        selectorHeader.style.alignItems = 'center';
+        selectorHeader.style.marginBottom = '6px';
+
+        const selectorLabel = document.createElement('div');
+        selectorLabel.className = 'property-label';
+        selectorLabel.textContent = 'Material';
+        selectorHeader.appendChild(selectorLabel);
+
+        // Add create new material button
+        const createMaterialBtn = document.createElement('button');
+        createMaterialBtn.className = 'btn folder-btn';
+        createMaterialBtn.style.fontSize = '0.6rem';
+        createMaterialBtn.style.padding = '2px 4px';
+        createMaterialBtn.innerHTML = '<i class="fas fa-plus" style="font-size: 0.7rem;"></i>';
+        createMaterialBtn.title = 'Create New Material';
+        createMaterialBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.app.materialsManager.createNewMaterial();
+        });
+        selectorHeader.appendChild(createMaterialBtn);
+
+        materialsGroup.appendChild(selectorHeader);
+
+        // Create materials dropdown
+        const materialsDropdown = document.createElement('select');
+        materialsDropdown.className = 'material-selector';
+        materialsDropdown.style.width = '100%';
+        materialsDropdown.style.padding = '4px';
+        materialsDropdown.style.fontSize = '0.7rem';
+        materialsDropdown.style.background = 'var(--bg-light)';
+        materialsDropdown.style.border = '1px solid var(--border-color)';
+        materialsDropdown.style.borderRadius = '4px';
+
+        // Add default option
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = 'Select a material...';
+        materialsDropdown.appendChild(defaultOption);
+
+        // Add materials from materials manager
+        this.app.materialsManager.materials.forEach(material => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            option.textContent = `${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)})`;
+            materialsDropdown.appendChild(option);
+        });
+
+        // Add event listener for material selection
+        materialsDropdown.addEventListener('change', (e) => {
+            const materialId = e.target.value;
+            if (materialId) {
+                const material = this.app.materialsManager.materials.find(m => m.id === materialId);
+                if (material) {
+                    this.app.materialsManager.applyMaterialToSelected(material);
+                }
+            }
+        });
+
+        materialsGroup.appendChild(materialsDropdown);
+        this.propsContent.appendChild(materialsGroup);
+    }
+
     showNotification(message, type = 'info') {
         const existing = document.querySelector('.notification');
         if (existing) existing.remove();
-        
+
         const notification = document.createElement('div');
         notification.textContent = message;
-        
+
         notification.style.position = 'fixed';
         notification.style.top = '20px';
         notification.style.right = '20px';
@@ -738,5 +1350,523 @@ export class UI {
             notification.style.transform = 'translateY(-20px)';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+
+    // --- SCENE PANEL VIEW ---
+    toggleSceneView() {
+        const sceneSection = document.getElementById('scene-section');
+        const materialsSection = document.getElementById('materials-section');
+        const propsContent = document.getElementById('props-content');
+        const layersList = document.getElementById('layers-list');
+
+        if (sceneSection && materialsSection && propsContent && layersList) {
+            const isSceneVisible = sceneSection.style.display !== 'none';
+
+            if (isSceneVisible) {
+                // Switch to normal view
+                sceneSection.style.display = 'none';
+                materialsSection.style.display = 'none';
+                propsContent.style.display = 'block';
+                layersList.style.display = 'block';
+                document.querySelectorAll('.panel-header').forEach(header => {
+                    header.style.display = 'flex';
+                });
+            } else {
+                // Switch to scene view
+                sceneSection.style.display = 'flex';
+                materialsSection.style.display = 'none';
+                propsContent.style.display = 'none';
+                layersList.style.display = 'none';
+                document.querySelectorAll('.panel-header').forEach((header, index) => {
+                    if (index === 2) { // Scene header
+                        header.style.display = 'flex';
+                    } else {
+                        header.style.display = 'none';
+                    }
+                });
+            }
+
+            // Initialize scene export functionality
+            this.initSceneExport();
+        }
+    }
+
+    initSceneExport() {
+        // Initialize export button
+        const exportBtn = document.getElementById('btn-export-png');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportSceneAsPNG();
+            });
+        }
+
+        // Initialize camera border toggle
+        const borderToggle = document.getElementById('show-camera-border');
+        if (borderToggle) {
+            borderToggle.addEventListener('change', (e) => {
+                this.toggleCameraBorder(e.target.checked);
+            });
+        }
+
+        // Initialize canvas size controls
+        const widthInput = document.getElementById('export-width');
+        const heightInput = document.getElementById('export-height');
+        if (widthInput && heightInput) {
+            widthInput.addEventListener('change', () => this.updateCameraBorder());
+            heightInput.addEventListener('change', () => this.updateCameraBorder());
+        }
+
+        // Initialize camera border visualization
+        this.updateCameraBorder();
+
+        // Make camera border preview draggable
+        this.makeCameraBorderDraggable();
+    }
+
+    makeCameraBorderDraggable() {
+        const preview = document.getElementById('camera-border-preview');
+        if (!preview) return;
+
+        let isDragging = false;
+        let startX, startY;
+        let initialX, initialY;
+
+        // Add drag handle
+        const dragHandle = document.createElement('div');
+        dragHandle.style.position = 'absolute';
+        dragHandle.style.top = '10px';
+        dragHandle.style.right = '10px';
+        dragHandle.style.width = '24px';
+        dragHandle.style.height = '24px';
+        dragHandle.style.background = 'var(--bg-medium)';
+        dragHandle.style.border = '1px solid var(--border-color)';
+        dragHandle.style.borderRadius = '4px';
+        dragHandle.style.cursor = 'move';
+        dragHandle.style.display = 'flex';
+        dragHandle.style.alignItems = 'center';
+        dragHandle.style.justifyContent = 'center';
+        dragHandle.style.fontSize = '0.8rem';
+        dragHandle.style.color = 'var(--text-secondary)';
+        dragHandle.innerHTML = '📷';
+        dragHandle.title = 'Drag to position camera border';
+        preview.appendChild(dragHandle);
+
+        // Add resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.style.position = 'absolute';
+        resizeHandle.style.bottom = '0';
+        resizeHandle.style.left = '0';
+        resizeHandle.style.width = '16px';
+        resizeHandle.style.height = '16px';
+        resizeHandle.style.background = 'var(--bg-medium)';
+        resizeHandle.style.border = '1px solid var(--border-color)';
+        resizeHandle.style.borderRadius = '0 0 4px 0';
+        resizeHandle.style.cursor = 'nwse-resize';
+        resizeHandle.style.transform = 'translate(-50%, 50%)';
+        resizeHandle.title = 'Drag to resize camera border';
+        preview.appendChild(resizeHandle);
+
+        // Add resize functionality
+        let isResizing = false;
+        let resizeStartX, resizeStartY;
+        let resizeStartWidth, resizeStartHeight;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startWidth = preview.offsetWidth;
+            startHeight = preview.offsetHeight;
+
+            // Add resizing class
+            preview.style.opacity = '0.8';
+            preview.style.cursor = 'nwse-resize';
+            preview.style.userSelect = 'none';
+
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            // Calculate new dimensions while maintaining aspect ratio
+            const aspectRatio = startWidth / startHeight;
+            let newWidth = startWidth + dx;
+            let newHeight = newWidth / aspectRatio;
+
+            // Apply minimum size constraints
+            const minSize = 50;
+            newWidth = Math.max(minSize, newWidth);
+            newHeight = Math.max(minSize * aspectRatio, newHeight);
+
+            // Apply new dimensions
+            preview.style.width = `${newWidth}px`;
+            preview.style.height = `${newHeight}px`;
+
+            // Update the canvas size inputs to match the new dimensions
+            const widthInput = document.getElementById('export-width');
+            const heightInput = document.getElementById('export-height');
+            if (widthInput && heightInput) {
+                widthInput.value = Math.round(newWidth);
+                heightInput.value = Math.round(newHeight);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                preview.style.opacity = '1';
+                preview.style.cursor = 'move';
+
+                // Update the camera border preview content
+                const width = preview.offsetWidth;
+                const height = preview.offsetHeight;
+                const aspectRatio = width / height;
+
+                preview.innerHTML = `
+                    <div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem;">
+                        <div>Camera Border Preview</div>
+                        <div style="margin-top: 8px; font-size: 0.7rem;">${Math.round(width)} × ${Math.round(height)}</div>
+                        <div style="margin-top: 4px; font-size: 0.6rem;">Aspect Ratio: ${aspectRatio.toFixed(2)}</div>
+                    </div>
+                `;
+
+                // Re-add drag and resize handles
+                this.makeCameraBorderDraggable();
+            }
+        });
+
+        // Mouse down event
+        preview.addEventListener('mousedown', (e) => {
+            if (e.target === dragHandle || e.target === preview) {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+
+                // Get current position
+                const rect = preview.getBoundingClientRect();
+                initialX = rect.left;
+                initialY = rect.top;
+
+                // Add dragging class
+                preview.style.opacity = '0.8';
+                preview.style.cursor = 'grabbing';
+                preview.style.userSelect = 'none';
+                preview.style.pointerEvents = 'none';
+
+                e.preventDefault();
+            }
+        });
+
+        // Mouse move event
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            // Calculate new position
+            let newX = initialX + dx;
+            let newY = initialY + dy;
+
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Get preview dimensions
+            const previewWidth = preview.offsetWidth;
+            const previewHeight = preview.offsetHeight;
+
+            // Constrain to viewport
+            newX = Math.max(0, Math.min(newX, viewportWidth - previewWidth));
+            newY = Math.max(0, Math.min(newY, viewportHeight - previewHeight));
+
+            // Apply position
+            preview.style.position = 'fixed';
+            preview.style.left = `${newX}px`;
+            preview.style.top = `${newY}px`;
+            preview.style.zIndex = '10000';
+        });
+
+        // Mouse up event
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                preview.style.opacity = '1';
+                preview.style.cursor = 'move';
+                preview.style.userSelect = '';
+                preview.style.pointerEvents = '';
+
+                // Store position for persistence
+                const position = {
+                    x: parseFloat(preview.style.left) || 0,
+                    y: parseFloat(preview.style.top) || 0
+                };
+                localStorage.setItem('cameraBorderPosition', JSON.stringify(position));
+            }
+        });
+
+        // Load saved position
+        const savedPosition = localStorage.getItem('cameraBorderPosition');
+        if (savedPosition) {
+            const pos = JSON.parse(savedPosition);
+            preview.style.position = 'fixed';
+            preview.style.left = `${pos.x}px`;
+            preview.style.top = `${pos.y}px`;
+            preview.style.zIndex = '10000';
+        }
+    }
+
+    exportSceneAsPNG() {
+        const width = parseInt(document.getElementById('export-width').value);
+        const height = parseInt(document.getElementById('export-height').value);
+
+        // Ensure renderer has preserveDrawingBuffer enabled
+        if (this.app.renderer) {
+            // Save current canvas size
+            const originalWidth = this.app.renderer.domElement.width;
+            const originalHeight = this.app.renderer.domElement.height;
+
+            // Set renderer to export size and render
+            this.app.renderer.setSize(width, height);
+            this.app.renderer.render(this.app.scene, this.app.camera);
+
+            // Get the canvas element and extract PNG data
+            const canvas = this.app.renderer.domElement;
+            const pngData = canvas.toDataURL('image/png');
+
+            // Create download link
+            const link = document.createElement('a');
+            link.href = pngData;
+            link.download = 'scene-export.png';
+            link.click();
+
+            // Restore original canvas size
+            this.app.renderer.setSize(originalWidth, originalHeight);
+
+            this.showNotification('Scene exported as PNG!', 'success');
+        } else {
+            this.showNotification('Error: Renderer not available', 'error');
+        }
+        
+    }
+    
+    // Camera zoom methods
+    zoomCamera(factor) {
+        if (this.app.camera) {
+            // Get current zoom level from slider
+            const slider = document.getElementById('zoom-slider');
+            let currentZoom = slider ? parseFloat(slider.value) : 50;
+
+            // Apply zoom factor
+            currentZoom *= factor;
+
+            // Constrain to valid range
+            currentZoom = Math.max(1, Math.min(100, currentZoom));
+
+            // Update slider
+            if (slider) {
+                slider.value = currentZoom;
+            }
+
+            // Apply zoom to camera
+            this.setCameraZoom(currentZoom);
+        }
+    }
+
+    setCameraZoom(zoomLevel) {
+        if (this.app.camera && this.app.cameraManager) {
+            // Convert zoom level to camera position
+            const zoomFactor = zoomLevel / 50; // 50 = neutral zoom
+            this.app.cameraManager.setCameraZoom(zoomFactor);
+
+            // Update the zoom display if needed
+            this.updateZoomDisplay(zoomLevel);
+        }
+    }
+
+    updateZoomDisplay(zoomLevel) {
+        // You could add visual feedback here if needed
+        console.log(`Zoom level: ${zoomLevel}`);
+    }
+    
+    // Camera zoom methods
+    zoomCamera(factor) {
+        if (this.app.camera) {
+            // Get current zoom level from slider
+            const slider = document.getElementById('zoom-slider');
+            let currentZoom = slider ? parseFloat(slider.value) : 50;
+
+            // Apply zoom factor
+            currentZoom *= factor;
+
+            // Constrain to valid range
+            currentZoom = Math.max(1, Math.min(100, currentZoom));
+
+            // Update slider
+            if (slider) {
+                slider.value = currentZoom;
+            }
+
+            // Apply zoom to camera
+            this.setCameraZoom(currentZoom);
+        }
+    }
+    
+    setCameraZoom(zoomLevel) {
+        if (this.app.camera && this.app.cameraManager) {
+            // Convert zoom level to camera position
+            const zoomFactor = zoomLevel / 50; // 50 = neutral zoom
+            this.app.cameraManager.setCameraZoom(zoomFactor);
+
+            // Update the zoom display if needed
+            this.updateZoomDisplay(zoomLevel);
+        }
+    }
+    
+    updateZoomDisplay(zoomLevel) {
+        // You could add visual feedback here if needed
+        console.log(`Zoom level: ${zoomLevel}`);
+    }
+
+
+    toggleCameraBorder(show) {
+        const preview = document.getElementById('camera-border-preview');
+        if (preview) {
+            if (show) {
+                preview.style.display = 'flex';
+                this.updateCameraBorder();
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+    }
+
+    updateCameraBorder() {
+        const width = parseInt(document.getElementById('export-width').value);
+        const height = parseInt(document.getElementById('export-height').value);
+        const preview = document.getElementById('camera-border-preview');
+
+        if (preview) {
+            // Update preview dimensions
+            const aspectRatio = width / height;
+            const maxWidth = preview.parentElement.clientWidth;
+            const maxHeight = 200;
+
+            let displayWidth, displayHeight;
+            if (aspectRatio > 1) {
+                displayWidth = maxWidth;
+                displayHeight = maxWidth / aspectRatio;
+            } else {
+                displayHeight = maxHeight;
+                displayWidth = maxHeight * aspectRatio;
+            }
+
+            preview.style.width = `${displayWidth}px`;
+            preview.style.height = `${displayHeight}px`;
+
+            // Update preview content
+            preview.innerHTML = `
+                <div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem;">
+                    <div>Camera Border Preview</div>
+                    <div style="margin-top: 8px; font-size: 0.7rem;">${width} × ${height}</div>
+                    <div style="margin-top: 4px; font-size: 0.6rem;">Aspect Ratio: ${aspectRatio.toFixed(2)}</div>
+                </div>
+            `;
+
+            // Re-add drag handle
+            this.makeCameraBorderDraggable();
+        }
+    }
+
+    // --- UNIFIED SETTINGS MODAL ---
+    openUnifiedSettingsModal(initialTab = 'general') {
+        if (!this.unifiedSettingsInitialized) {
+            this.initUnifiedSettingsModal();
+            this.unifiedSettingsInitialized = true;
+        }
+
+        // Switch to the requested tab
+        this.switchSettingsTab(initialTab);
+
+        this.unifiedSettingsModal.classList.add('open');
+    }
+
+    closeUnifiedSettingsModal() {
+        this.unifiedSettingsModal.classList.remove('open');
+    }
+
+    initUnifiedSettingsModal() {
+        // Initialize unified settings modal
+        this.unifiedSettingsModal = document.getElementById('unified-settings-modal');
+
+        // Close button
+        const closeBtn = document.getElementById('btn-settings-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeUnifiedSettingsModal());
+        }
+
+        // Reset button
+        const resetBtn = document.getElementById('btn-settings-reset');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.resetSettings();
+            });
+        }
+
+        // Save button
+        const saveBtn = document.getElementById('btn-settings-save');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                this.saveSettings();
+                this.closeUnifiedSettingsModal();
+            });
+        }
+
+        // Tab buttons
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.switchSettingsTab(tab.dataset.tab);
+            });
+        });
+
+        // Resolution dropdown change handler
+        const resolutionDropdown = document.getElementById('setting-export-resolution');
+        if (resolutionDropdown) {
+            resolutionDropdown.addEventListener('change', (e) => {
+                const customGroup = document.getElementById('custom-resolution-group');
+                if (e.target.value === 'custom') {
+                    customGroup.style.display = 'block';
+                } else {
+                    customGroup.style.display = 'none';
+                }
+            });
+        }
+
+        // Close on overlay click
+        this.unifiedSettingsModal.addEventListener('click', (e) => {
+            if (e.target.id === 'unified-settings-modal') this.closeUnifiedSettingsModal();
+        });
+    }
+
+    switchSettingsTab(tabName) {
+        // Remove active class from all tabs and content
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.settings-tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Add active class to selected tab and content
+        const activeTab = document.querySelector(`.settings-tab[data-tab="${tabName}"]`);
+        const activeContent = document.querySelector(`.settings-tab-content[data-tab-content="${tabName}"]`);
+
+        if (activeTab) activeTab.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
     }
 }

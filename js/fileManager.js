@@ -1,6 +1,9 @@
 export class FileManager {
     constructor(app) {
         this.app = app;
+        this.autosaveEnabled = false;
+        this.autosaveInterval = 5; // minutes
+        this.autosaveTimer = null;
     }
 
     saveScene() {
@@ -108,6 +111,76 @@ export class FileManager {
 
         // Save to localStorage
         localStorage.setItem('pixel3d-scene', JSON.stringify(data));
+        this.saveFolderStructure();
+    }
+
+    // Save folder structure
+    saveFolderStructure() {
+        if (!this.app.layerManager) return;
+
+        const folderData = this.app.layerManager.folders.map(folder => ({
+            id: folder.id,
+            name: folder.name,
+            expanded: folder.expanded,
+            objects: folder.objects.map(obj => obj.id || Math.random().toString(36).substr(2, 9))
+        }));
+
+        localStorage.setItem('pixel3d-folders', JSON.stringify(folderData));
+    }
+
+    // Load folder structure
+    loadFolderStructure() {
+        if (!this.app.layerManager) return;
+
+        const saved = localStorage.getItem('pixel3d-folders');
+        if (saved) {
+            try {
+                const folderData = JSON.parse(saved);
+                this.app.layerManager.folders = folderData.map(folder => ({
+                    id: folder.id,
+                    name: folder.name,
+                    expanded: folder.expanded || true,
+                    objects: []
+                }));
+                this.app.layerManager.render();
+            } catch (err) {
+                console.error("Failed to load folder structure:", err);
+            }
+        }
+    }
+
+    // Autosave methods
+    setAutosaveEnabled(enabled) {
+        this.autosaveEnabled = enabled;
+        if (enabled) {
+            this.startAutosave();
+        } else {
+            this.stopAutosave();
+        }
+    }
+
+    setAutosaveInterval(minutes) {
+        this.autosaveInterval = minutes;
+        if (this.autosaveEnabled) {
+            this.startAutosave(); // Restart with new interval
+        }
+    }
+
+    startAutosave() {
+        this.stopAutosave(); // Clear any existing timer
+        this.autosaveTimer = setInterval(() => {
+            this.saveToBrowser();
+            if (this.app.ui && this.app.ui.showNotification) {
+                this.app.ui.showNotification('Scene autosaved!', 'success');
+            }
+        }, this.autosaveInterval * 60 * 1000); // Convert minutes to milliseconds
+    }
+
+    stopAutosave() {
+        if (this.autosaveTimer) {
+            clearInterval(this.autosaveTimer);
+            this.autosaveTimer = null;
+        }
     }
 
     loadScene(event) {
@@ -178,6 +251,55 @@ export class FileManager {
         // Show notification via UI (if available)
         if (this.app.ui && this.app.ui.showNotification) {
             this.app.ui.showNotification(`Scene loaded! (${loadedCount} objects)`, 'success');
+        }
+
+        // Load folder structure and restore object organization
+        this.loadFolderStructure();
+        this.restoreObjectsToFolders();
+    }
+
+    // Restore objects to their folders after loading
+    restoreObjectsToFolders() {
+        if (!this.app.layerManager) return;
+
+        const saved = localStorage.getItem('pixel3d-folders');
+        if (!saved) return;
+
+        try {
+            const folderData = JSON.parse(saved);
+
+            // Create a map of object IDs to actual objects
+            const objectMap = {};
+            this.app.getAllObjects().forEach(obj => {
+                const objId = obj.id || Math.random().toString(36).substr(2, 9);
+                objectMap[objId] = obj;
+            });
+
+            // Restore objects to their folders
+            folderData.forEach(folder => {
+                const existingFolder = this.app.layerManager.folders.find(f => f.id === folder.id);
+                if (existingFolder) {
+                    folder.objects.forEach(objId => {
+                        const obj = objectMap[objId];
+                        if (obj) {
+                            // Remove from main objects array if it exists there
+                            const idx = this.app.objects.indexOf(obj);
+                            if (idx > -1) {
+                                this.app.objects.splice(idx, 1);
+                            }
+                            // Add to folder
+                            existingFolder.objects.push(obj);
+                        }
+                    });
+                }
+            });
+
+            // Refresh the UI
+            if (this.app.layerManager) {
+                this.app.layerManager.render();
+            }
+        } catch (err) {
+            console.error("Failed to restore objects to folders:", err);
         }
     }
 }

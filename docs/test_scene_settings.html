@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scene Settings Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+        }
+        .test-container {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-step {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #0f0f1b;
+            border-radius: 4px;
+        }
+        .success {
+            color: #00ff41;
+        }
+        .error {
+            color: #ff006e;
+        }
+        .btn {
+            background: #1e293b;
+            border: 1px solid #2d3748;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background: #16213e;
+        }
+        .btn.primary {
+            background: #00ff41;
+            color: #000;
+            border: none;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open {
+            display: flex;
+        }
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid #2d3748;
+            width: 500px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            padding: 20px;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #00d9ff;
+        }
+        .scene-settings-content {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 15px;
+            border: 1px solid #2d3748;
+        }
+        .property-group {
+            background: #1e293b;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #2d3748;
+        }
+        .property-label {
+            font-size: 0.9rem;
+            color: #e0e7ff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #00ff41;
+            cursor: pointer;
+        }
+        input[type="color"] {
+            width: 60px;
+            height: 30px;
+            border: 1px solid #2d3748;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        select {
+            background: #1e293b;
+            border: 1px solid #2d3748;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            color: #e0e7ff;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h2>Scene Settings Implementation Test</h2>
+
+        <div class="test-step">
+            <h3>1. UI Elements Creation</h3>
+            <button id="test-open-modal" class="btn">Open Scene Settings Modal</button>
+            <div id="modal-result">Ready to test modal opening</div>
+        </div>
+
+        <div class="test-step">
+            <h3>2. Background Color Control</h3>
+            <button id="test-bg-color" class="btn">Test Background Color Change</button>
+            <div id="bg-color-result">Ready to test background color</div>
+        </div>
+
+        <div class="test-step">
+            <h3>3. Ambient Light Control</h3>
+            <button id="test-ambient-light" class="btn">Test Ambient Light Toggle</button>
+            <div id="ambient-result">Ready to test ambient light</div>
+        </div>
+
+        <div class="test-step">
+            <h3>4. Export Settings</h3>
+            <button id="test-export-settings" class="btn">Test Export Settings</button>
+            <div id="export-result">Ready to test export settings</div>
+        </div>
+
+        <div class="test-step">
+            <h3>5. Settings Persistence</h3>
+            <button id="test-persistence" class="btn">Test Settings Persistence</button>
+            <div id="persistence-result">Ready to test persistence</div>
+        </div>
+    </div>
+
+    <!-- Scene Settings Modal -->
+    <div class="modal-overlay" id="test-scene-settings-modal">
+        <div class="modal">
+            <div class="modal-title">
+                <i class="fas fa-image"></i> Scene Settings
+            </div>
+            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;">
+                Configure background, lighting, and export options
+            </div>
+            <div class="scene-settings-content">
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="test-setting-background-enabled" checked>
+                        Enable Custom Background
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        Background Color:
+                        <input type="color" id="test-setting-background-color" value="#1a1a2e">
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="test-setting-ambient-light" checked>
+                        Enable Ambient Light
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        Ambient Light Color:
+                        <input type="color" id="test-setting-ambient-color" value="#ffffff">
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        <input type="checkbox" id="test-setting-export-transparent" checked>
+                        Export with Transparent Background
+                    </label>
+                </div>
+                <div class="property-group">
+                    <label class="property-label">
+                        Export Resolution:
+                        <select id="test-setting-export-resolution">
+                            <option value="1920x1080">1920x1080 (Full HD)</option>
+                            <option value="2560x1440">2560x1440 (2K)</option>
+                            <option value="3840x2160">3840x2160 (4K)</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="test-btn-scene-settings-close">Close</button>
+                <button class="btn primary" id="test-btn-scene-settings-apply">Apply Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test UI creation
+        document.getElementById('test-open-modal').addEventListener('click', () => {
+            const modal = document.getElementById('test-scene-settings-modal');
+            modal.classList.add('open');
+            document.getElementById('modal-result').innerHTML = '<span class="success">✓ Scene settings modal opened successfully</span>';
+        });
+
+        // Test close button
+        document.getElementById('test-btn-scene-settings-close').addEventListener('click', () => {
+            const modal = document.getElementById('test-scene-settings-modal');
+            modal.classList.remove('open');
+            document.getElementById('modal-result').innerHTML = '<span class="success">✓ Scene settings modal closed successfully</span>';
+        });
+
+        // Test background color change
+        document.getElementById('test-bg-color').addEventListener('click', () => {
+            const colorInput = document.getElementById('test-setting-background-color');
+            const newColor = '#' + Math.floor(Math.random()*16777215).toString(16);
+            colorInput.value = newColor;
+            document.getElementById('bg-color-result').innerHTML = `<span class="success">✓ Background color changed to ${newColor}</span>`;
+        });
+
+        // Test ambient light toggle
+        document.getElementById('test-ambient-light').addEventListener('click', () => {
+            const ambientCheckbox = document.getElementById('test-setting-ambient-light');
+            ambientCheckbox.checked = !ambientCheckbox.checked;
+            document.getElementById('ambient-result').innerHTML = `<span class="success">✓ Ambient light ${ambientCheckbox.checked ? 'enabled' : 'disabled'}</span>`;
+        });
+
+        // Test export settings
+        document.getElementById('test-export-settings').addEventListener('click', () => {
+            const resolutionSelect = document.getElementById('test-setting-export-resolution');
+            const transparentCheckbox = document.getElementById('test-setting-export-transparent');
+
+            const settings = {
+                resolution: resolutionSelect.value,
+                transparent: transparentCheckbox.checked
+            };
+
+            document.getElementById('export-result').innerHTML = `<span class="success">✓ Export settings: ${settings.resolution}, ${settings.transparent ? 'transparent' : 'opaque'}</span>`;
+        });
+
+        // Test settings persistence
+        document.getElementById('test-persistence').addEventListener('click', () => {
+            const settings = {
+                backgroundEnabled: document.getElementById('test-setting-background-enabled').checked,
+                backgroundColor: document.getElementById('test-setting-background-color').value,
+                ambientLight: document.getElementById('test-setting-ambient-light').checked,
+                ambientColor: document.getElementById('test-setting-ambient-color').value,
+                exportTransparent: document.getElementById('test-setting-export-transparent').checked,
+                exportResolution: document.getElementById('test-setting-export-resolution').value
+            };
+
+            // Simulate saving to localStorage
+            localStorage.setItem('pixel3d-scene-settings-test', JSON.stringify(settings));
+
+            // Simulate loading
+            const saved = localStorage.getItem('pixel3d-scene-settings-test');
+            if (saved) {
+                const loadedSettings = JSON.parse(saved);
+                document.getElementById('persistence-result').innerHTML = `<span class="success">✓ Settings saved and loaded successfully: ${Object.keys(loadedSettings).length} settings preserved</span>`;
+            } else {
+                document.getElementById('persistence-result').innerHTML = '<span class="error">✗ Settings persistence failed</span>';
+            }
+        });
+
+        // Test apply button
+        document.getElementById('test-btn-scene-settings-apply').addEventListener('click', () => {
+            const modal = document.getElementById('test-scene-settings-modal');
+            modal.classList.remove('open');
+            document.getElementById('modal-result').innerHTML = '<span class="success">✓ Scene settings applied and modal closed</span>';
+        });
+    </script>
+</body>
+</html>

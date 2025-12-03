@@ -1,14 +1,18 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { UI } from './ui.js';
 import { FileManager } from './fileManager.js';
 import { ObjectFactory } from './factory.js';
 import { GeminiManager } from './gemini.js';
 import { LayerManager } from './layerManager.js';
+import { MaterialsManager } from './materialsManager.js';
+import { CameraManager } from './cameraManager.js';
 import { ToolTip } from './tooltip.js';
 import { HistoryManager, TransformObjectCommand, AddObjectCommand, DeleteObjectCommand, ClearSceneCommand, AddCharacterCommand } from './historyManager.js';
 import { CharacterManager } from './characterManager.js';
+import { APP_DEFAULTS } from './config.js';
+
 
 class StageApp {
     constructor() {
@@ -29,6 +33,8 @@ class StageApp {
         this.fileManager = new FileManager(this);
         this.gemini = new GeminiManager(this);
         this.layerManager = new LayerManager(this); // Init Layer Manager
+        this.materialsManager = new MaterialsManager(this); // Init Materials Manager
+        this.cameraManager = new CameraManager(this); // Init Camera Manager
         this.characterManager = new CharacterManager(this); // Init Character Manager
         this.historyManager = new HistoryManager(this); // Init History Manager
         this.ui = new UI(this); // UI initialized last so it can access layerManager
@@ -44,16 +50,15 @@ class StageApp {
         this.scene.background = new THREE.Color(0x2a2a4e); // Lighter background for better visibility
         this.scene.fog = new THREE.Fog(0x2a2a4e, 20, 100); // Less aggressive fog
 
-        // Camera
-        this.camera = new THREE.PerspectiveCamera(60, container.offsetWidth / container.offsetHeight, 0.1, 1000);
-        this.camera.position.set(8, 6, 10);
-        this.camera.lookAt(0, 2, 0);
+        // Camera - will be set by camera manager
+        this.camera = null;
 
         // Renderer
-        this.renderer = new THREE.WebGLRenderer({ 
+        this.renderer = new THREE.WebGLRenderer({
             antialias: true,
             powerPreference: "high-performance",
-            alpha: false
+            alpha: false,
+            preserveDrawingBuffer: true
         });
         this.renderer.setSize(container.offsetWidth, container.offsetHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -62,7 +67,17 @@ class StageApp {
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
+
+        // Ensure renderer is properly set up for interactive controls
+        this.renderer.domElement.style.touchAction = 'none';
+        this.renderer.domElement.style.userSelect = 'none';
+
         container.appendChild(this.renderer.domElement);
+
+        // Initialize Cameras (before Controls initialization)
+        if (this.cameraManager && this.cameraManager.setupCameras) {
+            this.cameraManager.setupCameras();
+        }
 
         // Lighting (Base ambient)
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -97,14 +112,10 @@ class StageApp {
         axesHelper.renderOrder = 999; // Render on top
         this.scene.add(axesHelper);
 
-        // Controls
-        this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
-        this.orbit.enableDamping = true;
-        this.orbit.dampingFactor = 0.05;
-
+        // Transform Controls - now initialized with proper camera
         this.transformControl = new TransformControls(this.camera, this.renderer.domElement);
         this.transformControl.addEventListener('dragging-changed', (event) => {
-            this.orbit.enabled = !event.value;
+            if (this.orbit) this.orbit.enabled = !event.value;
         });
         this.transformControl.addEventListener('change', () => {
             if (this.selectedObject) this.ui.updateUI(this.selectedObject);
@@ -116,7 +127,36 @@ class StageApp {
                 this.captureTransformChange(this.selectedObject);
             }
         });
+
+        // Ensure transform controls are visible and have proper size
+        this.transformControl.setSize(1.0);
+        this.transformControl.visible = true;
+
         this.scene.add(this.transformControl);
+
+        // Set default transform mode to translate
+        this.transformControl.setMode('translate');
+
+        // Initialize orbit controls for hand tool
+        this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
+        this.orbit.enabled = false; // Start disabled, enabled when hand tool is active
+        this.orbit.enableDamping = true;
+        this.orbit.dampingFactor = 0.05;
+        this.orbit.screenSpacePanning = true; // Allow panning in any direction
+        this.orbit.minDistance = 1;
+        this.orbit.maxDistance = 100;
+        this.orbit.enablePan = true; // Enable panning
+        this.orbit.enableRotate = true; // Enable rotation
+        this.orbit.enableZoom = true; // Enable zooming
+        this.orbit.panSpeed = 1.0; // Set panning speed
+        this.orbit.rotateSpeed = 1.0; // Set rotation speed
+        this.orbit.zoomSpeed = 1.0; // Set zoom speed
+
+        // Debug: Log initial transform control state
+        console.log('Transform control initialized:', this.transformControl);
+        console.log('Transform control visible:', this.transformControl.visible);
+        console.log('Transform control size:', this.transformControl.size);
+        console.log('Transform control mode:', this.transformControl.mode);
 
         // Events
         window.addEventListener('resize', () => this.onWindowResize());
@@ -209,6 +249,17 @@ class StageApp {
         } else if (obj.userData.type === 'figure') {
             this.objects.push(obj); // Store the group as the main object
         }
+    }
+
+    // Get all objects including those in folders
+    getAllObjects() {
+        let allObjects = [...this.objects];
+        if (this.layerManager) {
+            this.layerManager.folders.forEach(folder => {
+                allObjects = [...allObjects, ...folder.objects];
+            });
+        }
+        return allObjects;
     }
 
     // --- HELPER FOR AI ---
@@ -317,6 +368,8 @@ class StageApp {
         // Intersect recursive
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
+        console.log('Pointer down - intersects found:', intersects.length);
+
         if (intersects.length > 0) {
             let target = null;
             // Walk up hierarchy to find the "logical" object
@@ -335,11 +388,14 @@ class StageApp {
             }
 
             if (target) {
+                console.log('Selecting object:', target);
                 this.selectObject(target);
             } else {
+                console.log('No valid target found, deselecting');
                 this.deselect();
             }
         } else {
+            console.log('No intersects, deselecting');
             this.deselect();
         }
     }
@@ -352,7 +408,19 @@ class StageApp {
             this.selectedObject = obj;
         }
 
+        // Ensure transform controls are visible and properly attached
         this.transformControl.attach(this.selectedObject);
+        this.transformControl.visible = true;
+        this.transformControl.setSize(1.0);
+
+        // Debug: Log the selected object and transform control state
+        console.log('Selected object:', this.selectedObject);
+        console.log('Transform control attached:', this.transformControl.object);
+        console.log('Transform control visible:', this.transformControl.visible);
+
+        // Reset panels to default view when selecting an object
+        this.ui.resetPanelToDefault();
+
         // This triggers UI update which now renders layers via LayerManager
         this.ui.updateUI(this.selectedObject);
     }
@@ -360,11 +428,28 @@ class StageApp {
     deselect() {
         this.selectedObject = null;
         this.transformControl.detach();
+        this.transformControl.visible = false;
         this.ui.updateUI(null);
     }
 
     setTransformMode(mode) {
-        this.transformControl.setMode(mode);
+        if (mode === 'hand') {
+            // Enable orbit controls for hand tool
+            if (this.orbit) {
+                this.orbit.enabled = true;
+                this.transformControl.visible = false;
+                this.transformControl.detach();
+            }
+        } else {
+            // Disable orbit controls for other modes
+            if (this.orbit) {
+                this.orbit.enabled = false;
+                this.transformControl.visible = true;
+            }
+            this.transformControl.setMode(mode);
+        }
+        console.log('Transform mode set to:', mode);
+        console.log('Current transform control object:', this.transformControl.object);
     }
 
     deleteSelected() {
@@ -388,9 +473,12 @@ class StageApp {
 
     onWindowResize() {
         const container = document.getElementById('canvas-container');
-        this.camera.aspect = container.offsetWidth / container.offsetHeight;
-        this.camera.updateProjectionMatrix();
         this.renderer.setSize(container.offsetWidth, container.offsetHeight);
+
+        // Let camera manager handle camera aspect ratio updates
+        if (this.cameraManager) {
+            this.cameraManager.onWindowResize();
+        }
     }
 
     // --- SETTINGS METHODS ---
@@ -419,10 +507,34 @@ class StageApp {
     }
 
     setCameraSpeed(speed) {
-        // Adjust orbit controls speed
-        this.orbit.rotateSpeed = speed;
-        this.orbit.panSpeed = speed;
-        this.orbit.zoomSpeed = speed;
+        // Adjust orbit controls speed (only if orbit controls are initialized)
+        if (this.orbit) {
+            this.orbit.rotateSpeed = speed;
+            this.orbit.panSpeed = speed;
+            this.orbit.zoomSpeed = speed;
+        }
+    }
+
+    // --- SCENE SETTINGS METHODS ---
+    setBackgroundColor(colorHex) {
+        if (colorHex) {
+            this.scene.background = new THREE.Color(colorHex);
+        } else {
+            // Use default background if null/undefined
+            this.scene.background = new THREE.Color(0x2a2a4e);
+        }
+    }
+
+    setAmbientLight(enabled, colorHex) {
+        // Find and update ambient light
+        this.scene.traverse(obj => {
+            if (obj.type === 'AmbientLight') {
+                obj.visible = enabled;
+                if (colorHex) {
+                    obj.color = new THREE.Color(colorHex);
+                }
+            }
+        });
     }
 
     addDefaultTestObjects() {
@@ -466,7 +578,10 @@ class StageApp {
         // Update character animations
         this.characterManager.update(delta);
 
-        this.orbit.update();
+        // Update orbit controls (only if initialized and enabled)
+        if (this.orbit && this.orbit.enabled) {
+            this.orbit.update();
+        }
         this.renderer.render(this.scene, this.camera);
     }
 }

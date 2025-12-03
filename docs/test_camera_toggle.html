@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Toggle Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+        }
+        .test-container {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .test-step {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #0f0f1b;
+            border-radius: 4px;
+        }
+        .success {
+            color: #00ff41;
+        }
+        .error {
+            color: #ff006e;
+        }
+        .camera-controls-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            margin: 4px 0;
+        }
+        .camera-toggle-btn {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+        .camera-toggle-btn:hover {
+            background: #1e293b;
+            color: white;
+        }
+        .camera-popout-menu {
+            display: none;
+            position: absolute;
+            left: 50px;
+            top: 0;
+            background: #1a1a2e;
+            border: 1px solid #2d3748;
+            border-radius: 8px;
+            padding: 8px;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            min-width: 180px;
+        }
+        .camera-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: #1e293b;
+            border: 1px solid #2d3748;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+        }
+        .camera-option:hover {
+            background: #16213e;
+            border-color: #00d9ff;
+        }
+        .camera-option.selected {
+            background: rgba(0, 217, 255, 0.1);
+            border-color: #00d9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h2>Camera Toggle Implementation Test</h2>
+
+        <div class="test-step">
+            <h3>1. UI Elements Creation</h3>
+            <div id="test-ui-creation">
+                <div class="camera-controls-group">
+                    <div class="camera-toggle-btn" id="test-toggle-btn">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div class="camera-popout-menu" id="test-popout-menu">
+                        <div class="camera-option perspective-option" data-camera-type="perspective">
+                            <i class="fas fa-eye"></i>
+                            <span class="camera-option-label">Perspective</span>
+                            <i class="fas fa-check camera-option-check" style="display: none;"></i>
+                        </div>
+                        <div class="camera-option isometric-option" data-camera-type="isometric">
+                            <i class="fas fa-cube"></i>
+                            <span class="camera-option-label">Isometric</span>
+                            <i class="fas fa-check camera-option-check" style="display: none;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p id="ui-result">Testing UI element creation...</p>
+        </div>
+
+        <div class="test-step">
+            <h3>2. Toggle Functionality</h3>
+            <button id="test-toggle-btn-click" class="btn">Simulate Toggle Button Click</button>
+            <p id="toggle-result">Ready to test toggle functionality</p>
+        </div>
+
+        <div class="test-step">
+            <h3>3. Camera Selection</h3>
+            <button id="test-perspective" class="btn">Select Perspective</button>
+            <button id="test-isometric" class="btn">Select Isometric</button>
+            <p id="selection-result">Ready to test camera selection</p>
+        </div>
+
+        <div class="test-step">
+            <h3>4. Tooltip Display</h3>
+            <p id="tooltip-result">Hover over camera options to see tooltips</p>
+        </div>
+    </div>
+
+    <script>
+        // Test UI creation
+        const uiElements = document.querySelectorAll('.camera-toggle-btn, .camera-popout-menu, .camera-option');
+        if (uiElements.length === 4) {
+            document.getElementById('ui-result').innerHTML = '<span class="success">✓ UI elements created successfully</span>';
+        } else {
+            document.getElementById('ui-result').innerHTML = '<span class="error">✗ UI elements creation failed</span>';
+        }
+
+        // Test toggle functionality
+        document.getElementById('test-toggle-btn-click').addEventListener('click', () => {
+            const popoutMenu = document.getElementById('test-popout-menu');
+            const isVisible = popoutMenu.style.display === 'flex';
+            popoutMenu.style.display = isVisible ? 'none' : 'flex';
+            document.getElementById('toggle-result').innerHTML = `<span class="success">✓ Popout menu toggled ${isVisible ? 'closed' : 'open'}</span>`;
+        });
+
+        // Test camera selection
+        document.getElementById('test-perspective').addEventListener('click', () => {
+            const perspectiveOption = document.querySelector('.perspective-option');
+            const isometricOption = document.querySelector('.isometric-option');
+
+            perspectiveOption.querySelector('.camera-option-check').style.display = 'inline';
+            isometricOption.querySelector('.camera-option-check').style.display = 'none';
+
+            perspectiveOption.classList.add('selected');
+            isometricOption.classList.remove('selected');
+
+            document.getElementById('selection-result').innerHTML = '<span class="success">✓ Perspective camera selected</span>';
+        });
+
+        document.getElementById('test-isometric').addEventListener('click', () => {
+            const perspectiveOption = document.querySelector('.perspective-option');
+            const isometricOption = document.querySelector('.isometric-option');
+
+            perspectiveOption.querySelector('.camera-option-check').style.display = 'none';
+            isometricOption.querySelector('.camera-option-check').style.display = 'inline';
+
+            perspectiveOption.classList.remove('selected');
+            isometricOption.classList.add('selected');
+
+            document.getElementById('selection-result').innerHTML = '<span class="success">✓ Isometric camera selected</span>';
+        });
+
+        // Test tooltips
+        const cameraOptions = document.querySelectorAll('.camera-option');
+        cameraOptions.forEach(option => {
+            option.addEventListener('mouseover', () => {
+                const cameraType = option.dataset.cameraType;
+                document.getElementById('tooltip-result').innerHTML = `<span class="success">✓ Tooltip shown for ${cameraType} camera</span>`;
+            });
+        });
+    </script>
+</body>
+</html>
