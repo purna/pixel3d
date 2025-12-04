@@ -14,8 +14,8 @@ export class UI {
         this.modalTitle = document.getElementById('modal-title-text');
         this.modalDesc = document.getElementById('modal-desc');
 
-        // Settings Modal
-        this.settingsModal = document.getElementById('settings-modal');
+        // Settings Modal (using unified settings modal)
+        this.settingsModal = document.getElementById('unified-settings-modal');
         this.settingsInitialized = false;
 
         // Scene Settings Modal
@@ -275,16 +275,14 @@ export class UI {
 
     // --- SETTINGS MODAL ---
     openSettingsModal() {
-        if (!this.settingsInitialized) {
-            this.initSettingsModal();
-            this.settingsInitialized = true;
-        }
-        this.loadSettingsToUI();
-        this.settingsModal.classList.add('open');
+        // Redirect to unified settings modal
+        this.openUnifiedSettingsModal('general');
     }
 
     closeSettingsModal() {
-        this.settingsModal.classList.remove('open');
+        if (this.settingsModal) {
+            this.settingsModal.classList.remove('open');
+        }
     }
 
     // Toggle all overlays (grid, axes, helpers)
@@ -555,62 +553,12 @@ export class UI {
     }
 
     initSettingsModal() {
-        // Close button
-        const closeBtn = document.getElementById('btn-settings-close');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.closeSettingsModal());
+        // This method is now handled by initUnifiedSettingsModal()
+        // Redirect to the unified settings initialization
+        if (!this.unifiedSettingsInitialized) {
+            this.initUnifiedSettingsModal();
+            this.unifiedSettingsInitialized = true;
         }
-
-        // Save button
-        const saveBtn = document.getElementById('btn-settings-save');
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => {
-                this.saveSettings();
-                this.closeSettingsModal();
-            });
-        }
-
-        // Reset button
-        const resetBtn = document.getElementById('btn-settings-reset');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => this.resetSettings());
-        }
-
-        // Camera speed range
-        const speedRange = document.getElementById('setting-camera-speed');
-        const speedValue = document.getElementById('camera-speed-value');
-        if (speedRange && speedValue) {
-            speedRange.addEventListener('input', (e) => {
-                speedValue.textContent = e.target.value;
-            });
-        }
-
-        // Autosave checkbox
-        const autosaveCheckbox = document.getElementById('setting-autosave');
-        if (autosaveCheckbox) {
-            autosaveCheckbox.addEventListener('change', (e) => {
-                if (this.app.fileManager && this.app.fileManager.setAutosaveEnabled) {
-                    this.app.fileManager.setAutosaveEnabled(e.target.checked);
-                }
-            });
-        }
-
-        // Autosave interval
-        const autosaveInterval = document.getElementById('setting-autosave-interval');
-        const autosaveIntervalValue = document.getElementById('autosave-interval-value');
-        if (autosaveInterval && autosaveIntervalValue) {
-            autosaveInterval.addEventListener('input', (e) => {
-                autosaveIntervalValue.textContent = e.target.value;
-                if (this.app.fileManager && this.app.fileManager.setAutosaveInterval) {
-                    this.app.fileManager.setAutosaveInterval(parseInt(e.target.value));
-                }
-            });
-        }
-
-        // Close on overlay click
-        this.settingsModal.addEventListener('click', (e) => {
-            if (e.target.id === 'settings-modal') this.closeSettingsModal();
-        });
     }
 
     toggleSubmenu(btn) {
@@ -1409,11 +1357,9 @@ export class UI {
         }
 
         // Initialize canvas size controls
-        const widthInput = document.getElementById('export-width');
-        const heightInput = document.getElementById('export-height');
-        if (widthInput && heightInput) {
-            widthInput.addEventListener('change', () => this.updateCameraBorder());
-            heightInput.addEventListener('change', () => this.updateCameraBorder());
+        const resolutionDropdown = document.getElementById('export-resolution');
+        if (resolutionDropdown) {
+            resolutionDropdown.addEventListener('change', () => this.updateCameraBorderFromDropdown());
         }
 
         // Initialize camera border visualization
@@ -1747,8 +1693,76 @@ export class UI {
     }
 
     updateCameraBorder() {
-        const width = parseInt(document.getElementById('export-width').value);
-        const height = parseInt(document.getElementById('export-height').value);
+        const width = parseInt(document.getElementById('export-width')?.value || 1920);
+        const height = parseInt(document.getElementById('export-height')?.value || 1080);
+        const preview = document.getElementById('camera-border-preview');
+
+        if (preview) {
+            // Update preview dimensions
+            const aspectRatio = width / height;
+            const maxWidth = preview.parentElement.clientWidth;
+            const maxHeight = 200;
+
+            let displayWidth, displayHeight;
+            if (aspectRatio > 1) {
+                displayWidth = maxWidth;
+                displayHeight = maxWidth / aspectRatio;
+            } else {
+                displayHeight = maxHeight;
+                displayWidth = maxHeight * aspectRatio;
+            }
+
+            preview.style.width = `${displayWidth}px`;
+            preview.style.height = `${displayHeight}px`;
+
+            // Update preview content
+            preview.innerHTML = `
+                <div style="text-align: center; color: var(--text-secondary); font-size: 0.8rem;">
+                    <div>Camera Border Preview</div>
+                    <div style="margin-top: 8px; font-size: 0.7rem;">${width} × ${height}</div>
+                    <div style="margin-top: 4px; font-size: 0.6rem;">Aspect Ratio: ${aspectRatio.toFixed(2)}</div>
+                </div>
+            `;
+
+            // Re-add drag handle
+            this.makeCameraBorderDraggable();
+        }
+    }
+
+    updateCameraBorderFromDropdown() {
+        const resolutionDropdown = document.getElementById('export-resolution');
+        if (!resolutionDropdown) return;
+
+        const selectedValue = resolutionDropdown.value;
+        let width, height;
+
+        if (selectedValue === 'custom') {
+            // Show custom inputs if they exist
+            const customGroup = document.getElementById('custom-resolution-group');
+            if (customGroup) {
+                customGroup.style.display = 'block';
+            }
+            // Use default values or existing custom values
+            width = parseInt(document.getElementById('export-width')?.value || 1920);
+            height = parseInt(document.getElementById('export-height')?.value || 1080);
+        } else {
+            // Hide custom inputs if they exist
+            const customGroup = document.getElementById('custom-resolution-group');
+            if (customGroup) {
+                customGroup.style.display = 'none';
+            }
+
+            // Parse the selected resolution
+            const parts = selectedValue.split('x');
+            width = parseInt(parts[0]);
+            height = parseInt(parts[1]);
+        }
+
+        // Update the camera border preview
+        this.updateCameraBorderWithDimensions(width, height);
+    }
+
+    updateCameraBorderWithDimensions(width, height) {
         const preview = document.getElementById('camera-border-preview');
 
         if (preview) {

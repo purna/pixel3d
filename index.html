@@ -225,16 +225,21 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                         <!-- Canvas Size Controls -->
                         <div class="property-group">
                             <div class="property-label">Canvas Size</div>
-                            <div class="input-row">
-                                <div class="input-group">
-                                    <span>Width</span>
-                                    <input type="number" id="export-width" value="1920" min="100" max="8000">
-                                </div>
-                                <div class="input-group">
-                                    <span>Height</span>
-                                    <input type="number" id="export-height" value="1080" min="100" max="8000">
-                                </div>
-                            </div>
+                            <select id="export-resolution" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
+                                <!-- Game Asset Sizes -->
+                                <option value="24x24">24×24 - Game Icon</option>
+                                <option value="36x36">36×36 - Game Icon</option>
+                                <option value="48x48">48×48 - Game Icon</option>
+                                <option value="128x128">128×128 - Game Sprite</option>
+                                <option value="512x512">512×512 - Game Texture</option>
+                                <option value="1024x1024">1024×1024 - High-res Texture</option>
+    
+                                <!-- Standard Resolutions -->
+                                <option value="1920x1080" selected>1920×1080 - Full HD</option>
+                                <option value="2560x1440">2560×1440 - 2K</option>
+                                <option value="3840x2160">3840×2160 - 4K</option>
+                                <option value="custom">Custom Size</option>
+                            </select>
                         </div>
 
                         <!-- Camera Border Toggle -->
@@ -242,6 +247,18 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                             <label class="property-label">
                                 <input type="checkbox" id="show-camera-border" checked>
                                 Show Camera Border
+                            </label>
+                        </div>
+    
+                        <!-- Custom Resolution Group (hidden by default) -->
+                        <div class="property-group" id="custom-resolution-group" style="display: none;">
+                            <label class="property-label">
+                                Custom Width:
+                                <input type="number" id="export-width" value="1920" min="100" max="8000">
+                            </label>
+                            <label class="property-label">
+                                Custom Height:
+                                <input type="number" id="export-height" value="1080" min="100" max="8000">
                             </label>
                         </div>
 
