@@ -285,6 +285,7 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
     <!-- UNIFIED SETTINGS MODAL -->
     <div class="modal-overlay" id="unified-settings-modal">
         <div class="modal">
+            <header>
             <div class="modal-title">
                 <i class="fas fa-cog"></i> Settings
             </div>
@@ -304,7 +305,9 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                     <i class="fas fa-download"></i> Export
                 </button>
             </div>
-
+            </header>
+            <!-- Scrollable Content Wrapper -->
+            <div class="modal-content-wrapper">
             <!-- General Settings Tab -->
             <div class="settings-tab-content active" data-tab-content="general">
                 <div class="settings-content">
@@ -332,11 +335,11 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                             Show Tooltips
                         </label>
                     </div>
-                    <div class="property-group">
+                    <div class="property-group has-slider">
                         <label class="property-label">
-                            <input type="range" id="setting-camera-speed" min="0.1" max="5" step="0.1" value="1">
                             Camera Speed: <span id="camera-speed-value">1.0</span>
                         </label>
+                        <input type="range" id="setting-camera-speed" min="0.1" max="5" step="0.1" value="1">
                     </div>
                     <div class="property-group">
                         <label class="property-label">
@@ -344,11 +347,11 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                             Auto Save Scene
                         </label>
                     </div>
-                    <div class="property-group">
+                    <div class="property-group has-slider">
                         <label class="property-label">
-                            <input type="range" id="setting-autosave-interval" min="1" max="60" step="1" value="5">
                             Auto Save Interval (minutes): <span id="autosave-interval-value">5</span>
                         </label>
+                        <input type="range" id="setting-autosave-interval" min="1" max="60" step="1" value="5">
                     </div>
                 </div>
             </div>
@@ -395,11 +398,20 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                     <div class="property-group">
                         <label class="property-label">
                             Export Resolution:
-                            <select id="setting-export-resolution">
-                                <option value="1920x1080">1920x1080 (Full HD)</option>
-                                <option value="2560x1440">2560x1440 (2K)</option>
-                                <option value="3840x2160">3840x2160 (4K)</option>
-                                <option value="custom">Custom</option>
+                            <select id="setting-export-resolution" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
+                                <!-- Game Asset Sizes -->
+                                <option value="24x24">24×24 - Game Icon</option>
+                                <option value="36x36">36×36 - Game Icon</option>
+                                <option value="48x48">48×48 - Game Icon</option>
+                                <option value="128x128">128×128 - Game Sprite</option>
+                                <option value="512x512">512×512 - Game Texture</option>
+                                <option value="1024x1024">1024×1024 - High-res Texture</option>
+                                
+                                <!-- Standard Resolutions -->
+                                <option value="1920x1080">1920×1080 - Full HD</option>
+                                <option value="2560x1440">2560×1440 - 2K</option>
+                                <option value="3840x2160">3840×2160 - 4K</option>
+                                <option value="custom">Custom Size</option>
                             </select>
                         </label>
                     </div>
@@ -415,70 +427,14 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                     </div>
                 </div>
             </div>
-
+            </div>
+            <footer>
             <div class="modal-actions">
                 <button class="btn" id="btn-settings-reset">Reset</button>
                 <button class="btn" id="btn-settings-close">Close</button>
                 <button class="btn primary" id="btn-settings-save">Save Settings</button>
             </div>
-        </div>
-    </div>
-        <div class="modal">
-            <div class="modal-title">
-                <i class="fas fa-cog"></i> Settings
-            </div>
-            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;">
-                Configure your 3D Studio preferences
-            </div>
-            <div class="settings-content">
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="checkbox" id="setting-grid" checked>
-                        Show Grid
-                    </label>
-                </div>
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="checkbox" id="setting-axes" checked>
-                        Show Axes
-                    </label>
-                </div>
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="checkbox" id="setting-snap" checked>
-                        Snap to Grid
-                    </label>
-                </div>
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="checkbox" id="setting-tooltips" checked>
-                        Show Tooltips
-                    </label>
-                </div>
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="range" id="setting-camera-speed" min="0.1" max="5" step="0.1" value="1">
-                        Camera Speed: <span id="camera-speed-value">1.0</span>
-                    </label>
-                </div>
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="checkbox" id="setting-autosave" checked>
-                        Auto Save Scene
-                    </label>
-                </div>
-                <div class="property-group">
-                    <label class="property-label">
-                        <input type="range" id="setting-autosave-interval" min="1" max="60" step="1" value="5">
-                        Auto Save Interval (minutes): <span id="autosave-interval-value">5</span>
-                    </label>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn" id="btn-settings-reset">Reset</button>
-                <button class="btn" id="btn-settings-close">Close</button>
-                <button class="btn primary" id="btn-settings-save">Save Settings</button>
-            </div>
+            </footer>
         </div>
     </div>
 

@@ -1159,6 +1159,8 @@ input[type="color"] {
     display: none;
     align-items: center;
     justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .modal-overlay.open {
@@ -1169,9 +1171,23 @@ input[type="color"] {
     background: var(--bg-dark);
     border: 1px solid var(--border-color);
     width: 400px;
+    max-width: calc(100% - 40px);
+    max-height: calc(100vh - 100px);
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    padding: 20px;
+    margin: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-content-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 15px 20px 0;
+    box-sizing: border-box;
 }
 
 .modal-title {
@@ -1182,6 +1198,79 @@ input[type="color"] {
     align-items: center;
     gap: 8px;
     color: #a855f7;
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.modal-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.modal-scrollable-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 0 20px;
+}
+
+.modal header {
+    flex-shrink: 0;
+    padding: 20px 20px 40px 20px;
+    width: 100%;
+    display: block;
+    margin-bottom: 40px;
+}
+
+.modal header > div {
+    width: 100%;
+}
+
+.settings-tabs {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.modal-content-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 25px 20px 0;
+    box-sizing: border-box;
+}
+
+.modal-content-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 20px 20px 0;
+    box-sizing: border-box;
+}
+
+
+.modal section {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.modal footer {
+    flex-shrink: 0;
+    padding: 15px 20px 20px;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+    background: var(--bg-dark);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
 }
 
 .modal textarea {
@@ -1357,11 +1446,11 @@ input[type="color"] {
 }
 
 .settings-content .property-label {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-weight: 500;
 }
 
@@ -1372,15 +1461,32 @@ input[type="color"] {
     cursor: pointer;
 }
 
+/* Slider property groups - stack label above slider */
+.property-group.has-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.property-group.has-slider .property-label {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.property-group.has-slider input[type="range"] {
+    width: 100%;
+    margin-top: 0;
+}
+
 .settings-content input[type="range"] {
     width: 100%;
     cursor: pointer;
 }
 
 .modal-actions {
-    border-top: 1px solid var(--border-color);
-    padding-top: 12px;
-    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 #btn-settings-reset {
@@ -1453,11 +1559,11 @@ input[type="color"] {
 }
 
 .scene-settings-content .property-label {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-weight: 500;
 }
 
@@ -1551,12 +1657,6 @@ input[type="color"] {
 }
 
 /* Unified Settings Modal */
-.settings-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
-    border-bottom: 1px solid var(--border-color);
-}
 
 .settings-tab {
     flex: 1;
