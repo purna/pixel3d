@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel 3D - Pro Staging Studio</title>
     <!-- Fonts & Icons -->
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css"></noscript>
+        <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
      <!-- Custom Font -->
     <style>
         @font-face {
@@ -17,153 +16,14 @@
             font-display: swap;
         }
     </style>
+
     
     <!-- External Styles -->
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/tutorials.css">
 
-    <!-- Font Awesome Fallback Script -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (typeof FontAwesome === 'undefined' || !document.querySelector('.fa')) {
-                console.warn('Font Awesome not loaded, applying fallback styles');
-                const style = document.createElement('style');
-                style.textContent = `
-                    .fa, .fas, .far, .fal, .fat, .fad {
-                        font-family: Arial, sans-serif;
-                        font-weight: normal;
-                        font-style: normal;
-                    }
-                    /* Add all your icon fallbacks here */
-                    .fa-undo:before { content: "↩"; }
-                    .fa-save:before { content: "💾"; }
-                    .fa-trash-alt:before { content: "🗑️"; }
-                    .fa-folder-open:before { content: "📁"; }
-                    .fa-download:before { content: "⬇"; }
-                    .fa-mouse-pointer:before { content: "🖱️"; }
-                    .fa-wand-magic-sparkles:before { content: "✨"; }
-                    .fa-shapes:before { content: "🔺"; }
-                    .fa-cube:before { content: "🟦"; }
-                    .fa-circle:before { content: "⚪"; }
-                    .fa-caret-up:before { content: "▲"; }
-                    .fa-database:before { content: "🗃️"; }
-                    .fa-vector-square:before { content: "▢"; }
-                    .fa-life-ring:before { content: "🆘"; }
-                    .fa-gem:before { content: "💎"; }
-                    .fa-dice-d8:before { content: "🎲"; }
-                    .fa-dice-d20:before { content: "🎲"; }
-                    .fa-star:before { content: "⭐"; }
-                    .fa-bezier-curve:before { content: "🌀"; }
-                    .fa-user:before { content: "👤"; }
-                    .fa-female:before { content: "♀"; }
-                    .fa-male:before { content: "♂"; }
-                    .fa-lightbulb:before { content: "💡"; }
-                    .fa-bullseye:before { content: "🎯"; }
-                    .fa-sun:before { content: "☀️"; }
-                    .fa-globe:before { content: "🌐"; }
-                    .fa-adjust:before { content: "🔆"; }
-                    .fa-palette:before { content: "🎨"; }
-                    .fa-layer-group:before { content: "📂"; }
-                    .fa-sliders-h:before { content: "📊"; }
-                    .fa-image:before { content: "🖼️"; }
-                    .fa-eye-slash:before { content: "👁️‍🗨️"; }
-                    .fa-cog:before { content: "⚙️"; }
-                    .fa-hand-paper:before { content: "✋"; }
-                    .fa-arrows-alt:before { content: "↕"; }
-                    .fa-sync-alt:before { content: "🔄"; }
-                    .fa-expand-arrows-alt:before { content: "↔"; }
-                    .fa-search-minus:before { content: "🔍"; }
-                    .fa-search-plus:before { content: "🔎"; }
-                    .fa-chevron-right:before { content: "➡"; }
-                    .fa-sparkles:before { content: "✨"; }
-                    .fa-circle-notch:before { content: "🌀"; }
-                    .fa-redo:before { content: "🔄"; }
-                    .fa-chevron-left:before { content: "⬅"; }
-                    .fa-camera:before { content: "📷"; }
-                    .fa-file:before { content: "📄"; }
-                    .fa-folder:before { content: "📁"; }
-                    .fa-cogs:before { content: "⚙️"; }
-                    .fa-question-circle:before { content: "❓"; }
-                    .fa-exclamation-triangle:before { content: "⚠️"; }
-                    .fa-check:before { content: "✓"; }
-                    .fa-times:before { content: "✕"; }
-                    .fa-plus:before { content: "+"; }
-                    .fa-minus:before { content: "-"; }
-                    .fa-pencil-alt:before { content: "✏️"; }
-                    .fa-trash:before { content: "🗑️"; }
-                    .fa-copy:before { content: "📋"; }
-                    .fa-cut:before { content: "🔪"; }
-                    .fa-paste:before { content: "📋"; }
-                    .fa-clipboard:before { content: "📋"; }
-                    .fa-external-link-alt:before { content: "🔗"; }
-                    .fa-info-circle:before { content: "ℹ️"; }
-                    .fa-exclamation-circle:before { content: "⚠️"; }
-                    .fa-ban:before { content: "🚫"; }
-                    .fa-lock:before { content: "🔒"; }
-                    .fa-unlock:before { content: "🔓"; }
-                    .fa-eye:before { content: "👁️"; }
-                    .fa-eye-slash:before { content: "👁️‍🗨️"; }
-                    .fa-calendar:before { content: "📅"; }
-                    .fa-clock:before { content: "⏰"; }
-                    .fa-home:before { content: "🏠"; }
-                    .fa-envelope:before { content: "✉️"; }
-                    .fa-phone:before { content: "📞"; }
-                    .fa-map-marker-alt:before { content: "📍"; }
-                    .fa-heart:before { content: "❤️"; }
-                    .fa-star:before { content: "⭐"; }
-                    .fa-thumbs-up:before { content: "👍"; }
-                    .fa-thumbs-down:before { content: "👎"; }
-                    .fa-share:before { content: "🔗"; }
-                    .fa-download:before { content: "⬇"; }
-                    .fa-upload:before { content: "⬆"; }
-                    .fa-print:before { content: "🖨️"; }
-                    .fa-search:before { content: "🔍"; }
-                    .fa-bell:before { content: "🔔"; }
-                    .fa-bookmark:before { content: "🔖"; }
-                    .fa-camera:before { content: "📷"; }
-                    .fa-comment:before { content: "💬"; }
-                    .fa-edit:before { content: "✏️"; }
-                    .fa-ellipsis-h:before { content: "⋯"; }
-                    .fa-ellipsis-v:before { content: "⋮"; }
-                    .fa-flag:before { content: "🏳️"; }
-                    .fa-heart:before { content: "❤️"; }
-                    .fa-link:before { content: "🔗"; }
-                    .fa-lock:before { content: "🔒"; }
-                    .fa-map:before { content: "🗺️"; }
-                    .fa-paperclip:before { content: "📎"; }
-                    .fa-play:before { content: "▶"; }
-                    .fa-refresh:before { content: "🔄"; }
-                    .fa-save:before { content: "💾"; }
-                    .fa-setting:before { content: "⚙️"; }
-                    .fa-share:before { content: "🔗"; }
-                    .fa-shield:before { content: "🛡️"; }
-                    .fa-sign-out:before { content: "🚪"; }
-                    .fa-sort:before { content: "🔽"; }
-                    .fa-sort-down:before { content: "🔽"; }
-                    .fa-sort-up:before { content: "🔼"; }
-                    .fa-star:before { content: "⭐"; }
-                    .fa-sync:before { content: "🔄"; }
-                    .fa-tag:before { content: "🏷️"; }
-                    .fa-tags:before { content: "🏷️"; }
-                    .fa-th:before { content: "📊"; }
-                    .fa-th-large:before { content: "📊"; }
-                    .fa-th-list:before { content: "📋"; }
-                    .fa-trash:before { content: "🗑️"; }
-                    .fa-unlock:before { content: "🔓"; }
-                    .fa-user:before { content: "👤"; }
-                    .fa-users:before { content: "👥"; }
-                    .fa-video:before { content: "📹"; }
-                    .fa-volume-down:before { content: "🔊"; }
-                    .fa-volume-off:before { content: "🔇"; }
-                    .fa-volume-up:before { content: "🔈"; }
-                    .fa-wifi:before { content: "📶"; }
-                    .fa-wrench:before { content: "🔧"; }
-                    .fa-zoom-in:before { content: "🔍"; }
-                    .fa-zoom-out:before { content: "🔎"; }
-                `;
-                document.head.appendChild(style);
-            }
-        });
-    </script>
+    <!-- Local Font Awesome Implementation - No fallbacks needed -->
+    <link rel="stylesheet" href="fonts/fontawesome-free-6.5.0/css/all.min.css">
 
     <!-- Three.js Import Map -->
     <script type="importmap">
