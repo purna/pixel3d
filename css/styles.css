@@ -183,6 +183,17 @@ header {
     color: #ff8fab;
 }
 
+/* Disabled state for tool buttons */
+.tool-btn.disabled,
+.tool-btn.disabled:hover {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    border-color: transparent !important;
+}
+
 .tool-divider {
     width: 30px;
     height: 1px;
