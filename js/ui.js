@@ -1095,6 +1095,7 @@ export class UI {
 
         const metallicInput = document.createElement('input');
         metallicInput.type = 'range';
+        metallicInput.id = 'prop-metallic-slider';
         metallicInput.min = '0';
         metallicInput.max = '1';
         metallicInput.step = '0.01';
@@ -1146,6 +1147,7 @@ export class UI {
 
         const roughnessInput = document.createElement('input');
         roughnessInput.type = 'range';
+        roughnessInput.id = 'prop-roughness-slider';
         roughnessInput.min = '0';
         roughnessInput.max = '1';
         roughnessInput.step = '0.01';
@@ -1221,43 +1223,127 @@ export class UI {
 
         materialsGroup.appendChild(selectorHeader);
 
-        // Create materials dropdown
-        const materialsDropdown = document.createElement('select');
-        materialsDropdown.className = 'material-selector';
-        materialsDropdown.style.width = '100%';
-        materialsDropdown.style.padding = '4px';
-        materialsDropdown.style.fontSize = '0.7rem';
-        materialsDropdown.style.background = 'var(--bg-light)';
-        materialsDropdown.style.border = '1px solid var(--border-color)';
-        materialsDropdown.style.borderRadius = '4px';
+        // Create custom materials dropdown wrapper
+        const dropdownWrapper = document.createElement('div');
+        dropdownWrapper.className = 'material-dropdown-wrapper';
 
-        // Add default option
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = 'Select a material...';
-        materialsDropdown.appendChild(defaultOption);
+        // Create the visible dropdown button
+        const dropdownButton = document.createElement('div');
+        dropdownButton.className = 'material-selector';
+        dropdownButton.innerHTML = `
+            <span class="selected-material-text">Select a material...</span>
+            <svg class="dropdown-arrow" fill="white" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 10l5 5 5-5z"/>
+            </svg>
+        `;
+
+        // Create the dropdown list (hidden by default)
+        const dropdownList = document.createElement('div');
+        dropdownList.className = 'material-dropdown-list';
+
+        // Add default item
+        const defaultItem = document.createElement('div');
+        defaultItem.className = 'material-dropdown-item';
+        defaultItem.innerHTML = `
+            <div class="material-color-swatch" style="background-color: transparent; border: 1px dashed var(--border-color);"></div>
+            <span class="material-option-text">Select a material...</span>
+        `;
+        defaultItem.addEventListener('click', () => {
+            dropdownButton.querySelector('.selected-material-text').textContent = 'Select a material...';
+            dropdownList.classList.remove('show');
+        });
+        dropdownList.appendChild(defaultItem);
 
         // Add materials from materials manager
         this.app.materialsManager.materials.forEach(material => {
-            const option = document.createElement('option');
-            option.value = material.id;
-            option.textContent = `${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)})`;
-            materialsDropdown.appendChild(option);
-        });
+            // Convert hex color to CSS format
+            const colorHex = material.color ? '#' + material.color.toString(16).padStart(6, '0') : '#ffffff';
 
-        // Add event listener for material selection
-        materialsDropdown.addEventListener('change', (e) => {
-            const materialId = e.target.value;
-            if (materialId) {
+            const dropdownItem = document.createElement('div');
+            dropdownItem.className = 'material-dropdown-item';
+            dropdownItem.dataset.materialId = material.id;
+            dropdownItem.innerHTML = `
+                <div class="material-color-swatch" style="background-color: ${colorHex}; border: 1px solid var(--border-color);"></div>
+                <span class="material-option-text">${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)})</span>
+            `;
+
+            dropdownItem.addEventListener('click', () => {
+                // Remove selected class from all items
+                dropdownList.querySelectorAll('.material-dropdown-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+
+                // Add selected class to clicked item
+                dropdownItem.classList.add('selected');
+
+                dropdownButton.querySelector('.selected-material-text').textContent = dropdownItem.querySelector('.material-option-text').textContent;
+                dropdownList.classList.remove('show');
+                dropdownWrapper.classList.remove('open');
+
+                // Apply the selected material
+                const materialId = dropdownItem.dataset.materialId;
                 const material = this.app.materialsManager.materials.find(m => m.id === materialId);
                 if (material) {
                     this.app.materialsManager.applyMaterialToSelected(material);
                 }
+            });
+
+            dropdownList.appendChild(dropdownItem);
+        });
+
+        // Add click handler to toggle dropdown
+        dropdownButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dropdownList.classList.contains('show');
+            if (isOpen) {
+                dropdownList.classList.remove('show');
+                dropdownWrapper.classList.remove('open');
+            } else {
+                dropdownList.classList.add('show');
+                dropdownWrapper.classList.add('open');
             }
         });
 
-        materialsGroup.appendChild(materialsDropdown);
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!dropdownWrapper.contains(e.target)) {
+                dropdownList.classList.remove('show');
+                dropdownWrapper.classList.remove('open');
+            }
+        });
+
+        dropdownWrapper.appendChild(dropdownButton);
+        dropdownWrapper.appendChild(dropdownList);
+        materialsGroup.appendChild(dropdownWrapper);
         this.propsContent.appendChild(materialsGroup);
+    }
+
+    // Method to update material properties UI when a material is selected
+    updateMaterialPropertiesUI(material, targetMesh) {
+        if (!material || !targetMesh) return;
+
+        // Update color picker
+        const colorPicker = document.getElementById('prop-color-picker');
+        if (colorPicker) {
+            colorPicker.value = '#' + material.color.toString(16).padStart(6, '0');
+        }
+
+        // Update metallic slider using specific ID
+        const metallicInput = document.getElementById('prop-metallic-slider');
+        if (metallicInput) {
+            metallicInput.value = material.metalness;
+        }
+
+        // Update roughness slider using specific ID
+        const roughnessInput = document.getElementById('prop-roughness-slider');
+        if (roughnessInput) {
+            roughnessInput.value = material.roughness;
+        }
+
+        // Update the actual material properties on the mesh
+        targetMesh.material.color.setHex(material.color);
+        targetMesh.material.metalness = material.metalness;
+        targetMesh.material.roughness = material.roughness;
     }
 
     showNotification(message, type = 'info') {
@@ -1857,6 +1943,17 @@ export class UI {
                     customGroup.style.display = 'block';
                 } else {
                     customGroup.style.display = 'none';
+                }
+            });
+        }
+
+        // Tutorial settings - wire up the start tutorial button in the tutorial tab
+        const tutorialStartBtn = document.getElementById('startTutorialBtn');
+        if (tutorialStartBtn) {
+            tutorialStartBtn.addEventListener('click', () => {
+                if (this.app.tutorialSystem) {
+                    this.app.tutorialSystem.startTutorial('main');
+                    this.closeUnifiedSettingsModal();
                 }
             });
         }

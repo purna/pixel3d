@@ -225,3 +225,29 @@
     /* Corrected for horizontal positioning */
     left: 66.66% !important;
 }
+/* Style for setting descriptions */
+.setting-description {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    margin-left: 30px;
+}
+
+/* Ensure tutorial tab matches the scene tab style */
+.settings-tab-content[data-tab-content="tutorial"] .property-group {
+    margin-bottom: 12px;
+    padding: 8px 0;
+}
+
+.settings-tab-content[data-tab-content="tutorial"] .property-group:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+/* Fix tutorial tab button styling */
+.settings-tab-content[data-tab-content="tutorial"] button {
+    margin-top: 12px;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+}

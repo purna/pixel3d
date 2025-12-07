@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel 3D - Pro Staging Studio</title>
     <!-- Fonts & Icons -->
-        <link rel="icon" type="image/png" href="/pixel3d/favicon-96x96.png" sizes="96x96" />
-     <!-- Custom Font -->
+    <link rel="icon" type="image/png" href="/pixel3d/favicon-96x96.png" sizes="96x96" />
+    <!-- Custom Font -->
     <style>
         @font-face {
             font-family: 'Inter';
@@ -15,11 +16,25 @@
             font-style: normal;
             font-display: swap;
         }
+        @font-face {
+            font-family: 'Inter';
+            src: url('fonts/inter-bold.woff2') format('woff2');
+            font-weight: bold;
+            font-style: normal;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Press Start 2P';
+            src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
     </style>
-
-    
     <!-- External Styles -->
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/tutorials.css">
 
     <!-- Local Font Awesome Implementation - No fallbacks needed -->
@@ -35,6 +50,7 @@
         }
     </script>
 </head>
+
 <body>
 
     <!-- HEADER -->
@@ -57,20 +73,20 @@
 
     <!-- WORKSPACE -->
     <div class="workspace">
-        
-           <!-- LEFT TOOLBAR -->
+
+        <!-- LEFT TOOLBAR -->
         <div class="tools-panel" id="tools-container">
             <div class="tool-btn active" id="tool-select" data-tooltip="**Select Tool**
 Click objects to select them
 --Keyboard: Q--
 --Delete: X--"><i class="fas fa-mouse-pointer"></i></div>
             <div class="tool-divider"></div>
-            
+
             <!-- AI Tools -->
             <div class="tool-btn ai-tool" id="tool-ai-scene" data-tooltip="**Magic Scene Generator**
 Describe a scene and let AI create it
 Uses Gemini AI for generation"><i class="fas fa-wand-magic-sparkles"></i></div>
-            
+
             <div class="tool-divider"></div>
 
             <!-- Shapes Menu -->
@@ -78,23 +94,33 @@ Uses Gemini AI for generation"><i class="fas fa-wand-magic-sparkles"></i></div>
 Hover to see all available shapes">
                 <i class="fas fa-shapes"></i>
                 <div class="tool-submenu">
-                    <div class="tool-btn" data-action="addShape" data-type="box" data-tooltip="**Box**"><i class="fas fa-cube"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="sphere" data-tooltip="**Sphere**"><i class="fas fa-circle"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="cone" data-tooltip="**Cone**"><i class="fas fa-caret-up"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="cylinder" data-tooltip="**Cylinder**"><i class="fas fa-database"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="box" data-tooltip="**Box**"><i
+                            class="fas fa-cube"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="sphere" data-tooltip="**Sphere**"><i
+                            class="fas fa-circle"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="cone" data-tooltip="**Cone**"><i
+                            class="fas fa-caret-up"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="cylinder" data-tooltip="**Cylinder**"><i
+                            class="fas fa-database"></i></div>
                     <div class="tool-btn" data-action="addShape" data-type="plane" data-tooltip="**Plane**
 Great for floors"><i class="fas fa-vector-square"></i></div>
                     <div class="tool-btn" data-action="addShape" data-type="torus" data-tooltip="**Torus**
 Donut shape"><i class="fas fa-life-ring"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="tetrahedron" data-tooltip="**Tetrahedron**"><i class="fas fa-gem"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="octahedron" data-tooltip="**Octahedron**"><i class="fas fa-dice-d8"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="dodecahedron" data-tooltip="**Dodecahedron**"><i class="fas fa-dice-d20"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="icosahedron" data-tooltip="**Icosahedron**"><i class="fas fa-star"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="tetrahedron" data-tooltip="**Tetrahedron**">
+                        <i class="fas fa-gem"></i>
+                    </div>
+                    <div class="tool-btn" data-action="addShape" data-type="octahedron" data-tooltip="**Octahedron**"><i
+                            class="fas fa-dice-d8"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="dodecahedron"
+                        data-tooltip="**Dodecahedron**"><i class="fas fa-dice-d20"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="icosahedron" data-tooltip="**Icosahedron**">
+                        <i class="fas fa-star"></i>
+                    </div>
                     <div class="tool-btn" data-action="addShape" data-type="torusknot" data-tooltip="**Torus Knot**
 Complex twisted shape"><i class="fas fa-bezier-curve"></i></div>
                 </div>
             </div>
-            
+
             <!-- Characters Menu -->
             <div class="tool-btn menu-parent disabled" data-tooltip="**Characters**
 Add animated 3D characters">
@@ -127,7 +153,7 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
 
             <!-- Separators to group functionality -->
             <div class="tool-divider"></div>
-            
+
             <!-- Materials Tool -->
             <div class="tool-btn materials-tool" id="tool-materials" data-tooltip="**Materials**
             View and manage materials"><i class="fas fa-palette"></i></div>
@@ -151,7 +177,7 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             Configure application"><i class="fas fa-cog"></i></div>
         </div>
 
-        
+
         <!-- CENTER CANVAS -->
         <div class="canvas-area">
             <div class="overlay-controls">
@@ -167,7 +193,14 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                 <button class="btn icon-only" id="mode-scale" title="Scale (S)" data-tooltip="**Scale Mode**
                 Resize objects
                 --Keyboard: S--"><i class="fas fa-expand-arrows-alt"></i></button>
-            </div>
+           
+
+            <!-- Transform Space Toggle -->
+            <label class="transform-space-toggle" title="Toggle Transform Space">
+                <input type="checkbox" id="transform-space-checkbox" class="Checkbox" checked>
+                <span class="toggle-label">Local</span>
+            </label>
+             </div>
 
             <!-- Zoom Control -->
             <div class="zoom-control">
@@ -230,7 +263,8 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                         <!-- Canvas Size Controls -->
                         <div class="property-group">
                             <div class="property-label">Canvas Size</div>
-                            <select id="export-resolution" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
+                            <select id="export-resolution"
+                                style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
                                 <!-- Game Asset Sizes -->
                                 <option value="24x24">24×24 - Game Icon</option>
                                 <option value="36x36">36×36 - Game Icon</option>
@@ -238,7 +272,7 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                                 <option value="128x128">128×128 - Game Sprite</option>
                                 <option value="512x512">512×512 - Game Texture</option>
                                 <option value="1024x1024">1024×1024 - High-res Texture</option>
-    
+
                                 <!-- Standard Resolutions -->
                                 <option value="1920x1080" selected>1920×1080 - Full HD</option>
                                 <option value="2560x1440">2560×1440 - 2K</option>
@@ -254,7 +288,7 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                                 Show Camera Border
                             </label>
                         </div>
-    
+
                         <!-- Custom Resolution Group (hidden by default) -->
                         <div class="property-group" id="custom-resolution-group" style="display: none;">
                             <label class="property-label">
@@ -276,7 +310,8 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                     <!-- Camera Border Visualization -->
                     <div class="property-group">
                         <div class="property-label">Camera Border Preview</div>
-                        <div id="camera-border-preview" style="width: 100%; height: 200px; background: rgba(0, 217, 255, 0.1); border: 1px dashed var(--accent-tertiary); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.8rem; cursor: move;">
+                        <div id="camera-border-preview"
+                            style="width: 100%; height: 200px; background: rgba(0, 217, 255, 0.1); border: 1px dashed var(--accent-tertiary); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.8rem; cursor: move;">
                             Camera border visualization will appear here
                         </div>
                     </div>
@@ -295,9 +330,11 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:10px;" id="modal-desc">
                 Describe the scene you want to build.
             </div>
-            <textarea id="ai-prompt-input" placeholder="e.g. A circle of blue boxes with a red sphere in the middle..."></textarea>
+            <textarea id="ai-prompt-input"
+                placeholder="e.g. A circle of blue boxes with a red sphere in the middle..."></textarea>
             <div class="modal-actions">
-                <div class="loading-spinner" id="ai-spinner"><i class="fas fa-circle-notch fa-spin"></i> Generating...</div>
+                <div class="loading-spinner" id="ai-spinner"><i class="fas fa-circle-notch fa-spin"></i> Generating...
+                </div>
                 <button class="btn" id="btn-ai-cancel">Cancel</button>
                 <button class="btn ai-magic" id="btn-ai-generate">Generate ✨</button>
             </div>
@@ -308,158 +345,234 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
     <div class="modal-overlay" id="unified-settings-modal">
         <div class="modal">
             <header>
-            <div class="modal-title">
-                <i class="fas fa-cog"></i> Settings
-            </div>
-            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;">
-                Configure your 3D Studio preferences
-            </div>
+                <div class="modal-title">
+                    <i class="fas fa-cog"></i> Settings
+                </div>
+                <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:15px;">
+                    Configure your 3D Studio preferences
+                </div>
 
-            <!-- Settings Tabs -->
-            <div class="settings-tabs">
-                <button class="settings-tab active" data-tab="general" id="tab-general">
-                    <i class="fas fa-sliders-h"></i> General
-                </button>
-                <button class="settings-tab" data-tab="scene" id="tab-scene">
-                    <i class="fas fa-image"></i> Scene
-                </button>
-                <button class="settings-tab" data-tab="export" id="tab-export">
-                    <i class="fas fa-download"></i> Export
-                </button>
-            </div>
+                <!-- Settings Tabs -->
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="general" id="tab-general">
+                        <i class="fas fa-sliders-h"></i> General
+                    </button>
+                    <button class="settings-tab" data-tab="scene" id="tab-scene">
+                        <i class="fas fa-image"></i> Scene
+                    </button>
+                    <button class="settings-tab" data-tab="export" id="tab-export">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="settings-tab" data-tab="tutorial" id="tab-tutorial">
+                        <i class="fas fa-graduation-cap"></i> Tutorial
+                    </button>
+                </div>
             </header>
             <!-- Scrollable Content Wrapper -->
             <div class="modal-content-wrapper">
-            <!-- General Settings Tab -->
-            <div class="settings-tab-content active" data-tab-content="general">
-                <div class="settings-content">
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-grid" checked>
-                            Show Grid
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-axes" checked>
-                            Show Axes
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-snap" checked>
-                            Snap to Grid
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-tooltips" checked>
-                            Show Tooltips
-                        </label>
-                    </div>
-                    <div class="property-group has-slider">
-                        <label class="property-label">
-                            Camera Speed: <span id="camera-speed-value">1.0</span>
-                        </label>
-                        <input type="range" id="setting-camera-speed" min="0.1" max="5" step="0.1" value="1">
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-autosave" checked>
-                            Auto Save Scene
-                        </label>
-                    </div>
-                    <div class="property-group has-slider">
-                        <label class="property-label">
-                            Auto Save Interval (minutes): <span id="autosave-interval-value">5</span>
-                        </label>
-                        <input type="range" id="setting-autosave-interval" min="1" max="60" step="1" value="5">
-                    </div>
-                </div>
-            </div>
+                <!-- General Settings Tab -->
+                <div class="settings-tab-content active" data-tab-content="general">
+                    <div class="settings-content">
+                        <!-- Visual Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Visual Settings</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-grid" checked>
+                                    Show Grid
+                                </label>
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-axes" checked>
+                                    Show Axes
+                                </label>
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-snap" checked>
+                                    Snap to Grid
+                                </label>
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-tooltips" checked>
+                                    Show Tooltips
+                                </label>
+                            </div>
+                        </div>
 
-            <!-- Scene Settings Tab -->
-            <div class="settings-tab-content" data-tab-content="scene">
-                <div class="scene-settings-content">
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-background-enabled" checked>
-                            Enable Custom Background
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            Background Color:
-                            <input type="color" id="setting-background-color" value="#1a1a2e">
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-ambient-light" checked>
-                            Enable Ambient Light
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            Ambient Light Color:
-                            <input type="color" id="setting-ambient-color" value="#ffffff">
-                        </label>
-                    </div>
-                </div>
-            </div>
+                        <!-- Camera Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Camera Settings</div>
+                            <div class="property-group has-slider">
+                                <label class="property-label">
+                                    Camera Speed: <span id="camera-speed-value">1.0</span>
+                                </label>
+                                <input type="range" id="setting-camera-speed" min="0.1" max="5" step="0.1" value="1">
+                            </div>
+                        </div>
 
-            <!-- Export Settings Tab -->
-            <div class="settings-tab-content" data-tab-content="export">
-                <div class="export-settings-content">
-                    <div class="property-group">
-                        <label class="property-label">
-                            <input type="checkbox" id="setting-export-transparent" checked>
-                            Export with Transparent Background
-                        </label>
-                    </div>
-                    <div class="property-group">
-                        <label class="property-label">
-                            Export Resolution:
-                            <select id="setting-export-resolution" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
-                                <!-- Game Asset Sizes -->
-                                <option value="24x24">24×24 - Game Icon</option>
-                                <option value="36x36">36×36 - Game Icon</option>
-                                <option value="48x48">48×48 - Game Icon</option>
-                                <option value="128x128">128×128 - Game Sprite</option>
-                                <option value="512x512">512×512 - Game Texture</option>
-                                <option value="1024x1024">1024×1024 - High-res Texture</option>
-                                
-                                <!-- Standard Resolutions -->
-                                <option value="1920x1080">1920×1080 - Full HD</option>
-                                <option value="2560x1440">2560×1440 - 2K</option>
-                                <option value="3840x2160">3840×2160 - 4K</option>
-                                <option value="custom">Custom Size</option>
-                            </select>
-                        </label>
-                    </div>
-                    <div class="property-group" id="custom-resolution-group" style="display: none;">
-                        <label class="property-label">
-                            Custom Width:
-                            <input type="number" id="setting-custom-width" value="1920" min="100" max="8000">
-                        </label>
-                        <label class="property-label">
-                            Custom Height:
-                            <input type="number" id="setting-custom-height" value="1080" min="100" max="8000">
-                        </label>
+                        <!-- Auto Save Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Auto Save Settings</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-autosave" checked>
+                                    Auto Save Scene
+                                </label>
+                            </div>
+                            <div class="property-group has-slider">
+                                <label class="property-label">
+                                    Auto Save Interval (minutes): <span id="autosave-interval-value">5</span>
+                                </label>
+                                <input type="range" id="setting-autosave-interval" min="1" max="60" step="1" value="5">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- Scene Settings Tab -->
+                <div class="settings-tab-content" data-tab-content="scene">
+                    <div class="scene-settings-content">
+                        <!-- Background Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Background Settings</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-background-enabled" checked>
+                                    Enable Custom Background
+                                </label>
+
+                                <label class="property-label">
+                                    Background Color:
+                                    <input type="color" id="setting-background-color" value="#1a1a2e">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Lighting Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Lighting Settings</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-ambient-light" checked>
+                                    Enable Ambient Light
+                                </label>
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    Ambient Light Color:
+                                    <input type="color" id="setting-ambient-color" value="#ffffff">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Settings Tab -->
+                <div class="settings-tab-content" data-tab-content="export">
+                    <div class="export-settings-content">
+                        <!-- Export Options Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Export Options</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-export-transparent" checked>
+                                    Export with Transparent Background
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Resolution Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Resolution Settings</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    Export Resolution:
+                                    <select id="setting-export-resolution"
+                                        style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
+                                        <!-- Game Asset Sizes -->
+                                        <option value="24x24">24×24 - Game Icon</option>
+                                        <option value="36x36">36×36 - Game Icon</option>
+                                        <option value="48x48">48×48 - Game Icon</option>
+                                        <option value="128x128">128×128 - Game Sprite</option>
+                                        <option value="512x512">512×512 - Game Texture</option>
+                                        <option value="1024x1024">1024×1024 - High-res Texture</option>
+
+                                        <!-- Standard Resolutions -->
+                                        <option value="1920x1080">1920×1080 - Full HD</option>
+                                        <option value="2560x1440">2560×1440 - 2K</option>
+                                        <option value="3840x2160">3840×2160 - 4K</option>
+                                        <option value="custom">Custom Size</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <div class="property-group" id="custom-resolution-group" style="display: none;">
+                                <label class="property-label">
+                                    Custom Width:
+                                    <input type="number" id="setting-custom-width" value="1920" min="100" max="8000">
+                                </label>
+                                <label class="property-label">
+                                    Custom Height:
+                                    <input type="number" id="setting-custom-height" value="1080" min="100" max="8000">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tutorial Settings Tab -->
+                <div class="settings-tab-content" data-tab-content="tutorial">
+                    <div class="settings-content">
+                        <!-- Tutorial Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Tutorial Settings</div>
+                            <div class="property-group">
+                                <label class="setting-label">
+                                    <input type="checkbox" id="settings-enable-tutorials" checked>
+                                    <span class="checkmark"></span> Enable Tutorials
+                                </label>
+                                <div class="setting-description">
+                                    Show interactive tutorials on startup
+                                </div>
+                            </div>
+
+                            <div class="property-group">
+                                <label class="setting-label">
+                                    <input type="checkbox" id="settings-show-hints" checked>
+                                    <span class="checkmark"></span> Show Tutorial Hints
+                                </label>
+                                <div class="setting-description">
+                                    Display helpful hints and tooltips
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tutorial Actions Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Tutorial Actions</div>
+                            <div class="property-group">
+                                <button id="startTutorialBtn" class="btn" style="width: 100%;">
+                                    <i class="fas fa-graduation-cap"></i> Start Tutorial
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
             <footer>
-            <div class="modal-actions">
-                <button class="btn" id="btn-settings-reset">Reset</button>
-                <button class="btn" id="btn-settings-close">Close</button>
-                <button class="btn primary" id="btn-settings-save">Save Settings</button>
-            </div>
+                <div class="modal-actions">
+                    <button class="btn" id="btn-settings-reset">Reset</button>
+                    <button class="btn" id="btn-settings-close">Close</button>
+                    <button class="btn primary" id="btn-settings-save">Save Settings</button>
+                </div>
             </footer>
         </div>
     </div>
 
     <!-- MAIN APP ENTRY POINT -->
     <script type="module" src="js/main.js"></script>
+
 </html>

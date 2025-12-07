@@ -245,6 +245,11 @@ export class MaterialsManager {
             }
 
             this.app.ui.showNotification(`Applied material to ${obj.userData.name || obj.userData.type}`, 'success');
+
+            // Update the UI to reflect the new material properties
+            if (this.app.ui && this.app.ui.updateMaterialPropertiesUI) {
+                this.app.ui.updateMaterialPropertiesUI(material, targetMesh);
+            }
         }
     }
 

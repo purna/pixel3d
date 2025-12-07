@@ -172,6 +172,18 @@ export class CameraManager {
         }
     }
 
+    // Enable/disable camera movement
+    setCameraEnabled(enabled) {
+        // Disable orbit controls
+        if (this.app.orbit) {
+            this.app.orbit.enabled = enabled;
+        }
+
+        // Additional camera disabling logic can be added here if needed
+        // For example, we could also prevent camera position changes
+        console.log(`Camera movement ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
     // Add camera toggle button to UI
     addCameraToggleUI() {
         // Add camera toggle button to the dedicated container

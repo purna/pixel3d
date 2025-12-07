@@ -12,6 +12,9 @@ import { ToolTip } from './tooltip.js';
 import { HistoryManager, TransformObjectCommand, AddObjectCommand, DeleteObjectCommand, ClearSceneCommand, AddCharacterCommand } from './historyManager.js';
 import { CharacterManager } from './characterManager.js';
 import { APP_DEFAULTS } from './config.js';
+import { TutorialConfig } from './tutorialConfig.js';
+import { TutorialSystem } from './tutorialSystem.js';
+import './notifications.js';
 
 
 class StageApp {
@@ -37,6 +40,9 @@ class StageApp {
         this.cameraManager = new CameraManager(this); // Init Camera Manager
         this.characterManager = new CharacterManager(this); // Init Character Manager
         this.historyManager = new HistoryManager(this); // Init History Manager
+        this.notifications = new window.Notifications(); // Init Notifications System
+        this.tutorialConfig = new TutorialConfig(); // Init Tutorial Config
+        this.tutorialSystem = new TutorialSystem(this); // Init Tutorial System
         this.ui = new UI(this); // UI initialized last so it can access layerManager
 
         this.init();
@@ -79,6 +85,11 @@ class StageApp {
             this.cameraManager.setupCameras();
         }
 
+        // Wait for camera to be properly initialized before setting up transform controls
+        setTimeout(() => {
+            this.setupTransformControls();
+        }, 100);
+
         // Lighting (Base ambient)
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
@@ -112,58 +123,28 @@ class StageApp {
         axesHelper.renderOrder = 999; // Render on top
         this.scene.add(axesHelper);
 
-        // Transform Controls - now initialized with proper camera
-        this.transformControl = new TransformControls(this.camera, this.renderer.domElement);
-        this.transformControl.addEventListener('dragging-changed', (event) => {
-            if (this.orbit) this.orbit.enabled = !event.value;
-        });
-        this.transformControl.addEventListener('change', () => {
-            if (this.selectedObject) this.ui.updateUI(this.selectedObject);
-        });
 
-        // Track transform changes for history
-        this.transformControl.addEventListener('mouseUp', () => {
-            if (this.selectedObject) {
-                this.captureTransformChange(this.selectedObject);
-            }
-        });
 
-        // Ensure transform controls are visible and have proper size
-        this.transformControl.setSize(1.0);
-        this.transformControl.visible = true;
-
-        this.scene.add(this.transformControl);
-
-        // Set default transform mode to translate
-        this.transformControl.setMode('translate');
-
-        // Initialize orbit controls for hand tool
-        this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
-        this.orbit.enabled = false; // Start disabled, enabled when hand tool is active
-        this.orbit.enableDamping = true;
-        this.orbit.dampingFactor = 0.05;
-        this.orbit.screenSpacePanning = true; // Allow panning in any direction
-        this.orbit.minDistance = 1;
-        this.orbit.maxDistance = 100;
-        this.orbit.enablePan = true; // Enable panning
-        this.orbit.enableRotate = true; // Enable rotation
-        this.orbit.enableZoom = true; // Enable zooming
-        this.orbit.panSpeed = 1.0; // Set panning speed
-        this.orbit.rotateSpeed = 1.0; // Set rotation speed
-        this.orbit.zoomSpeed = 1.0; // Set zoom speed
-
-        // Debug: Log initial transform control state
-        console.log('Transform control initialized:', this.transformControl);
-        console.log('Transform control visible:', this.transformControl.visible);
-        console.log('Transform control size:', this.transformControl.size);
-        console.log('Transform control mode:', this.transformControl.mode);
 
         // Events
         window.addEventListener('resize', () => this.onWindowResize());
         this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
 
+        // Add event listener for transform space toggle
+        setTimeout(() => {
+            const spaceCheckbox = document.getElementById('transform-space-checkbox');
+            if (spaceCheckbox) {
+                spaceCheckbox.addEventListener('change', (e) => {
+                    this.toggleTransformSpace(e.target.checked);
+                });
+            }
+        }, 500);
+
         // Initialize UI Logic
         this.ui.init();
+
+        // Initialize Tutorial System
+        this.tutorialSystem.init();
 
         // Ensure grid and axes are visible by default
         this.setGridVisible(true);
@@ -178,6 +159,108 @@ class StageApp {
         // Start Loop
         this.animate();
     }
+
+    // Setup transform controls after camera is properly initialized
+    setupTransformControls() {
+        // Wait a bit longer to ensure camera and orbit controls are fully initialized
+        setTimeout(() => {
+            // Transform Controls - now initialized with proper camera
+            this.transformControl = new TransformControls(this.camera, this.renderer.domElement);
+
+            // Ensure orbit controls exist and are properly configured
+            if (!this.orbit) {
+                console.warn('Orbit controls not found, creating them now');
+                this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
+                this.configureOrbitControlsForTouch();
+            } else {
+                this.configureOrbitControlsForTouch();
+            }
+
+            this.transformControl.addEventListener('dragging-changed', (event) => {
+                if (this.orbit) this.orbit.enabled = !event.value;
+                // Also disable camera movement completely during object transformation
+                if (this.cameraManager) {
+                    this.cameraManager.setCameraEnabled(!event.value);
+                }
+            });
+
+            this.transformControl.addEventListener('change', () => {
+                if (this.selectedObject) this.ui.updateUI(this.selectedObject);
+            });
+
+            // Track transform changes for history
+            this.transformControl.addEventListener('mouseUp', () => {
+                if (this.selectedObject) {
+                    this.captureTransformChange(this.selectedObject);
+                }
+            });
+
+            // Ensure transform controls are visible and have proper size
+            this.transformControl.setSize(1.5); // Increased size for better visibility
+            this.transformControl.visible = true;
+
+            // Add space property for better 3D manipulation
+            this.transformControl.space = 'local';
+
+            this.scene.add(this.transformControl);
+
+            // Set default transform mode to translate
+            this.transformControl.setMode('translate');
+
+            // Debug: Log initial transform control state
+            console.log('Transform control initialized:', this.transformControl);
+            console.log('Transform control visible:', this.transformControl.visible);
+            console.log('Transform control size:', this.transformControl.size);
+            console.log('Transform control mode:', this.transformControl.mode);
+            console.log('Transform control space:', this.transformControl.space);
+            console.log('Orbit controls status:', this.orbit ? 'available' : 'not available');
+        }, 200); // Increased delay to ensure everything is ready
+    }
+
+    // Configure orbit controls for optimal touch/trackpad experience
+    configureOrbitControlsForTouch() {
+        if (this.orbit) {
+            // Enable single-finger panning for better touch/trackpad experience
+            this.orbit.enablePan = true;
+            this.orbit.screenSpacePanning = true;
+
+            // Optimize for trackpad/touch input
+            this.orbit.panSpeed = 0.8;
+            this.orbit.rotateSpeed = 0.8;
+            this.orbit.dampingFactor = 0.07;
+
+            // Enable touch events
+            this.orbit.enableDamping = true;
+            this.orbit.dampingFactor = 0.07;
+
+            // Set initial state - disabled for transform mode, enabled for hand tool
+            this.orbit.enabled = false;
+
+            console.log('Orbit controls configured for touch/trackpad input');
+        }
+    }
+    
+        // Toggle between local and world space for transform controls
+        toggleTransformSpace(useLocalSpace) {
+            if (this.transformControl) {
+                this.transformControl.space = useLocalSpace ? 'local' : 'world';
+                console.log(`Transform space set to: ${useLocalSpace ? 'local' : 'world'}`);
+    
+                // Update the label text
+                const label = document.querySelector('.transform-space-toggle .toggle-label');
+                if (label) {
+                    label.textContent = useLocalSpace ? 'Local' : 'World';
+                }
+    
+                // Show notification
+                this.ui.showNotification(
+                    `Transform space: ${useLocalSpace ? 'Local' : 'World'}`,
+                    'info'
+                );
+            } else {
+                console.warn('Transform controls not available for space toggle');
+            }
+        }
 
     // --- UNDO/REDO METHODS ---
     undo() {
@@ -434,11 +517,24 @@ class StageApp {
 
     setTransformMode(mode) {
         if (mode === 'hand') {
-            // Enable orbit controls for hand tool
+            // Enable orbit controls for hand tool with optimized touch/trackpad settings
             if (this.orbit) {
                 this.orbit.enabled = true;
                 this.transformControl.visible = false;
                 this.transformControl.detach();
+
+                // Optimize for single-finger panning on trackpad/touch
+                this.orbit.enablePan = true;
+                this.orbit.screenSpacePanning = true;
+                this.orbit.panSpeed = 1.0; // Slightly faster for better responsiveness
+
+                // Enable touch events and improve damping for smoother panning
+                this.orbit.enableDamping = true;
+                this.orbit.dampingFactor = 0.07;
+
+                // Show notification about single-finger panning
+                this.ui.showNotification('Hand Tool: Single-finger panning enabled', 'info');
+                console.log('Hand tool activated with single-finger panning optimization');
             }
         } else {
             // Disable orbit controls for other modes
@@ -447,6 +543,14 @@ class StageApp {
                 this.transformControl.visible = true;
             }
             this.transformControl.setMode(mode);
+
+            // Show notification for transform mode
+            const modeNames = {
+                'translate': 'Translate',
+                'rotate': 'Rotate',
+                'scale': 'Scale'
+            };
+            this.ui.showNotification(`${modeNames[mode] || mode} mode activated`, 'info');
         }
         console.log('Transform mode set to:', mode);
         console.log('Current transform control object:', this.transformControl.object);

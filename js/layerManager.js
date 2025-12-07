@@ -4,7 +4,7 @@ export class LayerManager {
         this.container = document.getElementById('layers-list');
         this.folders = []; // Array to store folder objects
         this.dragSource = null; // Track dragged item
-        this.dragType = null; // 'object' or 'folder'
+        this.dragType = null; // 'object' or 'foxlder'
         this.dragTarget = null; // Track drop target for reordering
         this.initFolderUI();
     }
