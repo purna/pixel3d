@@ -46,11 +46,15 @@
    ============================================= */
 .modal-content-wrapper {
     flex: 1;
+    flex-direction: column;
     overflow-y: auto;
     min-height: 0;
-    padding: 0 20px 20px 20px;
+    padding: 0px 20px 20px 20px;
+    margin-top: 60px;
     box-sizing: border-box;
+    display: flex;
 }
+
 
 .modal-title {
     font-size: 1.1rem;
@@ -63,7 +67,7 @@
     flex-shrink: 0;
     width: 100%;
     box-sizing: border-box;
-    padding: 20px 20px 0 20px;
+    padding: 0px 0px 20px 0px;
 }
 
 #modal-desc {
@@ -74,13 +78,6 @@
     line-height: 1.4;
 }
 
-.modal-content-wrapper {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow: hidden;
-    min-height: 0;
-}
 
 .modal-scrollable-content {
     flex: 1;
@@ -97,7 +94,7 @@
     padding: 20px 20px 40px 20px;
     width: 100%;
     display: block;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
 }
 
 .modal header>div {
@@ -106,7 +103,7 @@
 
 .modal footer {
     flex-shrink: 0;
-    padding: 15px 20px 20px;
+    padding: 15px 0px 10px 15px;
     border-top: 1px solid var(--border-color);
     margin-top: auto;
     background: var(--bg-dark);
@@ -119,13 +116,6 @@
 /* =============================================
    SETTINGS TABS SYSTEM
    ============================================= */
-.settings-tabs {
-    width: 100%;
-    display: flex;
-    gap: 8px;
-    border-bottom: 1px solid var(--border-color);
-    flex-shrink: 0;
-}
 
 .modal section {
     flex: 1;

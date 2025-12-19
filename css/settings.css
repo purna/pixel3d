@@ -275,11 +275,10 @@
 }
 
 .settings-tabs {
+    width: 100%;
     display: flex;
     gap: 8px;
-}
-
-.settings-tab {
+    border-bottom: 1px solid var(--border-color);
     flex: 1;
     min-width: 0;
     padding: 8px 12px;
@@ -293,13 +292,7 @@
 /* =============================================
    STANDARDIZED TAB FORMATTING
    ============================================= */
-.settings-content,
-.scene-settings-content,
-.export-settings-content {
-    padding: 16px;
-    font-size: 0.8rem;
-    color: var(--text-primary);
-}
+
 
 .property-group {
     margin-bottom: 12px;
@@ -325,8 +318,7 @@
 
 /* =============================================
    SETTINGS MODAL STRUCTURE
-   ============================================= */
-.settings-content,
+============================ */
 .scene-settings-content,
 .export-settings-content {
     background: var(--bg-medium);
@@ -337,12 +329,10 @@
     gap: 16px;
     margin-bottom: 15px;
     border: 1px solid var(--border-color);
+    font-size: 0.8rem;
+    color: var(--text-primary);
 }
 
-.settings-content {
-    max-height: 70vh;
-    overflow-y: auto;
-}
 
 .scene-settings-content,
 .export-settings-content {
@@ -424,7 +414,7 @@
 /* =============================================
    SETTINGS CONTENT SPECIFIC STYLES
    ============================================= */
-.settings-content .property-label,
+
 .scene-settings-content .property-label {
     font-size: 0.75rem;
     color: var(--text-primary);
@@ -434,7 +424,6 @@
     font-weight: 500;
 }
 
-.settings-content input[type="checkbox"],
 .scene-settings-content input[type="checkbox"] {
     width: 18px;
     height: 18px;
