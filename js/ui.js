@@ -889,7 +889,7 @@ export class UI {
         this.propsContent.innerHTML = '';
 
         if (!selectedObject) {
-            this.propsContent.innerHTML = '<div class="empty-state">Select an object to edit properties</div>';
+            this.propsContent.innerHTML = '<div class="empty-state"> <p>Click on an object to edit properties</p><br> <p>Right click to deselect an object</p></div>';
             return;
         }
 

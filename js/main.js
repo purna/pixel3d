@@ -30,6 +30,10 @@ class StageApp {
 
         this.selectedObject = null;
         this.objects = []; // Keep track of interactable objects
+        this.isInteractingWithGizmo = false; // Track gizmo interaction state
+        this.isDraggingGizmo = false; // Track if we're actively dragging the gizmo
+        this.gizmoDragJustEnded = false; // Track if gizmo drag just ended (to prevent immediate deselect)
+        this.lastPointerPosition = { x: 0, y: 0 }; // Track pointer position for drag detection
 
         // Initialize Modules
         this.factory = new ObjectFactory(this);
@@ -128,7 +132,16 @@ class StageApp {
 
         // Events
         window.addEventListener('resize', () => this.onWindowResize());
-        this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+        // Use capture phase to intercept events before TransformControls
+        this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e), true);
+        this.renderer.domElement.addEventListener('pointermove', (e) => this.onPointerMove(e), true);
+        this.renderer.domElement.addEventListener('mouseup', (e) => this.onMouseUp(e), true);
+        // Right-click to deselect
+        this.renderer.domElement.addEventListener('contextmenu', (e) => this.onRightClick(e));
+        
+        // Add pointerup listener for deselection on empty space click
+        // This runs AFTER pointermove, so gizmo hover state is up-to-date
+        this.renderer.domElement.addEventListener('pointerup', (e) => this.onPointerUpForDeselect(e), true);
 
         // Add event listener for transform space toggle
         setTimeout(() => {
@@ -176,11 +189,34 @@ class StageApp {
                 this.configureOrbitControlsForTouch();
             }
 
+            // Track if pointer is over transform gizmo
+            this.transformControl.isHovered = false;
+
+            // Add hover event listeners
+            this.transformControl.addEventListener('hover-on', () => {
+                this.transformControl.isHovered = true;
+                console.log('Transform gizmo hover on');
+            });
+            
+            this.transformControl.addEventListener('hover-off', () => {
+                this.transformControl.isHovered = false;
+                console.log('Transform gizmo hover off');
+            });
+
             this.transformControl.addEventListener('dragging-changed', (event) => {
                 if (this.orbit) this.orbit.enabled = !event.value;
                 // Also disable camera movement completely during object transformation
                 if (this.cameraManager) {
                     this.cameraManager.setCameraEnabled(!event.value);
+                }
+                // Track gizmo dragging state
+                this.isDraggingGizmo = event.value;
+                if (!event.value) {
+                    // Gizmo drag just ended - prevent deselection for a brief moment
+                    this.gizmoDragJustEnded = true;
+                    setTimeout(() => {
+                        this.gizmoDragJustEnded = false;
+                    }, 100);
                 }
             });
 
@@ -442,27 +478,169 @@ class StageApp {
 
     // --- MANIPULATION ---
 
-    onPointerDown(event) {
+    onPointerMove(event) {
+        // Track hover state for transform controls
+        if (this.transformControl) {
+            const rect = this.renderer.domElement.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            
+            // Only check hover if an object is selected (gizmo is visible)
+            if (this.transformControl.object) {
+                // Raycast against transform control helper objects
+                const transformHelpers = [];
+                this.transformControl.traverse((child) => {
+                    if (child.isLineSegments || child.isMesh) {
+                        transformHelpers.push(child);
+                    }
+                });
+                
+                if (transformHelpers.length > 0) {
+                    const helperIntersects = this.raycaster.intersectObjects(transformHelpers, true);
+                    this.transformControl.isHovered = helperIntersects.length > 0;
+                } else {
+                    this.transformControl.isHovered = false;
+                }
+            } else {
+                // No object selected, can't be hovering over gizmo
+                this.transformControl.isHovered = false;
+            }
+        }
+    }
+
+    onMouseUp(event) {
+        // Check if we should deselect on mouse up
+        // This handles the case where user clicks on empty space after gizmo interaction
+        if (this.selectedObject && !this.transformControl.isHovered) {
+            const rect = this.renderer.domElement.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            
+            // Get all selectable objects
+            const selectableObjects = this.getAllObjects();
+            
+            // Raycast against selectable objects
+            const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+            
+            if (intersects.length === 0) {
+                console.log('Mouse up on empty space, deselecting');
+                this.deselect();
+            }
+        }
+    }
+
+    onRightClick(event) {
+        // Prevent default context menu
+        event.preventDefault();
+        
+        // Right-click always deselects (regardless of where clicked)
+        if (this.selectedObject) {
+            console.log('Right-click, deselecting object');
+            this.deselect();
+        }
+    }
+
+    // --- POINTER EVENTS ---
+
+    onPointerUpForDeselect(event) {
+        // Don't deselect if we just finished dragging the gizmo
+        if (this.gizmoDragJustEnded) {
+            return;
+        }
+        
+        // Don't deselect if we're currently dragging the gizmo
+        if (this.isDraggingGizmo) {
+            return;
+        }
+        
+        // Don't deselect if no object is selected
+        if (!this.selectedObject) return;
+        
+        // Don't deselect if gizmo is being hovered (user might click it next)
+        if (this.transformControl.isHovered) return;
+        
+        // Calculate mouse position
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+        
         this.raycaster.setFromCamera(this.mouse, this.camera);
-        // Intersect recursive
-        const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+        
+        // Get all selectable objects
+        const selectableObjects = this.getAllObjects();
+        
+        // Raycast against selectable objects
+        const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+        
+        // If no intersects, click was on empty space - deselect
+        if (intersects.length === 0) {
+            console.log('Click on empty space, deselecting object');
+            this.deselect();
+        }
+    }
 
-        console.log('Pointer down - intersects found:', intersects.length);
+    onPointerDown(event) {
+        // Calculate mouse position
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        
+        // Check if pointer is over transform controls gizmo
+        // Only check if an object is selected AND gizmo is visible AND attached
+        let isOverGizmo = false;
+        if (this.transformControl && 
+            this.transformControl.object && 
+            this.transformControl.visible &&
+            this.transformControl.parent === this.scene) {
+            
+            // Raycast to check if we're over the transform gizmo
+            const transformHelpers = [];
+            this.transformControl.traverse((child) => {
+                if (child.isLineSegments || child.isMesh) {
+                    transformHelpers.push(child);
+                }
+            });
+            
+            if (transformHelpers.length > 0) {
+                const helperIntersects = this.raycaster.intersectObjects(transformHelpers, true);
+                isOverGizmo = helperIntersects.length > 0;
+            }
+            
+            if (isOverGizmo) {
+                // Let TransformControls handle gizmo interaction
+                return;
+            }
+        }
+        
+        // Not over gizmo (or no gizmo visible), check if we clicked on an object
+        // Get all selectable objects (excluding grid, axes, and transform controls)
+        const selectableObjects = this.getAllObjects().filter(obj => {
+            return obj.type !== 'GridHelper' && 
+                   obj.type !== 'AxesHelper' && 
+                   obj.type !== 'TransformControls';
+        });
+        
+        // Intersect only with selectable objects
+        const intersects = this.raycaster.intersectObjects(selectableObjects, true);
 
         if (intersects.length > 0) {
             let target = null;
             // Walk up hierarchy to find the "logical" object
             for (let hit of intersects) {
-                if (hit.object.type === 'GridHelper') continue;
                 let curr = hit.object;
                 while (curr) {
                     if (curr.userData && (curr.userData.type || curr.userData.name)) {
-                        target = curr;
-                        break;
+                        // Check if this is a selectable object
+                        if (this.getAllObjects().includes(curr) || 
+                            this.getAllObjects().includes(curr.parent)) {
+                            target = curr;
+                            break;
+                        }
                     }
                     if (curr.parent === this.scene) break;
                     curr = curr.parent;
@@ -471,16 +649,12 @@ class StageApp {
             }
 
             if (target) {
-                console.log('Selecting object:', target);
+                // Select the object (deselection on empty space is handled in onPointerUpForDeselect)
                 this.selectObject(target);
-            } else {
-                console.log('No valid target found, deselecting');
-                this.deselect();
             }
-        } else {
-            console.log('No intersects, deselecting');
-            this.deselect();
         }
+        // Note: Deselection on empty space is handled in onPointerUpForDeselect
+        // which runs after onPointerMove has updated the gizmo hover state
     }
 
     selectObject(obj) {
