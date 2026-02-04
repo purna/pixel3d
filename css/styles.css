@@ -866,6 +866,65 @@ input[type="color"] {
     flex-direction: column;
 }
 
+/* A-Frame Section */
+.aframe-section {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    flex-direction: column;
+}
+
+.aframe-section .panel-header {
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg-dark);
+}
+
+.aframe-section .panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    margin-top: 0;
+}
+
+/* A-Frame Tool Button */
+.tool-btn.aframe-tool {
+    color: #00d9ff;
+}
+
+.tool-btn.aframe-tool:hover {
+    background: rgba(0, 217, 255, 0.1);
+    color: #4de8ff;
+}
+
+/* A-Frame HTML Preview */
+#aframe-html-preview {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    line-height: 1.4;
+    tab-size: 2;
+}
+
+#aframe-html-preview::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+#aframe-html-preview::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+#aframe-html-preview::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+#aframe-html-preview::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
 .scene-section .panel-header {
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);

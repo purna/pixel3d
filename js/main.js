@@ -14,6 +14,7 @@ import { CharacterManager } from './characterManager.js';
 import { APP_DEFAULTS } from './config.js';
 import { TutorialConfig } from './tutorialConfig.js';
 import { TutorialSystem } from './tutorialSystem.js';
+import { AFrameExporter } from './aframeExporter.js';
 import './notifications.js';
 
 
@@ -47,6 +48,7 @@ class StageApp {
         this.notifications = new window.Notifications(); // Init Notifications System
         this.tutorialConfig = new TutorialConfig(); // Init Tutorial Config
         this.tutorialSystem = new TutorialSystem(this); // Init Tutorial System
+        this.aframeExporter = new AFrameExporter(this); // Init A-Frame Exporter
         this.ui = new UI(this); // UI initialized last so it can access layerManager
 
         this.init();

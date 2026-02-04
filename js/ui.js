@@ -185,6 +185,16 @@ export class UI {
             this.toggleSceneView();
         });
 
+        // A-Frame export toolbar button
+        document.getElementById('tool-aframe-export')?.addEventListener('click', () => {
+            // Show panel if hidden when clicking A-Frame export button
+            const panel = document.getElementById('right-panel');
+            if (panel && panel.classList.contains('hidden')) {
+                this.togglePropertiesPanel();
+            }
+            this.toggleAFrameView();
+        });
+
         // Settings toolbar button - now opens unified settings
         document.getElementById('tool-settings')?.addEventListener('click', () => {
             this.openUnifiedSettingsModal('general');
@@ -1072,6 +1082,11 @@ export class UI {
             lColGroup.appendChild(lColInput);
             this.propsContent.appendChild(lColGroup);
         }
+
+        // A-FRAME PROPERTIES (for shapes)
+        if (isShape && obj.userData.aframe) {
+            this.addAFrameProperties(obj);
+        }
     }
 
     // Add PBR Material Properties (Metallic and Roughness)
@@ -1187,6 +1202,115 @@ export class UI {
         materialGroup.appendChild(roughnessRow);
 
         this.propsContent.appendChild(materialGroup);
+    }
+
+    // Add A-Frame Properties to Properties Panel
+    addAFrameProperties(obj) {
+        if (!obj.userData.aframe) {
+            obj.userData.aframe = {
+                src: '',
+                shadow: { cast: true, receive: true },
+                animation: '',
+                customAttrs: {}
+            };
+        }
+
+        const aframeData = obj.userData.aframe;
+
+        // Create A-Frame properties group
+        const aframeGroup = document.createElement('div');
+        aframeGroup.className = 'property-group';
+        aframeGroup.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas fa-vr-cardboard" style="margin-right: 6px;"></i>A-Frame Properties</div>`;
+
+        // Source/Asset URL
+        const srcRow = document.createElement('div');
+        srcRow.className = 'input-row';
+        srcRow.style.marginBottom = '8px';
+        srcRow.innerHTML = `
+            <span style="font-size: 0.65rem; color: var(--text-secondary); width: 60px;">Asset URL:</span>
+            <input type="text" id="aframe-src" value="${aframeData.src || ''}" 
+                placeholder="#asset-id or URL"
+                style="flex: 1; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font-size: 0.7rem; color: var(--text-primary);">
+        `;
+        srcRow.querySelector('input').addEventListener('input', (e) => {
+            aframeData.src = e.target.value;
+        });
+        aframeGroup.appendChild(srcRow);
+
+        // Shadow settings
+        const shadowRow = document.createElement('div');
+        shadowRow.className = 'input-row';
+        shadowRow.style.marginBottom = '8px';
+        shadowRow.innerHTML = `
+            <label style="font-size: 0.65rem; color: var(--text-secondary); display: flex; align-items: center; margin-right: 12px;">
+                <input type="checkbox" id="aframe-shadow-cast" ${aframeData.shadow?.cast ? 'checked' : ''} style="margin-right: 4px;">
+                Cast Shadow
+            </label>
+            <label style="font-size: 0.65rem; color: var(--text-secondary); display: flex; align-items: center;">
+                <input type="checkbox" id="aframe-shadow-receive" ${aframeData.shadow?.receive ? 'checked' : ''} style="margin-right: 4px;">
+                Receive Shadow
+            </label>
+        `;
+        shadowRow.querySelector('#aframe-shadow-cast').addEventListener('change', (e) => {
+            if (!aframeData.shadow) aframeData.shadow = {};
+            aframeData.shadow.cast = e.target.checked;
+        });
+        shadowRow.querySelector('#aframe-shadow-receive').addEventListener('change', (e) => {
+            if (!aframeData.shadow) aframeData.shadow = {};
+            aframeData.shadow.receive = e.target.checked;
+        });
+        aframeGroup.appendChild(shadowRow);
+
+        // Animation
+        const animRow = document.createElement('div');
+        animRow.className = 'input-row';
+        animRow.style.marginBottom = '8px';
+        animRow.innerHTML = `
+            <span style="font-size: 0.65rem; color: var(--text-secondary); width: 60px;">Animation:</span>
+            <input type="text" id="aframe-animation" value="${aframeData.animation || ''}" 
+                placeholder="property: rotation; to: 0 360 0; loop: true"
+                style="flex: 1; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font-size: 0.7rem; color: var(--text-primary);">
+        `;
+        animRow.querySelector('input').addEventListener('input', (e) => {
+            aframeData.animation = e.target.value;
+        });
+        aframeGroup.appendChild(animRow);
+
+        // Quick animation presets
+        const presetsRow = document.createElement('div');
+        presetsRow.className = 'input-row';
+        presetsRow.style.marginBottom = '4px';
+        presetsRow.innerHTML = `
+            <span style="font-size: 0.6rem; color: var(--text-secondary);">Presets:</span>
+            <button class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="rotate">Rotate</button>
+            <button class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="bounce">Bounce</button>
+            <button class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="pulse">Pulse</button>
+        `;
+        presetsRow.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const preset = e.target.dataset.preset;
+                const animInput = document.getElementById('aframe-animation');
+                let animValue = '';
+                switch (preset) {
+                    case 'rotate':
+                        animValue = 'property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear';
+                        break;
+                    case 'bounce':
+                        animValue = 'property: position; dir: alternate; dur: 1000; easing: easeInOutQuad; loop: true; to: 0 2 0';
+                        break;
+                    case 'pulse':
+                        animValue = 'property: scale; dir: alternate; dur: 500; easing: easeInOutSine; loop: true; to: 1.2 1.2 1.2';
+                        break;
+                }
+                if (animInput) {
+                    animInput.value = animValue;
+                    aframeData.animation = animValue;
+                }
+            });
+        });
+        aframeGroup.appendChild(presetsRow);
+
+        this.propsContent.appendChild(aframeGroup);
     }
 
     // Add Materials Selector to Properties Panel
@@ -1390,6 +1514,7 @@ export class UI {
     toggleSceneView() {
         const sceneSection = document.getElementById('scene-section');
         const materialsSection = document.getElementById('materials-section');
+        const aframeSection = document.getElementById('aframe-section');
         const propsContent = document.getElementById('props-content');
         const layersList = document.getElementById('layers-list');
 
@@ -1400,6 +1525,7 @@ export class UI {
                 // Switch to normal view
                 sceneSection.style.display = 'none';
                 materialsSection.style.display = 'none';
+                if (aframeSection) aframeSection.style.display = 'none';
                 propsContent.style.display = 'block';
                 layersList.style.display = 'block';
                 document.querySelectorAll('.panel-header').forEach(header => {
@@ -1409,6 +1535,7 @@ export class UI {
                 // Switch to scene view
                 sceneSection.style.display = 'flex';
                 materialsSection.style.display = 'none';
+                if (aframeSection) aframeSection.style.display = 'none';
                 propsContent.style.display = 'none';
                 layersList.style.display = 'none';
                 document.querySelectorAll('.panel-header').forEach((header, index) => {
@@ -1422,6 +1549,129 @@ export class UI {
 
             // Initialize scene export functionality
             this.initSceneExport();
+        }
+    }
+
+    // --- A-FRAME PANEL VIEW ---
+    toggleAFrameView() {
+        const sceneSection = document.getElementById('scene-section');
+        const materialsSection = document.getElementById('materials-section');
+        const aframeSection = document.getElementById('aframe-section');
+        const propsContent = document.getElementById('props-content');
+        const layersList = document.getElementById('layers-list');
+
+        if (aframeSection && propsContent && layersList) {
+            const isAFrameVisible = aframeSection.style.display !== 'none';
+
+            if (isAFrameVisible) {
+                // Switch to normal view
+                aframeSection.style.display = 'none';
+                if (sceneSection) sceneSection.style.display = 'none';
+                if (materialsSection) materialsSection.style.display = 'none';
+                propsContent.style.display = 'block';
+                layersList.style.display = 'block';
+                document.querySelectorAll('.panel-header').forEach(header => {
+                    header.style.display = 'flex';
+                });
+            } else {
+                // Switch to A-Frame view
+                aframeSection.style.display = 'flex';
+                if (sceneSection) sceneSection.style.display = 'none';
+                if (materialsSection) materialsSection.style.display = 'none';
+                propsContent.style.display = 'none';
+                layersList.style.display = 'none';
+                document.querySelectorAll('.panel-header').forEach((header, index) => {
+                    header.style.display = 'none';
+                });
+            }
+
+            // Initialize A-Frame export functionality
+            this.initAFrameExport();
+        }
+    }
+
+    // --- A-FRAME EXPORT FUNCTIONALITY ---
+    initAFrameExport() {
+        // Refresh preview button
+        const refreshBtn = document.getElementById('btn-refresh-aframe');
+        if (refreshBtn && !refreshBtn.hasAttribute('data-initialized')) {
+            refreshBtn.setAttribute('data-initialized', 'true');
+            refreshBtn.addEventListener('click', () => {
+                this.refreshAFramePreview();
+            });
+        }
+
+        // Download button
+        const downloadBtn = document.getElementById('btn-download-aframe');
+        if (downloadBtn && !downloadBtn.hasAttribute('data-initialized')) {
+            downloadBtn.setAttribute('data-initialized', 'true');
+            downloadBtn.addEventListener('click', () => {
+                this.downloadAFrameHTML();
+            });
+        }
+
+        // Copy button
+        const copyBtn = document.getElementById('btn-copy-aframe');
+        if (copyBtn && !copyBtn.hasAttribute('data-initialized')) {
+            copyBtn.setAttribute('data-initialized', 'true');
+            copyBtn.addEventListener('click', () => {
+                this.copyAFrameToClipboard();
+            });
+        }
+
+        // Initial preview refresh
+        this.refreshAFramePreview();
+    }
+
+    refreshAFramePreview() {
+        if (!this.app.aframeExporter) {
+            console.warn('A-Frame exporter not available');
+            return;
+        }
+
+        const options = this.getAFrameExportOptions();
+        const html = this.app.aframeExporter.generateHTML(options);
+        
+        const preview = document.getElementById('aframe-html-preview');
+        if (preview) {
+            preview.value = html;
+        }
+    }
+
+    getAFrameExportOptions() {
+        return {
+            title: document.getElementById('aframe-scene-title')?.value || 'Pixel 3D - A-Frame Export',
+            includeInspector: document.getElementById('aframe-include-inspector')?.checked ?? true,
+            includeStats: document.getElementById('aframe-include-stats')?.checked ?? false,
+            backgroundColor: '#2a2a4e'
+        };
+    }
+
+    downloadAFrameHTML() {
+        if (!this.app.aframeExporter) {
+            this.showNotification('A-Frame exporter not available', 'error');
+            return;
+        }
+
+        const options = this.getAFrameExportOptions();
+        const title = options.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        this.app.aframeExporter.downloadHTML(`${title}.html`, options);
+        this.showNotification('A-Frame HTML downloaded!', 'success');
+    }
+
+    async copyAFrameToClipboard() {
+        if (!this.app.aframeExporter) {
+            this.showNotification('A-Frame exporter not available', 'error');
+            return;
+        }
+
+        const options = this.getAFrameExportOptions();
+        const success = await this.app.aframeExporter.copyToClipboard(options);
+        
+        if (success) {
+            this.showNotification('A-Frame HTML copied to clipboard!', 'success');
+        } else {
+            this.showNotification('Failed to copy to clipboard', 'error');
         }
     }
 

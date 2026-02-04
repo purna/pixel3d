@@ -49,7 +49,17 @@ export class ObjectFactory {
             mesh.castShadow = false;
         }
 
-        mesh.userData = { type: 'shape', shapeType: type, id: Date.now() };
+        mesh.userData = { 
+            type: 'shape', 
+            shapeType: type, 
+            id: Date.now(),
+            aframe: {
+                src: '',
+                shadow: { cast: true, receive: true },
+                animation: '',
+                customAttrs: {}
+            }
+        };
         return mesh;
     }
 createFigure(gender) {

@@ -167,6 +167,10 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             <div class="tool-btn scene-settings-tool" id="tool-scene-settings" data-tooltip="**Scene Settings**
             Configure background, lighting, and export options"><i class="fas fa-image"></i></div>
 
+            <!-- A-Frame Export Tool -->
+            <div class="tool-btn aframe-tool" id="tool-aframe-export" data-tooltip="**A-Frame Export**
+            Export scene as A-Frame VR HTML"><i class="fas fa-vr-cardboard"></i></div>
+
             <!-- Camera controls will be added here dynamically -->
             <div id="camera-controls-container"></div>
 
@@ -328,6 +332,64 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                             style="width: 100%; height: 200px; background: rgba(0, 217, 255, 0.1); border: 1px dashed var(--accent-tertiary); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.8rem; cursor: move;">
                             Camera border visualization will appear here
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- A-Frame Export Section (hidden by default) -->
+            <div id="aframe-section" class="aframe-section" style="display: none;">
+                <div class="panel-header" style="border-top:1px solid var(--border-color);">
+                    <div class="panel-header-title"><i class="fas fa-vr-cardboard"></i> A-Frame Export</div>
+                </div>
+                <div id="aframe-content" class="panel-content">
+                    <!-- A-Frame Export Options -->
+                    <div class="property-group">
+                        <div class="property-label">Export Options</div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">
+                                <input type="checkbox" id="aframe-include-inspector" checked>
+                                Include A-Frame Inspector
+                            </label>
+                        </div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">
+                                <input type="checkbox" id="aframe-include-stats">
+                                Include Stats Panel
+                            </label>
+                        </div>
+                        
+                        <div class="property-group">
+                            <label class="property-label">
+                                Scene Title:
+                                <input type="text" id="aframe-scene-title" value="Pixel 3D - A-Frame Export" 
+                                    style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- A-Frame Preview -->
+                    <div class="property-group">
+                        <div class="property-label">HTML Preview</div>
+                        <div id="aframe-preview-container" style="position: relative;">
+                            <textarea id="aframe-html-preview" readonly
+                                style="width: 100%; height: 300px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.7rem; color: var(--text-primary); resize: vertical; white-space: pre; overflow: auto;"></textarea>
+                            <button id="btn-copy-aframe" class="btn icon-only" title="Copy to Clipboard"
+                                style="position: absolute; top: 8px; right: 8px; background: var(--bg-medium); border: 1px solid var(--border-color);">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- A-Frame Export Actions -->
+                    <div class="property-group">
+                        <button class="btn" id="btn-refresh-aframe" style="width: 100%; margin-bottom: 8px;">
+                            <i class="fas fa-sync-alt"></i> Refresh Preview
+                        </button>
+                        <button class="btn primary" id="btn-download-aframe" style="width: 100%;">
+                            <i class="fas fa-download"></i> Download HTML
+                        </button>
                     </div>
                 </div>
             </div>
