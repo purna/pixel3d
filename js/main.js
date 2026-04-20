@@ -28,13 +28,15 @@ class StageApp {
 
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
+        this.clock = new THREE.Clock();
 
         this.selectedObject = null;
-        this.objects = []; // Keep track of interactable objects
-        this.isInteractingWithGizmo = false; // Track gizmo interaction state
-        this.isDraggingGizmo = false; // Track if we're actively dragging the gizmo
-        this.gizmoDragJustEnded = false; // Track if gizmo drag just ended (to prevent immediate deselect)
-        this.lastPointerPosition = { x: 0, y: 0 }; // Track pointer position for drag detection
+        this.hoveredObject = null;
+        this.objects = [];
+        this.isInteractingWithGizmo = false;
+        this.isDraggingGizmo = false;
+        this.gizmoDragJustEnded = false;
+        this.originalColors = new Map();
 
         // Initialize Modules
         this.factory = new ObjectFactory(this);
@@ -94,7 +96,7 @@ class StageApp {
         // Wait for camera to be properly initialized before setting up transform controls
         setTimeout(() => {
             this.setupTransformControls();
-        }, 100);
+        }, APP_DEFAULTS.init.transformControlsDelay);
 
         // Lighting (Base ambient)
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -134,16 +136,10 @@ class StageApp {
 
         // Events
         window.addEventListener('resize', () => this.onWindowResize());
-        // Use capture phase to intercept events before TransformControls
         this.renderer.domElement.addEventListener('pointerdown', (e) => this.onPointerDown(e), true);
         this.renderer.domElement.addEventListener('pointermove', (e) => this.onPointerMove(e), true);
-        this.renderer.domElement.addEventListener('mouseup', (e) => this.onMouseUp(e), true);
-        // Right-click to deselect
-        this.renderer.domElement.addEventListener('contextmenu', (e) => this.onRightClick(e));
-        
-        // Add pointerup listener for deselection on empty space click
-        // This runs AFTER pointermove, so gizmo hover state is up-to-date
         this.renderer.domElement.addEventListener('pointerup', (e) => this.onPointerUpForDeselect(e), true);
+        this.renderer.domElement.addEventListener('contextmenu', (e) => this.onRightClick(e));
 
         // Add event listener for transform space toggle
         setTimeout(() => {
@@ -153,7 +149,7 @@ class StageApp {
                     this.toggleTransformSpace(e.target.checked);
                 });
             }
-        }, 500);
+        }, APP_DEFAULTS.init.checkboxInitDelay);
 
         // Initialize UI Logic
         this.ui.init();
@@ -177,14 +173,10 @@ class StageApp {
 
     // Setup transform controls after camera is properly initialized
     setupTransformControls() {
-        // Wait a bit longer to ensure camera and orbit controls are fully initialized
         setTimeout(() => {
-            // Transform Controls - now initialized with proper camera
             this.transformControl = new TransformControls(this.camera, this.renderer.domElement);
 
-            // Ensure orbit controls exist and are properly configured
             if (!this.orbit) {
-                console.warn('Orbit controls not found, creating them now');
                 this.orbit = new OrbitControls(this.camera, this.renderer.domElement);
                 this.configureOrbitControlsForTouch();
             } else {
@@ -197,12 +189,10 @@ class StageApp {
             // Add hover event listeners
             this.transformControl.addEventListener('hover-on', () => {
                 this.transformControl.isHovered = true;
-                console.log('Transform gizmo hover on');
             });
             
             this.transformControl.addEventListener('hover-off', () => {
                 this.transformControl.isHovered = false;
-                console.log('Transform gizmo hover off');
             });
 
             this.transformControl.addEventListener('dragging-changed', (event) => {
@@ -234,25 +224,13 @@ class StageApp {
             });
 
             // Ensure transform controls are visible and have proper size
-            this.transformControl.setSize(1.5); // Increased size for better visibility
+            this.transformControl.setSize(APP_DEFAULTS.transform.gizmoSize);
             this.transformControl.visible = true;
-
-            // Add space property for better 3D manipulation
             this.transformControl.space = 'local';
 
             this.scene.add(this.transformControl);
-
-            // Set default transform mode to translate
             this.transformControl.setMode('translate');
-
-            // Debug: Log initial transform control state
-            console.log('Transform control initialized:', this.transformControl);
-            console.log('Transform control visible:', this.transformControl.visible);
-            console.log('Transform control size:', this.transformControl.size);
-            console.log('Transform control mode:', this.transformControl.mode);
-            console.log('Transform control space:', this.transformControl.space);
-            console.log('Orbit controls status:', this.orbit ? 'available' : 'not available');
-        }, 200); // Increased delay to ensure everything is ready
+        }, APP_DEFAULTS.init.uiInitDelay);
     }
 
     // Configure orbit controls for optimal touch/trackpad experience
@@ -263,40 +241,26 @@ class StageApp {
             this.orbit.screenSpacePanning = true;
 
             // Optimize for trackpad/touch input
-            this.orbit.panSpeed = 0.8;
-            this.orbit.rotateSpeed = 0.8;
-            this.orbit.dampingFactor = 0.07;
-
-            // Enable touch events
+            this.orbit.panSpeed = APP_DEFAULTS.transform.orbitPanSpeed;
+            this.orbit.rotateSpeed = APP_DEFAULTS.transform.orbitRotateSpeed;
+            this.orbit.dampingFactor = APP_DEFAULTS.transform.dampingFactor;
             this.orbit.enableDamping = true;
-            this.orbit.dampingFactor = 0.07;
 
-            // Set initial state - disabled for transform mode, enabled for hand tool
             this.orbit.enabled = false;
-
-            console.log('Orbit controls configured for touch/trackpad input');
         }
     }
     
-        // Toggle between local and world space for transform controls
         toggleTransformSpace(useLocalSpace) {
             if (this.transformControl) {
                 this.transformControl.space = useLocalSpace ? 'local' : 'world';
-                console.log(`Transform space set to: ${useLocalSpace ? 'local' : 'world'}`);
-    
-                // Update the label text
                 const label = document.querySelector('.transform-space-toggle .toggle-label');
                 if (label) {
                     label.textContent = useLocalSpace ? 'Local' : 'World';
                 }
-    
-                // Show notification
                 this.ui.showNotification(
                     `Transform space: ${useLocalSpace ? 'Local' : 'World'}`,
                     'info'
                 );
-            } else {
-                console.warn('Transform controls not available for space toggle');
             }
         }
 
@@ -348,11 +312,11 @@ class StageApp {
 
     async addCharacter(type = 'xbot') {
         try {
-            // Create and execute character command
             const characterCommand = new AddCharacterCommand(this, type);
             await this.historyManager.executeCommand(characterCommand);
         } catch (error) {
             console.error('Failed to add character:', error);
+            this.notifications.show('Failed to add character', 'error');
         }
     }
 
@@ -481,67 +445,77 @@ class StageApp {
     // --- MANIPULATION ---
 
     onPointerMove(event) {
-        // Track hover state for transform controls
-        if (this.transformControl) {
-            const rect = this.renderer.domElement.getBoundingClientRect();
-            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            
-            this.raycaster.setFromCamera(this.mouse, this.camera);
-            
-            // Only check hover if an object is selected (gizmo is visible)
-            if (this.transformControl.object) {
-                // Raycast against transform control helper objects
-                const transformHelpers = [];
-                this.transformControl.traverse((child) => {
-                    if (child.isLineSegments || child.isMesh) {
-                        transformHelpers.push(child);
-                    }
-                });
-                
-                if (transformHelpers.length > 0) {
-                    const helperIntersects = this.raycaster.intersectObjects(transformHelpers, true);
-                    this.transformControl.isHovered = helperIntersects.length > 0;
-                } else {
-                    this.transformControl.isHovered = false;
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        
+        // Track hover for gizmo
+        if (this.transformControl && this.transformControl.object) {
+            const transformHelpers = [];
+            this.transformControl.traverse((child) => {
+                if (child.isLineSegments || child.isMesh) {
+                    transformHelpers.push(child);
                 }
-            } else {
-                // No object selected, can't be hovering over gizmo
-                this.transformControl.isHovered = false;
+            });
+            this.transformControl.isHovered = transformHelpers.length > 0 && 
+                this.raycaster.intersectObjects(transformHelpers, true).length > 0;
+        }
+        
+        // Track hover for scene objects
+        const allSceneObjects = [];
+        this.scene.traverse((obj) => {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+                allSceneObjects.push(obj);
             }
+        });
+        
+        const intersects = this.raycaster.intersectObjects(allSceneObjects, true);
+        
+        if (intersects.length > 0) {
+            let target = intersects[0].object;
+            while (target.parent && target.parent !== this.scene) {
+                target = target.parent;
+            }
+            this.setHoverObject(target);
+            this.renderer.domElement.style.cursor = 'pointer';
+        } else if (!this.transformControl.isHovered) {
+            this.setHoverObject(null);
+            this.renderer.domElement.style.cursor = 'default';
+        }
+    }
+    
+    setHoverObject(obj) {
+        if (obj === this.hoveredObject) return;
+        
+        // Clear previous hover highlight
+        if (this.hoveredObject && this.originalColors.has(this.hoveredObject.uuid)) {
+            this.restoreObjectColor(this.hoveredObject);
+        }
+        
+        this.hoveredObject = obj;
+        
+        // Apply hover highlight
+        if (obj && obj.isMesh) {
+            this.originalColors.set(obj.uuid, obj.material.color.getHex());
+            obj.material.color.lerp(new THREE.Color(0xffffff), 0.15);
+        }
+    }
+    
+    restoreObjectColor(obj) {
+        if (obj && obj.isMesh && this.originalColors.has(obj.uuid)) {
+            obj.material.color.setHex(this.originalColors.get(obj.uuid));
+            this.originalColors.delete(obj.uuid);
         }
     }
 
     onMouseUp(event) {
-        // Check if we should deselect on mouse up
-        // This handles the case where user clicks on empty space after gizmo interaction
-        if (this.selectedObject && !this.transformControl.isHovered) {
-            const rect = this.renderer.domElement.getBoundingClientRect();
-            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-            
-            this.raycaster.setFromCamera(this.mouse, this.camera);
-            
-            // Get all selectable objects
-            const selectableObjects = this.getAllObjects();
-            
-            // Raycast against selectable objects
-            const intersects = this.raycaster.intersectObjects(selectableObjects, true);
-            
-            if (intersects.length === 0) {
-                console.log('Mouse up on empty space, deselecting');
-                this.deselect();
-            }
-        }
     }
 
     onRightClick(event) {
-        // Prevent default context menu
         event.preventDefault();
-        
-        // Right-click always deselects (regardless of where clicked)
         if (this.selectedObject) {
-            console.log('Right-click, deselecting object');
             this.deselect();
         }
     }
@@ -549,38 +523,26 @@ class StageApp {
     // --- POINTER EVENTS ---
 
     onPointerUpForDeselect(event) {
-        // Don't deselect if we just finished dragging the gizmo
-        if (this.gizmoDragJustEnded) {
+        if (this.gizmoDragJustEnded || this.isDraggingGizmo || !this.selectedObject || this.transformControl.isHovered) {
             return;
         }
         
-        // Don't deselect if we're currently dragging the gizmo
-        if (this.isDraggingGizmo) {
-            return;
-        }
-        
-        // Don't deselect if no object is selected
-        if (!this.selectedObject) return;
-        
-        // Don't deselect if gizmo is being hovered (user might click it next)
-        if (this.transformControl.isHovered) return;
-        
-        // Calculate mouse position
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
         
-        // Get all selectable objects
-        const selectableObjects = this.getAllObjects();
+        const allSceneObjects = [];
+        this.scene.traverse((obj) => {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+                allSceneObjects.push(obj);
+            }
+        });
         
-        // Raycast against selectable objects
-        const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+        const intersects = this.raycaster.intersectObjects(allSceneObjects, true);
         
-        // If no intersects, click was on empty space - deselect
         if (intersects.length === 0) {
-            console.log('Click on empty space, deselecting object');
             this.deselect();
         }
     }
@@ -619,44 +581,32 @@ class StageApp {
             }
         }
         
-        // Not over gizmo (or no gizmo visible), check if we clicked on an object
-        // Get all selectable objects (excluding grid, axes, and transform controls)
-        const selectableObjects = this.getAllObjects().filter(obj => {
-            return obj.type !== 'GridHelper' && 
-                   obj.type !== 'AxesHelper' && 
-                   obj.type !== 'TransformControls';
+        // Not over gizmo, check if we clicked on an object
+        const allSceneObjects = [];
+        this.scene.traverse((obj) => {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+                allSceneObjects.push(obj);
+            }
         });
         
-        // Intersect only with selectable objects
-        const intersects = this.raycaster.intersectObjects(selectableObjects, true);
+        const intersects = this.raycaster.intersectObjects(allSceneObjects, true);
 
         if (intersects.length > 0) {
-            let target = null;
-            // Walk up hierarchy to find the "logical" object
-            for (let hit of intersects) {
-                let curr = hit.object;
-                while (curr) {
-                    if (curr.userData && (curr.userData.type || curr.userData.name)) {
-                        // Check if this is a selectable object
-                        if (this.getAllObjects().includes(curr) || 
-                            this.getAllObjects().includes(curr.parent)) {
-                            target = curr;
-                            break;
-                        }
-                    }
-                    if (curr.parent === this.scene) break;
-                    curr = curr.parent;
+            let target = intersects[0].object;
+            
+            // Walk up hierarchy to find root selectable object
+            while (target.parent && target.parent !== this.scene) {
+                if (target.userData && (target.userData.type === 'shape' || target.userData.type === 'light' || target.userData.type === 'figure')) {
+                    break;
                 }
-                if (target) break;
+                target = target.parent;
             }
 
-            if (target) {
-                // Select the object (deselection on empty space is handled in onPointerUpForDeselect)
+            // If clicking a different object, select it
+            if (target !== this.selectedObject) {
                 this.selectObject(target);
             }
         }
-        // Note: Deselection on empty space is handled in onPointerUpForDeselect
-        // which runs after onPointerMove has updated the gizmo hover state
     }
 
     selectObject(obj) {
@@ -667,17 +617,10 @@ class StageApp {
             this.selectedObject = obj;
         }
 
-        // Ensure transform controls are visible and properly attached
         this.transformControl.attach(this.selectedObject);
         this.transformControl.visible = true;
-        this.transformControl.setSize(1.0);
+        this.transformControl.setSize(APP_DEFAULTS.transform.selectGizmoSize);
 
-        // Debug: Log the selected object and transform control state
-        console.log('Selected object:', this.selectedObject);
-        console.log('Transform control attached:', this.transformControl.object);
-        console.log('Transform control visible:', this.transformControl.visible);
-
-        // Reset panels to default view when selecting an object
         this.ui.resetPanelToDefault();
 
         // This triggers UI update which now renders layers via LayerManager
@@ -693,34 +636,27 @@ class StageApp {
 
     setTransformMode(mode) {
         if (mode === 'hand') {
-            // Enable orbit controls for hand tool with optimized touch/trackpad settings
             if (this.orbit) {
                 this.orbit.enabled = true;
                 this.transformControl.visible = false;
                 this.transformControl.detach();
 
-                // Optimize for single-finger panning on trackpad/touch
                 this.orbit.enablePan = true;
                 this.orbit.screenSpacePanning = true;
-                this.orbit.panSpeed = 1.0; // Slightly faster for better responsiveness
+                this.orbit.panSpeed = APP_DEFAULTS.transform.handPanSpeed;
 
-                // Enable touch events and improve damping for smoother panning
                 this.orbit.enableDamping = true;
-                this.orbit.dampingFactor = 0.07;
+                this.orbit.dampingFactor = APP_DEFAULTS.transform.dampingFactor;
 
-                // Show notification about single-finger panning
                 this.ui.showNotification('Hand Tool: Single-finger panning enabled', 'info');
-                console.log('Hand tool activated with single-finger panning optimization');
             }
         } else {
-            // Disable orbit controls for other modes
             if (this.orbit) {
                 this.orbit.enabled = false;
                 this.transformControl.visible = true;
             }
             this.transformControl.setMode(mode);
 
-            // Show notification for transform mode
             const modeNames = {
                 'translate': 'Translate',
                 'rotate': 'Rotate',
@@ -728,8 +664,6 @@ class StageApp {
             };
             this.ui.showNotification(`${modeNames[mode] || mode} mode activated`, 'info');
         }
-        console.log('Transform mode set to:', mode);
-        console.log('Current transform control object:', this.transformControl.object);
     }
 
     deleteSelected() {
@@ -781,9 +715,6 @@ class StageApp {
     }
 
     setSnapEnabled(enabled) {
-        // Enable/disable snapping for transform controls
-        // This would require additional implementation
-        console.log('Snap enabled:', enabled);
     }
 
     setCameraSpeed(speed) {
@@ -845,8 +776,7 @@ class StageApp {
     animate() {
         requestAnimationFrame(() => this.animate());
 
-        // Calculate delta time for animations
-        const delta = 0.016; // Assuming 60fps, you might want to use a proper clock
+        const delta = this.clock.getDelta();
         
         // Update light helpers
         this.scene.traverse(obj => {

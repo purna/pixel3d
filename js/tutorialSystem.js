@@ -128,8 +128,6 @@ class TutorialSystem {
         if (enableTutorialsCheckbox && !enableTutorialsCheckbox.checked) {
             if (this.app.notifications) {
                 this.app.notifications.showNotification('Tutorials are disabled in settings', 'info');
-            } else {
-                console.log('Tutorials are disabled in settings');
             }
             return;
         }
@@ -279,8 +277,6 @@ class TutorialSystem {
             this.hideTutorial();
             if (this.app.notifications) {
                 this.app.notifications.showNotification('Tutorial completed!', 'success');
-            } else {
-                console.log('Tutorial completed!');
             }
         }
     }

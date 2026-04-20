@@ -120,19 +120,15 @@ export class UI {
         // Mode buttons
         document.getElementById('mode-hand').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('hand');
-            console.log('Hand mode clicked');
         });
         document.getElementById('mode-translate').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('translate');
-            console.log('Translate mode clicked');
         });
         document.getElementById('mode-rotate').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('rotate');
-            console.log('Rotate mode clicked');
         });
         document.getElementById('mode-scale').addEventListener('click', () => {
             if (this.app.setTransformMode) this.app.setTransformMode('scale');
-            console.log('Scale mode clicked');
         });
 
         // Zoom controls
@@ -240,15 +236,12 @@ export class UI {
                     break;
                 case 'g':
                     document.getElementById('mode-translate').click();
-                    console.log('G key pressed - translate mode');
                     break;
                 case 'r':
                     document.getElementById('mode-rotate').click();
-                    console.log('R key pressed - rotate mode');
                     break;
                 case 'h':
                     document.getElementById('mode-hand').click();
-                    console.log('H key pressed - hand mode');
                     break;
                 case 's':
                     if (e.ctrlKey || e.metaKey) {
@@ -259,11 +252,13 @@ export class UI {
                         }
                     } else {
                         document.getElementById('mode-scale').click();
-                        console.log('S key pressed - scale mode');
                     }
                     break;
                 case 'c':
                     if (this.app.clearScene) this.app.clearScene();
+                    break;
+                case 'escape':
+                    if (this.app.deselect) this.app.deselect();
                     break;
                 case 'o':
                     if (e.ctrlKey || e.metaKey) {
@@ -1625,7 +1620,7 @@ export class UI {
 
     refreshAFramePreview() {
         if (!this.app.aframeExporter) {
-            console.warn('A-Frame exporter not available');
+            this.showNotification('A-Frame exporter not available', 'error');
             return;
         }
 
@@ -1973,7 +1968,7 @@ export class UI {
 
     updateZoomDisplay(zoomLevel) {
         // You could add visual feedback here if needed
-        console.log(`Zoom level: ${zoomLevel}`);
+        
     }
     
     // Camera zoom methods
@@ -2012,7 +2007,7 @@ export class UI {
     
     updateZoomDisplay(zoomLevel) {
         // You could add visual feedback here if needed
-        console.log(`Zoom level: ${zoomLevel}`);
+        
     }
 
 

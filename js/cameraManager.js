@@ -14,9 +14,6 @@ export class CameraManager {
         // Defer initialization until app is ready
         if (this.app.renderer && this.app.renderer.domElement) {
             this.setupCameras();
-        } else {
-            // App not ready yet, will be called later
-            console.log('CameraManager: Waiting for app to be ready');
         }
     }
 
@@ -174,17 +171,11 @@ export class CameraManager {
 
     // Enable/disable camera movement
     setCameraEnabled(enabled) {
-        // Disable orbit controls
         if (this.app.orbit) {
             this.app.orbit.enabled = enabled;
         }
-
-        // Additional camera disabling logic can be added here if needed
-        // For example, we could also prevent camera position changes
-        console.log(`Camera movement ${enabled ? 'enabled' : 'disabled'}`);
     }
 
-    // Add camera toggle button to UI
     addCameraToggleUI() {
         // Add camera toggle button to the dedicated container
         const container = document.getElementById('camera-controls-container');

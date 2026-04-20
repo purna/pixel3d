@@ -5,6 +5,10 @@ export class ObjectFactory {
         this.app = app;
     }
 
+    static generateId() {
+        return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
     createMaterial(color = 0x00ff41) {
         return new THREE.MeshStandardMaterial({
             color: color,
@@ -35,12 +39,14 @@ export class ObjectFactory {
             case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(0.7); break;
             case 'icosahedron': geometry = new THREE.IcosahedronGeometry(0.7); break;
             case 'torusknot': geometry = new THREE.TorusKnotGeometry(0.5, 0.15, 100, 16); break;
+            default: geometry = new THREE.BoxGeometry(1, 1, 1); type = 'box';
         }
 
         mesh = new THREE.Mesh(geometry, material);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         mesh.position.y = 1;
+        const objectId = ObjectFactory.generateId();
 
         if (type === 'plane') {
             mesh.rotation.x = -Math.PI / 2;
@@ -52,7 +58,7 @@ export class ObjectFactory {
         mesh.userData = { 
             type: 'shape', 
             shapeType: type, 
-            id: Date.now(),
+            id: objectId,
             aframe: {
                 src: '',
                 shadow: { cast: true, receive: true },
@@ -222,9 +228,8 @@ createFigure(gender) {
         rightFoot.userData = { name: 'Right Foot' };
         rightKnee.add(rightFoot);
 
-        // Position the entire figure
         group.position.y = 2.0;
-        group.userData = { type: 'figure', gender: gender, id: Date.now() };
+        group.userData = { type: 'figure', gender: gender, id: ObjectFactory.generateId() };
 
         return group;
     }
@@ -260,7 +265,7 @@ createFigure(gender) {
         }
 
         light.castShadow = true;
-        light.userData = { type: 'light', lightType: type, id: Date.now() };
+        light.userData = { type: 'light', lightType: type, id: ObjectFactory.generateId() };
 
         const container = new THREE.Group();
         container.add(light);

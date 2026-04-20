@@ -75,5 +75,40 @@ export const APP_DEFAULTS = {
         defaultResolution: '1920x1080',
         quality: 0.92, // JPEG quality for exports
         format: 'png' // Default export format
+    },
+
+    // Performance Settings
+    performance: {
+        targetFPS: 60,
+        maxPixelRatio: 2,
+        shadowMapType: 'PCFSoft'
+    },
+
+    // Initialization Timings (ms)
+    init: {
+        transformControlsDelay: 100,
+        uiInitDelay: 200,
+        checkboxInitDelay: 500,
+        clockStartDelay: 10
+    },
+
+    // Scene Defaults
+    scene: {
+        gridSize: 40,
+        gridDivisions: 40,
+        axesSize: 10,
+        fogNear: 20,
+        fogFar: 100,
+        backgroundColor: 0x2a2a4e
+    },
+
+    // Transform Controls
+    transform: {
+        gizmoSize: 1.5,
+        selectGizmoSize: 1.0,
+        orbitPanSpeed: 0.8,
+        orbitRotateSpeed: 0.8,
+        dampingFactor: 0.07,
+        handPanSpeed: 1.0
     }
 };
