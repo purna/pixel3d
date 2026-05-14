@@ -97,10 +97,9 @@ export class UI {
                 this.showNotification('Scene saved to browser!', 'success');
             }
         });
-        document.getElementById('btn-export').addEventListener('click', () => {
+        document.getElementById('btn-export').addEventListener('click', async () => {
             if (this.app.fileManager) {
-                this.app.fileManager.saveScene();
-                this.showNotification('Scene exported successfully!', 'success');
+                await this.app.fileManager.saveScene();
             }
         });
         document.getElementById('btn-load').addEventListener('click', () => {
@@ -721,6 +720,13 @@ export class UI {
                 if (autosaveIntervalValueEl) autosaveIntervalValueEl.textContent = settings.autosaveInterval || 5;
             }
         }
+
+        // Load export format
+        const savedFormat = localStorage.getItem('pixel3d-export-format');
+        const formatEl = document.getElementById('setting-export-format');
+        if (formatEl) {
+            formatEl.value = savedFormat || 'json';
+        }
     }
 
 
@@ -735,7 +741,7 @@ export class UI {
             autosaveInterval: parseInt(document.getElementById('setting-autosave-interval').value)
         };
 
-        // Save
+        // Save general settings
         localStorage.setItem('pixel3d-settings', JSON.stringify(settings));
 
         // Apply
@@ -746,6 +752,13 @@ export class UI {
 
         // Tooltip global variable update
         window.tooltipsEnabled = settings.tooltips;
+
+        // Save export settings
+        const exportFormat = document.getElementById('setting-export-format');
+        if (exportFormat && this.app.fileManager) {
+            this.app.fileManager.setExportFormat(exportFormat.value);
+            localStorage.setItem('pixel3d-export-format', exportFormat.value);
+        }
 
         this.showNotification('Settings saved successfully!', 'success');
     }
@@ -858,6 +871,16 @@ export class UI {
         // Delegate Layer List Rendering to LayerManager
         if (this.app.layerManager) {
             this.app.layerManager.render();
+        }
+
+        // Show/hide the floating selection info box
+        const infoBox = document.getElementById('selection-info');
+        if (infoBox) {
+            if (selectedObject) {
+                infoBox.classList.remove('hidden');
+            } else {
+                infoBox.classList.add('hidden');
+            }
         }
 
         // Always render the properties panel first to create the inputs

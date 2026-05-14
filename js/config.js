@@ -74,7 +74,13 @@ export const APP_DEFAULTS = {
         ],
         defaultResolution: '1920x1080',
         quality: 0.92, // JPEG quality for exports
-        format: 'png' // Default export format
+        format: 'png', // Default export format
+        formats: [
+            { value: 'json', label: 'JSON (.json) - Scene data' },
+            { value: 'glb', label: 'GLB (.glb) - Binary GLTF' },
+            { value: 'fbx', label: 'FBX (.fbx) - Autodesk FBX' }
+        ],
+        defaultFormat: 'json'
     },
 
     // Performance Settings

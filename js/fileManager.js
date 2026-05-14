@@ -1,12 +1,37 @@
+import * as THREE from 'three';
+
 export class FileManager {
     constructor(app) {
         this.app = app;
         this.autosaveEnabled = false;
         this.autosaveInterval = 5; // minutes
         this.autosaveTimer = null;
+        this.exportFormat = localStorage.getItem('pixel3d-export-format') || 'json'; // Load saved format or default
     }
 
-    saveScene() {
+    setExportFormat(format) {
+        this.exportFormat = format;
+    }
+
+    getExportFormat() {
+        return this.exportFormat;
+    }
+
+    async saveScene() {
+        const format = this.exportFormat || 'json';
+        
+        if (format === 'json') {
+            this.saveSceneJSON();
+        } else if (format === 'glb') {
+            await this.saveSceneGLB();
+        } else if (format === 'fbx') {
+            await this.saveSceneFBX();
+        } else {
+            this.saveSceneJSON(); // Fallback to JSON
+        }
+    }
+
+    saveSceneJSON() {
         const data = [];
         
         // Helper to serialize an object
@@ -61,6 +86,108 @@ export class FileManager {
         
         // Cleanup
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+async saveSceneGLB() {
+        try {
+            // Import from same Three.js version as the app
+            const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+            
+            // Check if there's anything to export
+            if (this.app.scene.children.length === 0) {
+                this.app.ui?.showNotification('No objects to export!', 'info');
+                return;
+            }
+
+            // Create a clean scene for export - exclude helpers and default lights
+            const exportScene = new THREE.Scene();
+            
+            this.app.scene.traverse((obj) => {
+                // Skip helpers, grids, axes, transform controls
+                if (obj.isHelper || obj.type === 'GridHelper' || obj.type === 'AxesHelper') return;
+                if (obj.type === 'TransformControlsGizmo' || obj.type === 'TransformControlsPlane') return;
+                if (obj.type === 'TransformControls') return;
+                // Skip the default ambient and directional lights added by main.js
+                if (obj.type === 'AmbientLight' && !obj.userData?.type) return;
+                if (obj.type === 'DirectionalLight' && !obj.userData?.type) return;
+                
+                // Only export objects with userData.type (shapes, lights, figures)
+                if (!obj.userData?.type) return;
+                
+                // Deep clone to avoid any reference issues
+                try {
+                    const cloned = obj.clone(true); // deep clone
+                    exportScene.add(cloned);
+                } catch (e) {
+                    console.warn('Could not clone for export:', obj.name, e);
+                }
+            });
+
+            if (exportScene.children.length === 0) {
+                this.app.ui?.showNotification('No exportable objects in scene!', 'info');
+                return;
+            }
+
+            const exporter = new GLTFExporter();
+            
+            // Use parse directly (not parseAsync) because Three.js doesn't properly
+            // await the FileReader callbacks in write(), causing timing issues
+            const result = await new Promise((resolve, reject) => {
+                exporter.parse(
+                    exportScene,
+                    resolve,
+                    reject,
+                    { binary: true, embedImages: true }
+                );
+            });
+
+            if (result instanceof ArrayBuffer) {
+                const blob = new Blob([new Uint8Array(result)], {type: 'model/gltf-binary'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scene.glb';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                this.app.ui?.showNotification('Scene exported as GLB!', 'success');
+            } else if (result && typeof result === 'object' && result.scenes) {
+                // JSON glTF format (fallback when binary fails)
+                const json = JSON.stringify(result, null, 2);
+                const blob = new Blob([json], {type: 'model/gltf+json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scene.gltf';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                this.app.ui?.showNotification('Scene exported as GLTF!', 'info');
+            } else {
+                console.error('Export returned unexpected result:', result);
+                this.app.ui?.showNotification('Export failed', 'error');
+            }
+        } catch (error) {
+            console.error('Error exporting GLB:', error);
+            this.app.ui?.showNotification('Failed to export GLB: ' + error.message, 'error');
+        }
+    }
+
+    async saveSceneFBX() {
+        try {
+            // Import FBXExporter dynamically (using three-fbx-exporter or similar)
+            // Note: FBX export requires additional libraries. This is a placeholder.
+            // We'll use a simple approach with the official FBX exporter if available
+            
+            // Since FBXExporter is not part of standard Three.js, we'll show a message
+            // In a real implementation, you would integrate a library like three-fbx-exporter
+            this.app.ui?.showNotification('FBX export coming soon. Use JSON or GLB for now.', 'info');
+            
+            // Fallback to GLB with a note - must await async function
+            await this.saveSceneGLB();
+        } catch (error) {
+            console.error('Error exporting FBX:', error);
+            this.app.ui?.showNotification('FBX export not available. Falling back to GLB.', 'error');
+            await this.saveSceneGLB();
+        }
     }
 
     saveToBrowser() {

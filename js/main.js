@@ -480,7 +480,7 @@ class StageApp {
             }
             this.setHoverObject(target);
             this.renderer.domElement.style.cursor = 'pointer';
-        } else if (!this.transformControl.isHovered) {
+        } else if (!this.transformControl?.isHovered) {
             this.setHoverObject(null);
             this.renderer.domElement.style.cursor = 'default';
         }
