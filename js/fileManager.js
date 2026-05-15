@@ -19,7 +19,7 @@ export class FileManager {
 
     async saveScene() {
         const format = this.exportFormat || 'json';
-        
+
         if (format === 'json') {
             this.saveSceneJSON();
         } else if (format === 'js') {
@@ -35,7 +35,7 @@ export class FileManager {
 
     saveSceneJSON() {
         const data = [];
-        
+
         // Helper to serialize an object
         const processObj = (obj) => {
             // Only process objects with our specific types
@@ -79,22 +79,22 @@ export class FileManager {
             processObj(child);
         });
 
-        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'scene.json';
         a.click();
-        
+
         // Cleanup
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-async saveSceneGLB() {
+    async saveSceneGLB() {
         try {
             // Import from same Three.js version as the app
             const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
-            
+
             // Check if there's anything to export
             if (this.app.scene.children.length === 0) {
                 this.app.ui?.showNotification('No objects to export!', 'info');
@@ -103,7 +103,7 @@ async saveSceneGLB() {
 
             // Create a clean scene for export - exclude helpers and default lights
             const exportScene = new THREE.Scene();
-            
+
             this.app.scene.traverse((obj) => {
                 // Skip helpers, grids, axes, transform controls
                 if (obj.isHelper || obj.type === 'GridHelper' || obj.type === 'AxesHelper') return;
@@ -112,10 +112,10 @@ async saveSceneGLB() {
                 // Skip the default ambient and directional lights added by main.js
                 if (obj.type === 'AmbientLight' && !obj.userData?.type) return;
                 if (obj.type === 'DirectionalLight' && !obj.userData?.type) return;
-                
+
                 // Only export objects with userData.type (shapes, lights, figures)
                 if (!obj.userData?.type) return;
-                
+
                 // Deep clone to avoid any reference issues
                 try {
                     const cloned = obj.clone(true); // deep clone
@@ -131,7 +131,7 @@ async saveSceneGLB() {
             }
 
             const exporter = new GLTFExporter();
-            
+
             // Use parse directly (not parseAsync) because Three.js doesn't properly
             // await the FileReader callbacks in write(), causing timing issues
             const result = await new Promise((resolve, reject) => {
@@ -144,7 +144,7 @@ async saveSceneGLB() {
             });
 
             if (result instanceof ArrayBuffer) {
-                const blob = new Blob([new Uint8Array(result)], {type: 'model/gltf-binary'});
+                const blob = new Blob([new Uint8Array(result)], { type: 'model/gltf-binary' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -155,7 +155,7 @@ async saveSceneGLB() {
             } else if (result && typeof result === 'object' && result.scenes) {
                 // JSON glTF format (fallback when binary fails)
                 const json = JSON.stringify(result, null, 2);
-                const blob = new Blob([json], {type: 'model/gltf+json'});
+                const blob = new Blob([json], { type: 'model/gltf+json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -178,11 +178,11 @@ async saveSceneGLB() {
             // Import FBXExporter dynamically (using three-fbx-exporter or similar)
             // Note: FBX export requires additional libraries. This is a placeholder.
             // We'll use a simple approach with the official FBX exporter if available
-            
+
             // Since FBXExporter is not part of standard Three.js, we'll show a message
             // In a real implementation, you would integrate a library like three-fbx-exporter
             this.app.ui?.showNotification('FBX export coming soon. Use JSON or GLB for now.', 'info');
-            
+
             // Fallback to GLB with a note - must await async function
             await this.saveSceneGLB();
         } catch (error) {
@@ -257,29 +257,29 @@ async saveSceneGLB() {
 
             lines.push(`window.${funcName} = function(group) {`);
 
-// Collect unique materials
-             const seenMats = new Map();
-             const matDecls = [];
-             const usedNames = new Set();
+            // Collect unique materials
+            const seenMats = new Map();
+            const matDecls = [];
+            const usedNames = new Set();
 
-             const pushMat = (hexInt, nameHint, opacity = 1) => {
-                 const u = hexInt.toString(16).toUpperCase();
-                 const key = u.padStart(6, '0');
-                 if (seenMats.has(key)) return seenMats.get(key);
-                 let id = nameHint && nameHint.length > 0
-                     ? nameHint
-                     : (semanticColorName(hexInt) || `mat_${key}`);
-                 if (usedNames.has(id)) {
-                     let counter = 2;
-                     while (usedNames.has(`${id}${counter}`)) counter++;
-                     id = `${id}${counter}`;
-                 }
-                 const jsColor = '0x' + key;
-                 usedNames.add(id);
-                 seenMats.set(key, id);
-                 matDecls.push(`${indent}const ${id} = new THREE.MeshPhongMaterial({ color: ${jsColor}, transparent: true, opacity: ${opacity} });`);
-                 return id;
-             };
+            const pushMat = (hexInt, nameHint, opacity = 1) => {
+                const u = hexInt.toString(16).toUpperCase();
+                const key = u.padStart(6, '0');
+                if (seenMats.has(key)) return seenMats.get(key);
+                let id = nameHint && nameHint.length > 0
+                    ? nameHint
+                    : (semanticColorName(hexInt) || `mat_${key}`);
+                if (usedNames.has(id)) {
+                    let counter = 2;
+                    while (usedNames.has(`${id}${counter}`)) counter++;
+                    id = `${id}${counter}`;
+                }
+                const jsColor = '0x' + key;
+                usedNames.add(id);
+                seenMats.set(key, id);
+                matDecls.push(`${indent}const ${id} = new THREE.MeshPhongMaterial({ color: ${jsColor}, transparent: true, opacity: ${opacity} });`);
+                return id;
+            };
 
             // First pass: collect all materials by calling pushMat for each child
             children.forEach(child => {
@@ -396,7 +396,9 @@ async saveSceneGLB() {
 // render as you wish.
 //
 //   window.initScene1(group);      // add the first scene to group
-//   window.initAllScenes(group);   // add ALL scenes (calls initSceneN for you)
+//   window.initScene2(group);      // add the second scene to group
+//   window.initSceneLights(group); // add the scene lights to group
+//   window.initAllScenes(group);   // add ALL scenes (calls initScene1, initScene2, etc. for you)
 // ------------------------------------------------------------\n\n`;
 
         let allScenesSrc = HEADER;
@@ -425,7 +427,7 @@ async saveSceneGLB() {
 
     saveToBrowser() {
         const data = [];
-        
+
         // Helper to serialize an object
         const processObj = (obj) => {
             // Only process objects with our specific types
@@ -565,7 +567,7 @@ async saveSceneGLB() {
     // New helper that accepts raw data (used by File Input AND Gemini AI)
     loadData(data) {
         this.app.clearScene();
-        
+
         let loadedCount = 0;
         data.forEach(item => {
             let newObj = null;
@@ -574,7 +576,7 @@ async saveSceneGLB() {
                 this.app.addShape(item.shapeType);
                 newObj = this.app.selectedObject;
                 if (newObj && item.color) newObj.material.color.set(item.color);
-            } 
+            }
             else if (item.type === 'light') {
                 this.app.addLight(item.lightType);
                 newObj = this.app.selectedObject;
@@ -586,7 +588,7 @@ async saveSceneGLB() {
             else if (item.type === 'figure') {
                 this.app.addFigure(item.gender);
                 newObj = this.app.selectedObject;
-                
+
                 // Restore posing
                 if (item.joints) {
                     newObj.traverse(child => {
@@ -605,9 +607,9 @@ async saveSceneGLB() {
                 loadedCount++;
             }
         });
-        
+
         this.app.deselect(); // Clear selection after loading
-        
+
         // Show notification via UI (if available)
         if (this.app.ui && this.app.ui.showNotification) {
             this.app.ui.showNotification(`Scene loaded! (${loadedCount} objects)`, 'success');
@@ -670,13 +672,13 @@ async saveSceneGLB() {
 function semanticColorName(hexInt) {
     const h = hexInt >>> 0;
     const r = (h >> 16) & 0xFF;
-    const g = (h >>  8) & 0xFF;
-    const b =  h        & 0xFF;
+    const g = (h >> 8) & 0xFF;
+    const b = h & 0xFF;
 
     // Grey / near-white / near-black (achromatic)
     if (Math.abs(r - g) < 18 && Math.abs(g - b) < 18) {
         if (r > 220) return 'Mat_white';
-        if (r < 55)  return 'Mat_dark';
+        if (r < 55) return 'Mat_dark';
         return 'Mat_grey';
     }
 
@@ -698,8 +700,8 @@ function semanticColorName(hexInt) {
 
     for (const m of match) {
         if (r >= ((m.lo >> 16) & 0xFF) && r <= ((m.hi >> 16) & 0xFF) &&
-            g >= ((m.lo >>  8) & 0xFF) && g <= ((m.hi >>  8) & 0xFF) &&
-            b >= ( m.lo        & 0xFF) && b <= ( m.hi        & 0xFF)) {
+            g >= ((m.lo >> 8) & 0xFF) && g <= ((m.hi >> 8) & 0xFF) &&
+            b >= (m.lo & 0xFF) && b <= (m.hi & 0xFF)) {
             return m.n;
         }
     }
