@@ -312,7 +312,7 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                             </label>
                         </div>
 
-                        <!-- Custom Resolution Group (hidden by default) -->
+                        <!-- Customer Resolution Group (hidden by default) -->
                         <div class="property-group" id="custom-resolution-group" style="display: none;">
                             <label class="property-label">
                                 Custom Width:
@@ -321,6 +321,14 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                             <label class="property-label">
                                 Custom Height:
                                 <input type="number" id="export-height" value="1080" min="100" max="8000">
+                            </label>
+                        </div>
+
+                        <!-- Include Lights toggle (applies to JS export) -->
+                        <div class="property-group">
+                            <label class="property-label">
+                                <input type="checkbox" id="export-include-lights" checked>
+                                Include Lights
                             </label>
                         </div>
 
@@ -564,7 +572,8 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                                          style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
                                          <option value="json">JSON (.json) - Scene data for re-import</option>
                                          <option value="glb">GLB (.glb) - Binary GLTF 3D model</option>
-                                         <option value="fbx">FBX (.fbx) - Autodesk FBX (coming soon)</option>
+                                         <option value="js">JS (.js) - Javascript 3D model</option>
+                                         <option disabled value="fbx">FBX (.fbx) - FBX (coming soon)</option>
                                      </select>
                                  </label>
                              </div>

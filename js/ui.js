@@ -468,7 +468,8 @@ export class UI {
             exportTransparent: document.getElementById('setting-export-transparent').checked,
             exportResolution: document.getElementById('setting-export-resolution').value,
             customWidth: parseInt(document.getElementById('setting-custom-width').value),
-            customHeight: parseInt(document.getElementById('setting-custom-height').value)
+            customHeight: parseInt(document.getElementById('setting-custom-height').value),
+            exportIncludeLights: document.getElementById('export-include-lights')?.checked ?? true
         };
 
         // Save settings
@@ -483,12 +484,13 @@ export class UI {
             this.app.setAmbientLight(settings.ambientLight, settings.ambientColor);
         }
 
-        // Store export settings for later use
+        // Store export settings for later use (including the new light flag)
         window.exportSettings = {
             transparent: settings.exportTransparent,
             resolution: settings.exportResolution,
             customWidth: settings.customWidth,
-            customHeight: settings.customHeight
+            customHeight: settings.customHeight,
+            includeLights: settings.exportIncludeLights
         };
 
         this.showNotification('Scene settings applied successfully!', 'success');

@@ -229,6 +229,11 @@ export class MaterialsManager {
                     c.material.color.setHex(material.color);
                     c.material.metalness = material.metalness;
                     c.material.roughness = material.roughness;
+                    const matName = typeof material.name === 'string' && material.name.length > 0
+                        ? material.name
+                        : `Mat_${material.color.toString(16).padStart(6, '0')}`;
+                    c.material.name = matName;
+                    c.userData.materialName = matName;
                 }
             });
             return;
@@ -238,6 +243,13 @@ export class MaterialsManager {
             targetMesh.material.color.setHex(material.color);
             targetMesh.material.metalness = material.metalness;
             targetMesh.material.roughness = material.roughness;
+            // Write the named material value back to the live Three.js material so the
+            // JS exporter (and anyone else reading the scene graph) can recover it.
+            const matName = typeof material.name === 'string' && material.name.length > 0
+                ? material.name
+                : `Mat_${material.color.toString(16).padStart(6, '0')}`;
+            targetMesh.material.name = matName;
+            targetMesh.userData.materialName = matName;
 
             // Add to objects using this material
             if (!material.objectsUsing.includes(obj)) {

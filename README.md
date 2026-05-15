@@ -31,11 +31,14 @@
 - **History Management**: Full undo/redo functionality for all actions
 
 ### 📸 Export & Production
-- **High-Resolution Export**: Export scenes as PNG with customizable resolution
-- **Multiple Formats**: Support for Full HD (1920×1080), 2K (2560×1440), 4K (3840×2160)
-- **Custom Resolutions**: Set any custom width and height for exports
-- **Camera Border**: Visual preview of export area with draggable preview
-- **Transparent Background**: Optional transparent background for compositing
+- **JavaScript Export (.js)**: Export scenes as standalone JavaScript functions re-creatable in any Three.js project
+- **Named `initSceneN` Functions**: Each exported scene is wrapped in a `window.initScene1(group)` call; call `window.initAllScenes(group)` to apply all at once
+- **Material Name Preservation**: Named materials resolve through `mesh.material.name → userData.materialName → semantic hex-name` so `const matWood`, `const matDark`, etc. appear in the generated output
+- **High-Resolution PNG Export**: Export scenes as PNG with customizable resolution
+- **Multiple Resolutions**: Preset sizes from 24×24 game icons up to 4K (3840×2160)
+- **Custom Resolutions**: Set any width and height for exports
+- **Camera Border Preview**: Draggable overlay preview of the export frame
+- **Transparent Background**: Optional checkbox for compositing exports
 
 ### ⚙️ Advanced Settings
 - **Grid & Axes**: Toggle grid and axes helpers for precise positioning
@@ -46,8 +49,9 @@
 
 ### 💾 File Management
 - **Browser Storage**: Save scenes directly to your browser
-- **JSON Import/Export**: Full scene serialization and loading
-- **Export Options**: Multiple export formats and settings
+- **JSON Import/Export**: Full scene serialization and loading with `materialName` round-trip
+- **GLB Export**: Binary GLTF model export compatible with major 3D tools
+- **JavaScript Export (.js)**: Export scenes as `window.initSceneN` functions for use in external code
 
 ## 🚀 Quick Start
 
@@ -61,7 +65,10 @@
 2. **Select & Transform**: Use transform tools to move, rotate, and scale objects
 3. **Add Lighting**: Use the lights menu to illuminate your scene
 4. **Generate with AI**: Try the Magic Scene Generator for AI-assisted scene creation
-5. **Export**: Use the export tool to save your creation as a PNG image
+5. **Export**: Export scenes as JS for use in any Three.js project, or as PNG for image production
+
+### JavaScript Export (.js)
+Settings → **Export Format** → `JS (.js)` → click **Export**.
 
 ![Quick Start Demo](./demos/quick-start-demo.gif)
 *[Replace with actual demo video showing basic scene creation]*
@@ -151,6 +158,43 @@
 3. Click "Export as PNG" to save your scene
 4. Choose from preset resolutions or set custom dimensions
 
+### JavaScript Export (.js)
+
+Generate a self-contained script that re-creates your scene inside any Three.js app:
+
+```js
+// Inside your own Three.js app, create a Three.Group and pass it to the function:
+window.initScene1(group);      // add the first scene to group
+window.initAllScenes(group);   // add ALL scenes sequentially
+
+// Example:
+const group = new THREE.Group();
+scene.add(group);
+window.initAllScenes(group);
+```
+
+Each exported file contains one `window.initSceneN` function per named group and a master `window.initAllScenes` that calls them in order — materials are declared inside each function so they are local and never leak into yours:
+
+```js
+// Scene 1 — Ship (downloads as scene.js)
+window.initScene1 = function(group) {
+    const matWood = new THREE.MeshPhongMaterial({ color: 0x8b5e2f, transparent: true, opacity: 0 });
+    const matDark = new THREE.MeshPhongMaterial({ color: 0x5c3a1a, transparent: true, opacity: 0 });
+
+    const keel = new THREE.Mesh(new THREE.BoxGeometry(18, 0.5, 0.5), matDark);
+    keel.position.set(0, 2, 0);
+    group.add(keel);
+};
+```
+
+#### Material Name Preservation
+The exported function names are resolved from three sources, in priority order:
+1. **`mesh.material.name`** — set by MaterialsManager → `Apply to Selected`
+2. **`mesh.userData.materialName`** — written at shape creation and during JSON load
+3. **`semanticColorName(hex_int)`** — built-in hex lookup (e.g. `0x8B5E2F` → `matWood`, `0x5C3A1A` → `matDark`)
+
+JSON import/export also persists `materialName` so round-tripping keeps your material names intact.
+
 ## 🎯 Use Cases
 
 ### Content Creation
@@ -162,6 +206,7 @@
 - **Product Visualization**: Prototype 3D product designs
 - **Architecture**: Create preliminary architectural visualizations
 - **Game Development**: Rapid prototyping for 3D game scenes
+- **Code Portability**: Export scenes as JavaScript (.js) to re-create in any Three.js pipeline
 
 ### Education & Learning
 - **3D Modeling Education**: Learn 3D concepts in a browser
@@ -175,7 +220,7 @@
 - **AI Integration**: Google Gemini API
 - **Character Models**: GLTF format support
 - **Storage**: Browser Local Storage
-- **Export**: PNG with configurable resolution
+- **Export**: PNG, JSON, GLB, and JS (initSceneN functions)
 - **Architecture**: Modular ES6 JavaScript classes
 
 ### Performance

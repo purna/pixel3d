@@ -22,6 +22,8 @@ export class FileManager {
         
         if (format === 'json') {
             this.saveSceneJSON();
+        } else if (format === 'js') {
+            this.saveSceneJS();
         } else if (format === 'glb') {
             await this.saveSceneGLB();
         } else if (format === 'fbx') {
@@ -188,6 +190,237 @@ async saveSceneGLB() {
             this.app.ui?.showNotification('FBX export not available. Falling back to GLB.', 'error');
             await this.saveSceneGLB();
         }
+    }
+
+    saveSceneJS() {
+        const includeLights = window.exportSettings?.includeLights ?? true;
+
+        const meshes = [];
+        const lights = [];
+        this.app.scene.traverse((obj) => {
+            if (obj.userData?.type === 'light') {
+                lights.push(obj);
+            } else if (obj.isMesh && obj.userData?.type === 'shape') {
+                meshes.push(obj);
+            }
+        });
+
+        if (meshes.length === 0) {
+            this.app.ui?.showNotification('No shapes to export!', 'info');
+            return;
+        }
+
+        // ── Collect meshes into named groups ──────────────────────────────────
+        const groups = [];
+
+        // a) Direct scene children
+        const directChildren = meshes.filter(m => m.parent === this.app.scene);
+        if (directChildren.length > 0) {
+            groups.push({ group: null, children: directChildren });
+        }
+
+        // b) Per-parent groups (only if 2+ meshes share a parent)
+        const parentMap = new Map();
+        const collected = new Set(meshes);
+        meshes.forEach(m => {
+            if (m.parent !== this.app.scene) {
+                if (!parentMap.has(m.parent)) parentMap.set(m.parent, []);
+                parentMap.get(m.parent).push(m);
+            }
+        });
+        parentMap.forEach((children, parent) => {
+            if (children.length >= 2) {
+                parent.traverse(child => {
+                    if (child.isMesh && !collected.has(child)) {
+                        collected.add(child);
+                    }
+                });
+                if (children.length >= 2) {
+                    groups.push({ group: parent, children });
+                }
+            }
+        });
+
+        // c) Fallback for stragglers
+        const leftover = meshes.filter(m => !collected.has(m));
+        if (leftover.length > 0) {
+            groups.push({ group: null, children: leftover });
+        }
+
+        // ── Build per-group init functions ───────────────────────────────────
+        const sceneFuncs = [];
+
+        groups.forEach(({ children }, gIdx) => {
+            const indent = '    ';
+            const funcName = `initScene${gIdx + 1}`;
+            const lines = [];
+
+            lines.push(`window.${funcName} = function(group) {`);
+
+// Collect unique materials
+             const seenMats = new Map();
+             const matDecls = [];
+             const usedNames = new Set();
+
+             const pushMat = (hexInt, nameHint, opacity = 1) => {
+                 const u = hexInt.toString(16).toUpperCase();
+                 const key = u.padStart(6, '0');
+                 if (seenMats.has(key)) return seenMats.get(key);
+                 let id = nameHint && nameHint.length > 0
+                     ? nameHint
+                     : (semanticColorName(hexInt) || `mat_${key}`);
+                 if (usedNames.has(id)) {
+                     let counter = 2;
+                     while (usedNames.has(`${id}${counter}`)) counter++;
+                     id = `${id}${counter}`;
+                 }
+                 const jsColor = '0x' + key;
+                 usedNames.add(id);
+                 seenMats.set(key, id);
+                 matDecls.push(`${indent}const ${id} = new THREE.MeshPhongMaterial({ color: ${jsColor}, transparent: true, opacity: ${opacity} });`);
+                 return id;
+             };
+
+            // First pass: collect all materials by calling pushMat for each child
+            children.forEach(child => {
+                const hexColor = getColor(child);
+                const matNameHint = (child.material && child.material.name && child.material.name.length > 0)
+                    ? child.material.name
+                    : (child.userData.materialName || semanticColorName(hexColor) || '');
+                const childOpacity = child.material ? child.material.opacity : 1;
+                if (hexColor) pushMat(hexColor, matNameHint, childOpacity);
+            });
+
+            // Group name
+            let groupName = '';
+            if (children.length === 1) {
+                const st = (children[0].userData.shapeType || '');
+                groupName = st.charAt(0).toUpperCase() + st.slice(1);
+            } else if (children.length >= 2) {
+                const names = [children[0].userData.shapeType || '', children[1].userData?.shapeType || ''];
+                groupName = Array.from(new Set(names.filter(Boolean))).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+            }
+            if (!groupName) groupName = 'Mesh';
+
+            lines.push(`    // ${groupName}`);
+
+            // Output material declarations
+            matDecls.forEach(d => lines.push(d));
+            if (matDecls.length > 0) lines.push('');
+
+            // Build each child mesh
+            children.forEach((child, i) => {
+                const hexColor = getColor(child);
+
+                const geoType = child.geometry.type.replace('Geometry', '');
+                let varName = `${geoType.toLowerCase()}_`;
+                if (i === 0) varName += groupName.toLowerCase();
+                else varName += `${groupName.toLowerCase()}${i}`;
+
+                const pos = child.position, rot = child.rotation, scl = child.scale;
+                const px = pos.x.toFixed(2).replace(/\.?0+$/, '') || '0';
+                const py = pos.y.toFixed(2).replace(/\.?0+$/, '') || '0';
+                const pz = pos.z.toFixed(2).replace(/\.?0+$/, '') || '0';
+
+                const rx = ((rot.x * 180) / Math.PI).toFixed(2).replace(/\.?0+$/, '') || '0';
+                const ry = ((rot.y * 180) / Math.PI).toFixed(2).replace(/\.?0+$/, '') || '0';
+                const rz = ((rot.z * 180) / Math.PI).toFixed(2).replace(/\.?0+$/, '') || '0';
+
+                const sx = scl.x.toFixed(2).replace(/\.?0+$/, '') || '1';
+                const sy = scl.y.toFixed(2).replace(/\.?0+$/, '') || '1';
+                const sz = scl.z.toFixed(2).replace(/\.?0+$/, '') || '1';
+
+                const rotParts = [];
+                if (parseFloat(rx) !== 0) rotParts.push(`rotation.x = ${rx} * Math.PI / 180;`);
+                if (parseFloat(ry) !== 0) rotParts.push(`rotation.y = ${ry} * Math.PI / 180;`);
+                if (parseFloat(rz) !== 0) rotParts.push(`rotation.z = ${rz} * Math.PI / 180;`);
+
+                const matNameHint = (child.material && child.material.name && child.material.name.length > 0)
+                    ? child.material.name
+                    : (child.userData.materialName || semanticColorName(hexColor) || '');
+
+                const childOpacity = child.material ? child.material.opacity : 1;
+                const matId = hexColor ? pushMat(hexColor, matNameHint, childOpacity) : 'new THREE.MeshPhongMaterial({ color: 0x808080 })';
+
+                const geoArgs = geometryArgs(child);
+                const geoNew = `new THREE.${child.geometry.type}(${geoArgs})`;
+
+                lines.push(`    const ${varName} = new THREE.Mesh(${geoNew}, ${matId});`);
+                lines.push(`    ${varName}.position.set(${px}, ${py}, ${pz});`);
+                rotParts.forEach(r => lines.push(`    ${r}`));
+                lines.push(`    ${varName}.scale.set(${sx}, ${sy}, ${sz});`);
+                lines.push(`    group.add(${varName});`);
+                if (i < children.length - 1) lines.push('');
+            });
+
+            lines.push('};');
+            lines.push('');
+            sceneFuncs.push(lines.join('\n'));
+        });
+
+        // ── Emit scene-root lights ─────────────────────────────
+        if (includeLights) {
+            const sceneRootLights = this.app.scene.children.filter(c => c.userData?.type === 'light');
+            if (sceneRootLights.length > 0) {
+                const rootLightLines = [];
+                rootLightLines.push('window.initSceneLights = function(group) {');
+                sceneRootLights.forEach((lg) => {
+                    const lt = lg.userData.lightType || 'point';
+                    const jsType = lt.charAt(0).toUpperCase() + lt.slice(1) + 'Light';
+                    const c = lg.children[0];
+                    if (!c) return;
+                    const colHex = c.color ? c.color.getHex() : 0xffffff;
+                    const colStr = '0x' + colHex.toString(16).toUpperCase().padStart(6, '0');
+                    const p = lg.position;
+                    const px = p.x.toFixed(2).replace(/\.?0+$/, '') || '0';
+                    const py = p.y.toFixed(2).replace(/\.?0+$/, '') || '0';
+                    const pz = p.z.toFixed(2).replace(/\.?0+$/, '') || '0';
+                    const inten = c.intensity ?? 1;
+                    const lName = `l${lt.charAt(0).toUpperCase() + lt.slice(1)}`;
+                    rootLightLines.push(`    const ${lName} = new THREE.${jsType}(${colStr}, ${inten});`);
+                    rootLightLines.push(`    ${lName}.position.set(${px}, ${py}, ${pz});`);
+                    rootLightLines.push(`    group.add(${lName});`);
+                });
+                rootLightLines.push('};');
+                rootLightLines.push('');
+                sceneFuncs.push(rootLightLines.join('\n'));
+            }
+        }
+
+        const HEADER = `// ------------------------------------------------------------
+// Pixel 3D — exported scene functions
+//
+// Inside your own Three.js app create a Group and pass it to
+// any of the functions below.  They add new meshes (and their
+// materials) to the group; the scene graph itself is yours to
+// render as you wish.
+//
+//   window.initScene1(group);      // add the first scene to group
+//   window.initAllScenes(group);   // add ALL scenes (calls initSceneN for you)
+// ------------------------------------------------------------\n\n`;
+
+        let allScenesSrc = HEADER;
+        sceneFuncs.forEach(src => { allScenesSrc += src + '\n'; });
+
+        let yPriorCombined = 'window.initAllScenes = function(group) {\n';
+        sceneFuncs.forEach(src => {
+            const funcNameMatch = src.match(/window\.(initScene\d+)\s*=/);
+            if (funcNameMatch) {
+                yPriorCombined += `    ${funcNameMatch[1]}(group);\n`;
+            }
+        });
+        yPriorCombined += '};';
+
+        allScenesSrc += yPriorCombined + '\n';
+
+        const blob = new Blob([allScenesSrc], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'scene.js';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.app.ui?.showNotification('Scene exported as JS!', 'success');
     }
 
     saveToBrowser() {
@@ -429,4 +662,93 @@ async saveSceneGLB() {
             console.error("Failed to restore objects to folders:", err);
         }
     }
+}
+
+// ── Geometry helpers for JS export ──────────────────────────────────────────
+
+// Map a hex colour to a short, readable material name.
+function semanticColorName(hexInt) {
+    const h = hexInt >>> 0;
+    const r = (h >> 16) & 0xFF;
+    const g = (h >>  8) & 0xFF;
+    const b =  h        & 0xFF;
+
+    // Grey / near-white / near-black (achromatic)
+    if (Math.abs(r - g) < 18 && Math.abs(g - b) < 18) {
+        if (r > 220) return 'Mat_white';
+        if (r < 55)  return 'Mat_dark';
+        return 'Mat_grey';
+    }
+
+    // Colour-target windows
+    const match = [
+        { hi: 0x8C6F4A, lo: 0x7E5C38, n: 'Mat_wood' },
+        { hi: 0x8B5E2F, lo: 0x7A4F25, n: 'Mat_wood' },
+        { hi: 0x5C3A1A, lo: 0x4E2E10, n: 'Mat_dark' },
+        { hi: 0xA0522D, lo: 0x8B4513, n: 'Mat_brown' },
+        { hi: 0x008080, lo: 0x007070, n: 'Mat_teal' },
+        { hi: 0x20B2AA, lo: 0x17A098, n: 'Mat_teal' },
+        { hi: 0xFF1493, lo: 0xD5008A, n: 'Mat_magenta' },
+        { hi: 0x4682B4, lo: 0x306090, n: 'Mat_steel' },
+        { hi: 0x00FF41, lo: 0x00D938, n: 'Mat_neon' },
+        { hi: 0xFFD700, lo: 0xD4AA00, n: 'Mat_gold' },
+        { hi: 0xFF4444, lo: 0xCC2020, n: 'Mat_red' },
+        { hi: 0x9932CC, lo: 0x8B2BBA, n: 'Mat_purple' },
+    ];
+
+    for (const m of match) {
+        if (r >= ((m.lo >> 16) & 0xFF) && r <= ((m.hi >> 16) & 0xFF) &&
+            g >= ((m.lo >>  8) & 0xFF) && g <= ((m.hi >>  8) & 0xFF) &&
+            b >= ( m.lo        & 0xFF) && b <= ( m.hi        & 0xFF)) {
+            return m.n;
+        }
+    }
+    return '';
+}
+
+function getColor(mesh) {
+    const c = mesh.material?.color;
+    if (c instanceof THREE.Color) return c.getHex();
+    if (typeof c === 'number') return c >>> 0;
+    if (typeof c === 'string') return parseInt(c, 16);
+    return 0x808080;
+}
+
+function geometryArgs(geo) {
+    const t = geo.type;
+    if (t === 'BoxGeometry') {
+        const w = geo.parameters.width, h = geo.parameters.height, d = geo.parameters.depth;
+        return `${numStr(w)}, ${numStr(h)}, ${numStr(d)}`;
+    }
+    if (t === 'SphereGeometry') {
+        const r = geo.parameters.radius, ws = geo.parameters.widthSegments, hs = geo.parameters.heightSegments;
+        return `${numStr(r)}, ${ws}, ${hs}`;
+    }
+    if (t === 'ConeGeometry') {
+        const r = geo.parameters.radius, h = geo.parameters.height, rs = geo.parameters.radialSegments;
+        return `${numStr(r)}, ${numStr(h)}, ${rs}`;
+    }
+    if (t === 'CylinderGeometry') {
+        const rt = geo.parameters.radiusTop, rb = geo.parameters.radiusBottom, h = geo.parameters.height, segs = geo.parameters.radialSegments;
+        return `${numStr(rt)}, ${numStr(rb)}, ${numStr(h)}, ${segs}`;
+    }
+    if (t === 'PlaneGeometry') {
+        return `${numStr(geo.parameters.width)}, ${numStr(geo.parameters.height)}`;
+    }
+    if (t === 'TorusGeometry') {
+        return `${numStr(geo.parameters.radius)}, ${numStr(geo.parameters.tube)}, ${geo.parameters.radialSegments}, ${geo.parameters.tubularSegments}`;
+    }
+    if (t === 'TetrahedronGeometry' || t === 'OctahedronGeometry' || t === 'DodecahedronGeometry' || t === 'IcosahedronGeometry') {
+        return `${numStr(geo.parameters.radius)}, ${geo.parameters.detail ?? 0}`;
+    }
+    if (t === 'TorusKnotGeometry') {
+        return `${numStr(geo.parameters.radius)}, ${numStr(geo.parameters.tube)}, ${geo.parameters.tubularSegments}, ${geo.parameters.radialSegments}`;
+    }
+    return '';
+}
+
+function numStr(v) {
+    if (typeof v === 'number' && !isFinite(v)) return '1';
+    if (Math.abs(v) < 1e-10) return '0';
+    return parseFloat(v.toPrecision(10)).toString();
 }

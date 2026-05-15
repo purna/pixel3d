@@ -10,13 +10,25 @@ export class ObjectFactory {
     }
 
     createMaterial(color = 0x00ff41) {
-        return new THREE.MeshStandardMaterial({
+        const mat = new THREE.MeshStandardMaterial({
             color: color,
             roughness: 0.3,
             metalness: 0.2,
             emissive: 0x000000,
             emissiveIntensity: 0.1
         });
+        // Copy the MaterialsManager name onto the material if the app has one, so the
+        // JS exporter can read it straight from mesh.material.name.
+        if (typeof this.app?.materialsManager?.createMaterial === 'function') {
+            // Try to find the matching registered material by exact color match.
+            const match = this.app.materialsManager.materials?.find(
+                m => m.color === color || m.color === (color | 0)
+            );
+            if (match && typeof match.name === 'string') {
+                mat.name = match.name;
+            }
+        }
+        return mat;
     }
 
     createShape(type) {
@@ -59,6 +71,7 @@ export class ObjectFactory {
             type: 'shape', 
             shapeType: type, 
             id: objectId,
+            materialName: material.name || ('Mat_' + material.color.getHexString()),
             aframe: {
                 src: '',
                 shadow: { cast: true, receive: true },
