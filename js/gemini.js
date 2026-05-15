@@ -62,7 +62,7 @@ export class GeminiManager {
         while (retries <= maxRetries) {
             try {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${this.apiKey}`;
-                
+
                 const payload = {
                     contents: [{ parts: [{ text: userText }] }],
                     systemInstruction: { parts: [{ text: systemText }] }
@@ -79,7 +79,7 @@ export class GeminiManager {
                 }
 
                 const data = await response.json();
-                
+
                 if (data.candidates && data.candidates.length > 0) {
                     return data.candidates[0].content.parts[0].text;
                 } else {

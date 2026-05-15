@@ -424,6 +424,11 @@ export class UI {
         // Hide custom resolution group if not custom
         document.getElementById('custom-resolution-group').style.display = 'none';
 
+        // Apply defaults to canvas scene
+        if (this.app.setBackgroundColor) {
+            this.app.setBackgroundColor(defaults.backgroundColor);
+        }
+
         this.showNotification('Scene settings reset to defaults!', 'success');
     }
 
@@ -1136,6 +1141,16 @@ export class UI {
         metallicInput.step = '0.01';
         metallicInput.style.flex = '1';
 
+        // Add value display for metallic
+        const metallicValue = document.createElement('span');
+        metallicValue.id = 'prop-metallic-value';
+        metallicValue.style.fontSize = '0.65rem';
+        metallicValue.style.color = 'var(--text-primary)';
+        metallicValue.style.width = '30px';
+        metallicValue.style.textAlign = 'right';
+        metallicValue.textContent = (targetMesh.material.metalness !== undefined ? targetMesh.material.metalness : 0).toFixed(2);
+        metallicRow.appendChild(metallicValue);
+
         // Add info button for metallic
         const metallicInfo = document.createElement('i');
         metallicInfo.className = 'fas fa-info-circle material-info-btn';
@@ -1147,13 +1162,13 @@ export class UI {
         metallicRow.appendChild(metallicInfo);
 
         // Initialize metallic value (default to 0 if not set)
-        const currentMetallic = targetMesh.material.metalness !== undefined
+        metallicInput.value = targetMesh.material.metalness !== undefined
             ? targetMesh.material.metalness
             : 0;
-        metallicInput.value = currentMetallic;
 
         metallicInput.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
+            metallicValue.textContent = value.toFixed(2);
             if (obj.userData.type === 'figure') {
                 // Apply to whole figure
                 obj.traverse(c => {
@@ -1188,6 +1203,16 @@ export class UI {
         roughnessInput.step = '0.01';
         roughnessInput.style.flex = '1';
 
+        // Add value display for roughness
+        const roughnessValue = document.createElement('span');
+        roughnessValue.id = 'prop-roughness-value';
+        roughnessValue.style.fontSize = '0.65rem';
+        roughnessValue.style.color = 'var(--text-primary)';
+        roughnessValue.style.width = '30px';
+        roughnessValue.style.textAlign = 'right';
+        roughnessValue.textContent = (targetMesh.material.roughness !== undefined ? targetMesh.material.roughness : 0.5).toFixed(2);
+        roughnessRow.appendChild(roughnessValue);
+
         // Add info button for roughness
         const roughnessInfo = document.createElement('i');
         roughnessInfo.className = 'fas fa-info-circle material-info-btn';
@@ -1199,13 +1224,13 @@ export class UI {
         roughnessRow.appendChild(roughnessInfo);
 
         // Initialize roughness value (default to 0.5 if not set)
-        const currentRoughness = targetMesh.material.roughness !== undefined
+        roughnessInput.value = targetMesh.material.roughness !== undefined
             ? targetMesh.material.roughness
             : 0.5;
-        roughnessInput.value = currentRoughness;
 
         roughnessInput.addEventListener('input', (e) => {
             const value = parseFloat(e.target.value);
+            roughnessValue.textContent = value.toFixed(2);
             if (obj.userData.type === 'figure') {
                 // Apply to whole figure
                 obj.traverse(c => {
@@ -1220,6 +1245,60 @@ export class UI {
 
         roughnessRow.appendChild(roughnessInput);
         materialGroup.appendChild(roughnessRow);
+
+        // Opacity property
+        const opacityRow = document.createElement('div');
+        opacityRow.className = 'input-row';
+
+        const opacityLabel = document.createElement('span');
+        opacityLabel.style.fontSize = '0.65rem';
+        opacityLabel.style.color = 'var(--text-secondary)';
+        opacityLabel.style.width = '60px';
+        opacityLabel.textContent = 'Opacity:';
+        opacityRow.appendChild(opacityLabel);
+
+        const opacityInput = document.createElement('input');
+        opacityInput.type = 'range';
+        opacityInput.id = 'prop-opacity-slider';
+        opacityInput.min = '0';
+        opacityInput.max = '1';
+        opacityInput.step = '0.01';
+        opacityInput.style.flex = '1';
+
+        // Add value display for opacity
+        const opacityValue = document.createElement('span');
+        opacityValue.id = 'prop-opacity-value';
+        opacityValue.style.fontSize = '0.65rem';
+        opacityValue.style.color = 'var(--text-primary)';
+        opacityValue.style.width = '30px';
+        opacityValue.style.textAlign = 'right';
+        opacityValue.textContent = (targetMesh.material.opacity !== undefined ? targetMesh.material.opacity : 1).toFixed(2);
+        opacityRow.appendChild(opacityValue);
+
+        // Initialize opacity value (default to 1 if not set)
+        opacityInput.value = targetMesh.material.opacity !== undefined
+            ? targetMesh.material.opacity
+            : 1;
+
+        opacityInput.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            opacityValue.textContent = value.toFixed(2);
+            if (obj.userData.type === 'figure') {
+                // Apply to whole figure
+                obj.traverse(c => {
+                    if (c.isMesh && c.material) {
+                        c.material.opacity = value;
+                        c.material.transparent = value < 1;
+                    }
+                });
+            } else {
+                targetMesh.material.opacity = value;
+                targetMesh.material.transparent = value < 1;
+            }
+        });
+
+        opacityRow.appendChild(opacityInput);
+        materialGroup.appendChild(opacityRow);
 
         this.propsContent.appendChild(materialGroup);
     }
@@ -1408,7 +1487,7 @@ export class UI {
             dropdownItem.dataset.materialId = material.id;
             dropdownItem.innerHTML = `
                 <div class="material-color-swatch" style="background-color: ${colorHex}; border: 1px solid var(--border-color);"></div>
-                <span class="material-option-text">${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)})</span>
+                <span class="material-option-text">${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)}, O:${(material.opacity !== undefined ? material.opacity : 1).toFixed(1)})</span>
             `;
 
             dropdownItem.addEventListener('click', () => {
@@ -1425,10 +1504,10 @@ export class UI {
                 dropdownWrapper.classList.remove('open');
 
                 // Apply the selected material
-                const materialId = dropdownItem.dataset.materialId;
-                const material = this.app.materialsManager.materials.find(m => m.id === materialId);
-                if (material) {
-                    this.app.materialsManager.applyMaterialToSelected(material);
+                const clickedMaterialId = dropdownItem.dataset.materialId;
+                const clickedMaterial = this.app.materialsManager.materials.find(m => m.id === clickedMaterialId);
+                if (clickedMaterial) {
+                    this.app.materialsManager.applyMaterialToSelected(clickedMaterial);
                 }
             });
 
@@ -1484,10 +1563,18 @@ export class UI {
             roughnessInput.value = material.roughness;
         }
 
+        // Update opacity slider using specific ID
+        const opacityInput = document.getElementById('prop-opacity-slider');
+        if (opacityInput) {
+            opacityInput.value = material.opacity !== undefined ? material.opacity : 1;
+        }
+
         // Update the actual material properties on the mesh
         targetMesh.material.color.setHex(material.color);
         targetMesh.material.metalness = material.metalness;
         targetMesh.material.roughness = material.roughness;
+        targetMesh.material.opacity = material.opacity !== undefined ? material.opacity : 1;
+        targetMesh.material.transparent = targetMesh.material.opacity < 1;
     }
 
     showNotification(message, type = 'info') {

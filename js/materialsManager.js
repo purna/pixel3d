@@ -16,24 +16,25 @@ export class MaterialsManager {
 
     createDefaultMaterials() {
         // Create some default materials
-        this.createMaterial('Default', 0x00ff41, 0.2, 0.3);
-        this.createMaterial('Metallic', 0x888888, 0.8, 0.1);
-        this.createMaterial('Rough Plastic', 0xff5555, 0.0, 0.8);
-        this.createMaterial('Smooth Plastic', 0x5555ff, 0.0, 0.2);
-        this.createMaterial('Gold', 0xffd700, 1.0, 0.1);
-        this.createMaterial('Rusty Metal', 0x8b4513, 0.7, 0.6);
+        this.createMaterial('Default', 0x00ff41, 0.2, 0.3, 1);
+        this.createMaterial('Metallic', 0x888888, 0.8, 0.1, 1);
+        this.createMaterial('Rough Plastic', 0xff5555, 0.0, 0.8, 1);
+        this.createMaterial('Smooth Plastic', 0x5555ff, 0.0, 0.2, 1);
+        this.createMaterial('Gold', 0xffd700, 1.0, 0.1, 1);
+        this.createMaterial('Rusty Metal', 0x8b4513, 0.7, 0.6, 1);
 
         this.render();
     }
 
-    createMaterial(name, color, metalness, roughness) {
+    createMaterial(name, color, metalness, roughness, opacity = 1) {
         const material = {
             id: 'mat-' + Date.now(),
             name: name,
             color: color,
             metalness: metalness,
             roughness: roughness,
-            objectsUsing: [] // Track which objects use this material
+            opacity: opacity,
+            objectsUsing: []
         };
         this.materials.push(material);
         return material;
@@ -69,6 +70,7 @@ export class MaterialsManager {
                     <div class="material-properties">
                         <span class="material-prop">M: ${material.metalness.toFixed(1)}</span>
                         <span class="material-prop">R: ${material.roughness.toFixed(1)}</span>
+                        <span class="material-prop">O: ${(material.opacity !== undefined ? material.opacity : 1).toFixed(1)}</span>
                     </div>
                 </div>
                 <div class="material-actions">
@@ -124,7 +126,8 @@ export class MaterialsManager {
             name: 'New Material',
             color: 0x00ff41,
             metalness: 0.2,
-            roughness: 0.3
+            roughness: 0.3,
+            opacity: 1
         };
 
         // Override with config defaults if available
@@ -165,6 +168,10 @@ export class MaterialsManager {
                     <label>Roughness: ${defaults.roughness.toFixed(2)}</label>
                     <input type="range" id="new-material-roughness" min="0" max="1" step="0.01" value="${defaults.roughness}">
                 </div>
+                <div class="form-group">
+                    <label>Opacity: ${defaults.opacity.toFixed(2)}</label>
+                    <input type="range" id="new-material-opacity" min="0" max="1" step="0.01" value="${defaults.opacity}">
+                </div>
             </div>
             <div class="dialog-actions">
                 <button class="btn" id="cancel-create-material">Cancel</button>
@@ -183,6 +190,7 @@ export class MaterialsManager {
             const colorInput = dialog.querySelector('#new-material-color');
             const metalnessInput = dialog.querySelector('#new-material-metalness');
             const roughnessInput = dialog.querySelector('#new-material-roughness');
+            const opacityInput = dialog.querySelector('#new-material-opacity');
 
             // Parse color
             let colorValue = colorInput.value;
@@ -194,7 +202,8 @@ export class MaterialsManager {
                 nameInput.value,
                 colorValue,
                 parseFloat(metalnessInput.value),
-                parseFloat(roughnessInput.value)
+                parseFloat(roughnessInput.value),
+                parseFloat(opacityInput.value)
             );
 
             dialog.remove();
@@ -229,6 +238,8 @@ export class MaterialsManager {
                     c.material.color.setHex(material.color);
                     c.material.metalness = material.metalness;
                     c.material.roughness = material.roughness;
+                    c.material.opacity = material.opacity !== undefined ? material.opacity : 1;
+                    c.material.transparent = (material.opacity !== undefined ? material.opacity : 1) < 1;
                     const matName = typeof material.name === 'string' && material.name.length > 0
                         ? material.name
                         : `Mat_${material.color.toString(16).padStart(6, '0')}`;
@@ -243,6 +254,8 @@ export class MaterialsManager {
             targetMesh.material.color.setHex(material.color);
             targetMesh.material.metalness = material.metalness;
             targetMesh.material.roughness = material.roughness;
+            targetMesh.material.opacity = material.opacity !== undefined ? material.opacity : 1;
+            targetMesh.material.transparent = (material.opacity !== undefined ? material.opacity : 1) < 1;
             // Write the named material value back to the live Three.js material so the
             // JS exporter (and anyone else reading the scene graph) can recover it.
             const matName = typeof material.name === 'string' && material.name.length > 0
@@ -257,7 +270,6 @@ export class MaterialsManager {
             }
 
             this.app.ui.showNotification(`Applied material to ${obj.userData.name || obj.userData.type}`, 'success');
-
             // Update the UI to reflect the new material properties
             if (this.app.ui && this.app.ui.updateMaterialPropertiesUI) {
                 this.app.ui.updateMaterialPropertiesUI(material, targetMesh);
@@ -287,6 +299,10 @@ export class MaterialsManager {
                     <label>Roughness: ${material.roughness.toFixed(2)}</label>
                     <input type="range" id="edit-material-roughness" min="0" max="1" step="0.01" value="${material.roughness}">
                 </div>
+                <div class="form-group">
+                    <label>Opacity: ${(material.opacity !== undefined ? material.opacity : 1).toFixed(2)}</label>
+                    <input type="range" id="edit-material-opacity" min="0" max="1" step="0.01" value="${material.opacity !== undefined ? material.opacity : 1}">
+                </div>
             </div>
             <div class="dialog-actions">
                 <button class="btn" id="cancel-edit-material">Cancel</button>
@@ -304,6 +320,7 @@ export class MaterialsManager {
             const colorInput = dialog.querySelector('#edit-material-color');
             const metalnessInput = dialog.querySelector('#edit-material-metalness');
             const roughnessInput = dialog.querySelector('#edit-material-roughness');
+            const opacityInput = dialog.querySelector('#edit-material-opacity');
 
             // Parse color
             let colorValue = colorInput.value;
@@ -314,6 +331,7 @@ export class MaterialsManager {
             material.color = colorValue;
             material.metalness = parseFloat(metalnessInput.value);
             material.roughness = parseFloat(roughnessInput.value);
+            material.opacity = parseFloat(opacityInput.value);
 
             // Update all objects using this material
             material.objectsUsing.forEach(obj => {
@@ -323,12 +341,14 @@ export class MaterialsManager {
                             c.material.color.setHex(material.color);
                             c.material.metalness = material.metalness;
                             c.material.roughness = material.roughness;
+                            c.material.opacity = material.opacity;
                         }
                     });
                 } else if (obj.isMesh && obj.material) {
                     obj.material.color.setHex(material.color);
                     obj.material.metalness = material.metalness;
                     obj.material.roughness = material.roughness;
+                    obj.material.opacity = material.opacity;
                 }
             });
 
@@ -388,6 +408,7 @@ export class MaterialsManager {
                     <div class="material-properties-full">
                         <span>M: ${material.metalness.toFixed(2)}</span>
                         <span>R: ${material.roughness.toFixed(2)}</span>
+                        <span>O: ${(material.opacity !== undefined ? material.opacity : 1).toFixed(2)}</span>
                     </div>
                 </div>
                 <div class="material-actions-full">

@@ -15,7 +15,9 @@ export class ObjectFactory {
             roughness: 0.3,
             metalness: 0.2,
             emissive: 0x000000,
-            emissiveIntensity: 0.1
+            emissiveIntensity: 0.1,
+            transparent: true,
+            opacity: 1
         });
         // Copy the MaterialsManager name onto the material if the app has one, so the
         // JS exporter can read it straight from mesh.material.name.
