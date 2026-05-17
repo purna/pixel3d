@@ -4,9 +4,9 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 :root {
-    --a-accent:       #f59e0b;
-    --a-accent-dim:   #b45309;
-    --a-glow:         rgba(245,158,11,.32);
+    --a-accent:       #00ff41;
+    --a-accent-dim:   #00d9ff;
+    --a-glow:         rgba(0,255,65,.32);
     --a-bg:           #09090f;
     --a-surface:      #0f0f1a;
     --a-surface2:     #16162a;
@@ -325,16 +325,16 @@
     position: absolute;
     top: 50%; transform: translate(-50%,-50%) rotate(45deg);
     width: 11px; height: 11px;
-    background: var(--kf-color, #f59e0b);
+    background: var(--kf-color, var(--a-accent));
     border: 1.5px solid rgba(0,0,0,.45);
     cursor: pointer; z-index: 6;
     transition: transform .12s, box-shadow .12s, background .12s;
-    box-shadow: 0 0 5px color-mix(in srgb, var(--kf-color, #f59e0b) 60%, transparent);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--kf-color, var(--a-accent)) 60%, transparent);
 }
 .anim-kf-diamond:hover {
     background: #fff;
     transform: translate(-50%,-50%) rotate(45deg) scale(1.4);
-    box-shadow: 0 0 12px var(--kf-color, #f59e0b);
+    box-shadow: 0 0 12px var(--kf-color, var(--a-accent));
 }
 
 /* Colour-track diamond: show the swatch colour */

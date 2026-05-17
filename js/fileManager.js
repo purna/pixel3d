@@ -98,34 +98,31 @@ export class FileManager {
 
     async saveSceneGLB() {
         try {
-            // Import from same Three.js version as the app
             const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
 
-            // Check if there's anything to export
             if (this.app.scene.children.length === 0) {
                 this.app.ui?.showNotification('No objects to export!', 'info');
                 return;
             }
 
-            // Create a clean scene for export - exclude helpers and default lights
             const exportScene = new THREE.Scene();
+            const objectToClip = new Map();
 
             this.app.scene.traverse((obj) => {
-                // Skip helpers, grids, axes, transform controls
                 if (obj.isHelper || obj.type === 'GridHelper' || obj.type === 'AxesHelper') return;
                 if (obj.type === 'TransformControlsGizmo' || obj.type === 'TransformControlsPlane') return;
                 if (obj.type === 'TransformControls') return;
-                // Skip the default ambient and directional lights added by main.js
                 if (obj.type === 'AmbientLight' && !obj.userData?.type) return;
                 if (obj.type === 'DirectionalLight' && !obj.userData?.type) return;
-
-                // Only export objects with userData.type (shapes, lights, figures)
                 if (!obj.userData?.type) return;
 
-                // Deep clone to avoid any reference issues
                 try {
-                    const cloned = obj.clone(true); // deep clone
+                    const cloned = obj.clone(true);
                     exportScene.add(cloned);
+
+                    const objectId = obj.userData?.id || obj.uuid;
+                    const clip = this.app.animationManager.getClip(objectId);
+                    if (clip) objectToClip.set(cloned, clip);
                 } catch (e) {
                     console.warn('Could not clone for export:', obj.name, e);
                 }
@@ -137,15 +134,52 @@ export class FileManager {
             }
 
             const exporter = new GLTFExporter();
+            const animations = [];
 
-            // Use parse directly (not parseAsync) because Three.js doesn't properly
-            // await the FileReader callbacks in write(), causing timing issues
+            for (const [obj, clip] of objectToClip.entries()) {
+                for (const prop of ['position', 'rotation', 'scale', 'color']) {
+                    const kfs = clip.getKeyframes(prop);
+                    if (kfs.length < 2) continue;
+
+                    if (prop === 'color') {
+                        const times = kfs.map(k => k.time);
+                        const values = [];
+                        for (const kf of kfs) {
+                            values.push(kf.value.r, kf.value.g, kf.value.b);
+                        }
+                        const track = new THREE.ColorKeyframeTrack(`${obj.name}.material.color`, times, values);
+                        animations.push(new THREE.AnimationClip(`${obj.name}_color`, clip.duration, [track]));
+                    } else {
+                        const times = kfs.map(k => k.time);
+                        const values = [];
+                        for (const kf of kfs) {
+                            values.push(kf.value.x, kf.value.y, kf.value.z);
+                        }
+
+                        const TrackClass = prop === 'rotation' ? THREE.QuaternionKeyframeTrack : THREE.VectorKeyframeTrack;
+                        if (prop === 'rotation') {
+                            const eulers = kfs.map(k => new THREE.Euler(k.value.x, k.value.y, k.value.z));
+                            const quaternions = eulers.map(e => new THREE.Quaternion().setFromEuler(e));
+                            const qValues = [];
+                            for (const q of quaternions) {
+                                qValues.push(q.x, q.y, q.z, q.w);
+                            }
+                            const track = new THREE.QuaternionKeyframeTrack(`${obj.name}.quaternion`, times, qValues);
+                            animations.push(new THREE.AnimationClip(`${obj.name}_${prop}`, clip.duration, [track]));
+                        } else {
+                            const track = new TrackClass(`${obj.name}.${prop}`, times, values);
+                            animations.push(new THREE.AnimationClip(`${obj.name}_${prop}`, clip.duration, [track]));
+                        }
+                    }
+                }
+            }
+
             const result = await new Promise((resolve, reject) => {
                 exporter.parse(
                     exportScene,
                     resolve,
                     reject,
-                    { binary: true, embedImages: true }
+                    { binary: true, embedImages: true, animations }
                 );
             });
 
@@ -159,7 +193,6 @@ export class FileManager {
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
                 this.app.ui?.showNotification('Scene exported as GLB!', 'success');
             } else if (result && typeof result === 'object' && result.scenes) {
-                // JSON glTF format (fallback when binary fails)
                 const json = JSON.stringify(result, null, 2);
                 const blob = new Blob([json], { type: 'model/gltf+json' });
                 const url = URL.createObjectURL(blob);
@@ -420,6 +453,12 @@ export class FileManager {
         yPriorCombined += '};';
 
         allScenesSrc += yPriorCombined + '\n';
+
+        const animData = this.app.animationManager.toJSON();
+        if (animData.clips && Object.keys(animData.clips).length > 0) {
+            allScenesSrc += '\n// ── Animation Data ─────────────────────────────────────────────\n';
+            allScenesSrc += 'window.sceneAnimations = ' + JSON.stringify(animData, null, 2) + ';\n';
+        }
 
         const blob = new Blob([allScenesSrc], { type: 'text/javascript' });
         const url = URL.createObjectURL(blob);

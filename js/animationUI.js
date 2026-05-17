@@ -35,7 +35,7 @@ const TRACK_DEFS = [
     { prop: 'position', label: 'Position', color: '#3b82f6', isColor: false },
     { prop: 'rotation', label: 'Rotation', color: '#a855f7', isColor: false },
     { prop: 'scale',    label: 'Scale',    color: '#22c55e', isColor: false },
-    { prop: 'color',    label: 'Color',    color: '#f59e0b', isColor: true  },
+    { prop: 'color',    label: 'Color',    color: '#00ff41', isColor: true  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ export class AnimationUI {
         // Floating needle (positioned over the lanes region via CSS)
         const needle = document.createElement('div');
         needle.className = 'anim-needle';
-        const pct = (this.anim.currentTime / dur) * 100;
+        const pct = (this.anim.currentTime / this.anim.totalDuration) * 100;
         needle.style.left = `${pct}%`;
         area.appendChild(needle);
     }
