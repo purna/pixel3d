@@ -34,8 +34,6 @@ export class FileManager {
     }
 
     saveSceneJSON() {
-        const data = [];
-
         // Helper to serialize an object
         const processObj = (obj) => {
             // Only process objects with our specific types
@@ -75,11 +73,19 @@ export class FileManager {
         };
 
         // Traverse only direct children of scene to find our managed roots
+        const data = [];
         this.app.scene.children.forEach(child => {
             processObj(child);
         });
 
-        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        // Include animation data
+        const sceneData = {
+            version: 1,
+            objects: data,
+            animations: this.app.animationManager.toJSON()
+        };
+
+        const blob = new Blob([JSON.stringify(sceneData)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -568,8 +574,24 @@ export class FileManager {
     loadData(data) {
         this.app.clearScene();
 
+        // Handle both old format (array of objects) and new format (object with objects and animations)
+        let objectsData = [];
+        let animationData = null;
+
+        if (Array.isArray(data)) {
+            // Old format: direct array of scene objects
+            objectsData = data;
+        } else if (data && typeof data === 'object') {
+            // New format: { objects: [...], animations: {...} }
+            objectsData = data.objects || [];
+            animationData = data.animations;
+        } else {
+            // Fallback: treat as empty
+            objectsData = [];
+        }
+
         let loadedCount = 0;
-        data.forEach(item => {
+        objectsData.forEach(item => {
             let newObj = null;
 
             if (item.type === 'shape') {
@@ -607,6 +629,11 @@ export class FileManager {
                 loadedCount++;
             }
         });
+
+        // Load animation data if present
+        if (animationData) {
+            this.app.animationManager.fromJSON(animationData);
+        }
 
         this.app.deselect(); // Clear selection after loading
 

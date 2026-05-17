@@ -50,6 +50,12 @@ export class UI {
                 return;
             }
 
+            // Handle Animation Tool
+            if (btn.id === 'tool-animate') {
+                this.toggleAnimationPanel();
+                return;
+            }
+
             // Handle menu parent buttons - toggle submenu
             if (btn.classList.contains('menu-parent')) {
                 this.toggleSubmenu(btn);
@@ -623,43 +629,61 @@ export class UI {
         this.activeSubmenu = null;
     }
 
-    togglePropertiesPanel() {
-        const panel = document.getElementById('right-panel');
-        const toggle = document.getElementById('panel-toggle');
-        const workspace = document.querySelector('.workspace');
+     togglePropertiesPanel() {
+         const panel = document.getElementById('right-panel');
+         const toggle = document.getElementById('panel-toggle');
+         const workspace = document.querySelector('.workspace');
 
-        if (!panel) return;
+         if (!panel) return;
 
-        const icon = toggle ? toggle.querySelector('i') : null;
+         const icon = toggle ? toggle.querySelector('i') : null;
 
-        if (panel.classList.contains('hidden')) {
-            // Show panel
-            panel.classList.remove('hidden');
-            if (toggle) toggle.classList.remove('panel-hidden');
-            if (workspace) workspace.classList.remove('panel-hidden');
-            if (icon) icon.className = 'fas fa-chevron-right';
-            if (toggle) toggle.title = 'Hide Panel';
+         if (panel.classList.contains('hidden')) {
+             // Show panel
+             panel.classList.remove('hidden');
+             if (toggle) toggle.classList.remove('panel-hidden');
+             if (workspace) workspace.classList.remove('panel-hidden');
+             if (icon) icon.className = 'fas fa-chevron-right';
+             if (toggle) toggle.title = 'Hide Panel';
 
-            // Reset to default view when showing panel
-            this.resetPanelToDefault();
-        } else {
-            // Hide panel
-            panel.classList.add('hidden');
-            if (toggle) toggle.classList.add('panel-hidden');
-            if (workspace) workspace.classList.add('panel-hidden');
-            if (icon) icon.className = 'fas fa-chevron-left';
-            if (toggle) toggle.title = 'Show Panel';
-        }
+             // Reset to default view when showing panel
+             this.resetPanelToDefault();
+         } else {
+             // Hide panel
+             panel.classList.add('hidden');
+             if (toggle) toggle.classList.add('panel-hidden');
+             if (workspace) workspace.classList.add('panel-hidden');
+             if (icon) icon.className = 'fas fa-chevron-left';
+             if (toggle) toggle.title = 'Show Panel';
+         }
+     }
 
-        // Trigger resize to update 3D renderer
-        setTimeout(() => {
-            if (this.app.onWindowResize) {
-                this.app.onWindowResize();
-            }
-        }, 300); // Wait for CSS transition to complete
-    }
+     toggleAnimationPanel() {
+         const panel = document.getElementById('anim-panel');
+         if (!panel) return;
+         panel.classList.toggle('collapsed');
+         const toggle = document.getElementById('tool-animate');
+         if (toggle) {
+             const icon = toggle.querySelector('i');
+             if (icon) {
+                 if (panel.classList.contains('collapsed')) {
+                     icon.className = 'fas fa-play';
+                     toggle.title = 'Show Animation Timeline';
+                 } else {
+                     icon.className = 'fas fa-play';
+                     toggle.title = 'Hide Animation Timeline';
+                 }
+             }
+         }
+         // Trigger resize to update 3D renderer
+         setTimeout(() => {
+             if (this.app.onWindowResize) {
+                 this.app.onWindowResize();
+             }
+         }, 300);
+     }
 
-    resetPanelToDefault() {
+     resetPanelToDefault() {
         // Show scene objects and properties, hide materials and scene export
         const sceneSection = document.getElementById('scene-section');
         const materialsSection = document.getElementById('materials-section');
@@ -1039,8 +1063,8 @@ export class UI {
         }
 
         if (targetMesh && targetMesh.material) {
-            // Add Materials Selector
-            this.addMaterialsSelector(obj, targetMesh);
+            // Add Materials Selector (pass targetMesh to show assigned material)
+            this.addMaterialsSelector(obj, targetMesh, targetMesh.material);
 
             const colorGroup = document.createElement('div');
             colorGroup.className = 'property-group';
@@ -1413,7 +1437,7 @@ export class UI {
     }
 
     // Add Materials Selector to Properties Panel
-    addMaterialsSelector(obj, targetMesh) {
+    addMaterialsSelector(obj, targetMesh, currentMaterial = null) {
         if (!this.app.materialsManager) return;
 
         const materialsGroup = document.createElement('div');
@@ -1450,11 +1474,24 @@ export class UI {
         const dropdownWrapper = document.createElement('div');
         dropdownWrapper.className = 'material-dropdown-wrapper';
 
-        // Create the visible dropdown button
+        // Find currently assigned material by matching color/metalness/roughness
+        let assignedMaterial = null;
+        if (currentMaterial) {
+            assignedMaterial = this.app.materialsManager.materials.find(m => 
+                m.color === currentMaterial.color.getHex() &&
+                m.metalness === currentMaterial.metalness &&
+                m.roughness === currentMaterial.roughness
+            );
+        }
+
+        // Create the visible dropdown button with assigned material text
         const dropdownButton = document.createElement('div');
         dropdownButton.className = 'material-selector';
+        const initialText = assignedMaterial 
+            ? `${assignedMaterial.name} (M:${assignedMaterial.metalness.toFixed(1)}, R:${assignedMaterial.roughness.toFixed(1)}, O:${(assignedMaterial.opacity !== undefined ? assignedMaterial.opacity : 1).toFixed(1)})`
+            : 'Select a material...';
         dropdownButton.innerHTML = `
-            <span class="selected-material-text">Select a material...</span>
+            <span class="selected-material-text">${initialText}</span>
             <svg class="dropdown-arrow" fill="white" height="16" viewBox="0 0 24 24" width="16" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 10l5 5 5-5z"/>
             </svg>
@@ -1474,6 +1511,8 @@ export class UI {
         defaultItem.addEventListener('click', () => {
             dropdownButton.querySelector('.selected-material-text').textContent = 'Select a material...';
             dropdownList.classList.remove('show');
+            dropdownWrapper.classList.remove('open');
+            dropdownList.querySelectorAll('.material-dropdown-item').forEach(item => item.classList.remove('selected'));
         });
         dropdownList.appendChild(defaultItem);
 
@@ -1481,13 +1520,17 @@ export class UI {
         this.app.materialsManager.materials.forEach(material => {
             // Convert hex color to CSS format
             const colorHex = material.color ? '#' + material.color.toString(16).padStart(6, '0') : '#ffffff';
+            const itemText = `${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)}, O:${(material.opacity !== undefined ? material.opacity : 1).toFixed(1)})`;
 
             const dropdownItem = document.createElement('div');
             dropdownItem.className = 'material-dropdown-item';
+            if (assignedMaterial && material.id === assignedMaterial.id) {
+                dropdownItem.classList.add('selected');
+            }
             dropdownItem.dataset.materialId = material.id;
             dropdownItem.innerHTML = `
                 <div class="material-color-swatch" style="background-color: ${colorHex}; border: 1px solid var(--border-color);"></div>
-                <span class="material-option-text">${material.name} (M:${material.metalness.toFixed(1)}, R:${material.roughness.toFixed(1)}, O:${(material.opacity !== undefined ? material.opacity : 1).toFixed(1)})</span>
+                <span class="material-option-text">${itemText}</span>
             `;
 
             dropdownItem.addEventListener('click', () => {

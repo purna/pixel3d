@@ -24,6 +24,13 @@
 - **Animation Blending**: Smooth transitions between idle, walk, and run animations
 - **Real-time Animation**: Character animations update in real-time
 
+### 🎞️ Animation System
+- **Keyframe Animations**: Create smooth animations for any object in the scene
+- **Timeline Interface**: Visual timeline for editing keyframes and animation curves
+- **Playback Controls**: Play, pause, stop, loop, and speed controls
+- **Easing Functions**: Multiple easing options for natural motion
+- **Property Animation**: Animate position, rotation, and scale independently
+
 ### 🎯 Professional Tools
 - **Transform Controls**: Move, rotate, and scale objects with precision
 - **Layer Management**: Organize objects in folders for better scene organization
@@ -242,7 +249,11 @@ JSON import/export also persists `materialName` so round-tripping keeps your mat
 pixel3d-main/
 ├── index.html              # Main application entry point
 ├── css/
-│   └── styles.css          # Complete application styling
+│   ├── styles.css          # Complete application styling
+│   ├── settings.css        # Settings modal styling
+│   ├── modal.css           # Modal styling
+│   ├── tutorials.css       # Tutorial styling
+│   └── animation.css       # Animation timeline panel styling
 ├── js/
 │   ├── main.js             # Application bootstrap and core logic
 │   ├── ui.js               # User interface management
@@ -255,7 +266,9 @@ pixel3d-main/
 │   ├── historyManager.js   # Undo/redo functionality
 │   ├── fileManager.js      # Save/load system
 │   ├── tooltip.js          # Help tooltips
-│   └── config.js           # Application configuration
+│   ├── config.js           # Application configuration
+│   ├── animationManager.js # Keyframe animation system
+│   └── animationUI.js      # Timeline panel controller
 ├── Art/
 │   ├── Xbot.blend          # Blender source for female character
 │   ├── Xbot.glb            # GLTF female character model

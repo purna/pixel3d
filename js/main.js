@@ -15,6 +15,8 @@ import { APP_DEFAULTS } from './config.js';
 import { TutorialConfig } from './tutorialConfig.js';
 import { TutorialSystem } from './tutorialSystem.js';
 import { AFrameExporter } from './aframeExporter.js';
+import { AnimationManager } from './animationManager.js';
+import { AnimationUI } from './animationUI.js';
 import './notifications.js';
 
 
@@ -51,6 +53,8 @@ class StageApp {
         this.tutorialConfig = new TutorialConfig(); // Init Tutorial Config
         this.tutorialSystem = new TutorialSystem(this); // Init Tutorial System
         this.aframeExporter = new AFrameExporter(this); // Init A-Frame Exporter
+        this.animationManager = new AnimationManager(this); // Init Animation Manager
+        this.animationUI = new AnimationUI(this); // Init Animation UI
         this.ui = new UI(this); // UI initialized last so it can access layerManager
 
         this.init();
@@ -153,6 +157,9 @@ class StageApp {
 
         // Initialize UI Logic
         this.ui.init();
+
+        // Initialize Animation UI
+        this.animationUI.init();
 
         // Initialize Tutorial System
         this.tutorialSystem.init();
@@ -625,6 +632,8 @@ class StageApp {
 
         // This triggers UI update which now renders layers via LayerManager
         this.ui.updateUI(this.selectedObject);
+
+        if (this.animationUI) this.animationUI.onObjectSelected(obj);
     }
 
     deselect() {
@@ -632,6 +641,7 @@ class StageApp {
         this.transformControl.detach();
         this.transformControl.visible = false;
         this.ui.updateUI(null);
+        if (this.animationUI) this.animationUI.onObjectDeselected();
     }
 
     setTransformMode(mode) {

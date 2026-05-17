@@ -228,8 +228,8 @@ export class MaterialsManager {
 
         if (obj.userData.type === 'shape') {
             targetMesh = obj;
-        } else if (obj.userData.name && obj.parent.userData.name && obj.parent.userData.name.includes('Joint')) {
-            // Figure part
+        } else if (obj.userData.name && obj.userData.name.includes('Joint')) {
+            // Figure part (limb joint group) - find the mesh inside the joint
             targetMesh = obj.children.find(c => c.isMesh);
         } else if (obj.userData.type === 'figure') {
             // Apply to whole figure
