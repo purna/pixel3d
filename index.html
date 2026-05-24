@@ -562,19 +562,22 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                      <div class="export-settings-content">
                          <!-- Export Options Group -->
                          <div class="settings-section">
-                             <div class="section-heading">Export Options</div>
-                             <div class="property-group">
-                                 <label class="property-label">
-                                     Export Format:
-                                     <select id="setting-export-format"
-                                         style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
-                                         <option value="json">JSON (.json) - Scene data for re-import</option>
-                                         <option value="glb">GLB (.glb) - Binary GLTF 3D model</option>
-                                         <option value="js">JS (.js) - Javascript 3D model</option>
-                                         <option disabled value="fbx">FBX (.fbx) - FBX (coming soon)</option>
-                                     </select>
-                                 </label>
-                             </div>
+<div class="section-heading">Export Options</div>
+                              <div class="property-group">
+                                  <label class="property-label">
+                                      Export Format:
+                                      <select id="setting-export-format"
+                                          style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
+                                          <option value="json">JSON (.json) - Scene data for re-import</option>
+                                          <option value="glb">GLB (.glb) - Binary GLTF 3D model</option>
+                                          <option value="gltf">GLTF (.gltf) - GLTF JSON 3D model</option>
+                                          <option value="draco">Draco (.drc) - Google mesh compression (~90% size reduction)</option>
+                                          <option value="aframe">A-Frame (.html) - Web VR export</option>
+                                          <option value="js">JS (.js) - Javascript 3D model</option>
+                                          <option disabled value="fbx">FBX (.fbx) - FBX (coming soon)</option>
+                                      </select>
+                                  </label>
+                              </div>
                              <div class="property-group">
                                  <label class="property-label">
                                      <input type="checkbox" id="setting-export-transparent">

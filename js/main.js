@@ -17,6 +17,7 @@ import { TutorialSystem } from './tutorialSystem.js';
 import { AFrameExporter } from './aframeExporter.js';
 import { AnimationManager } from './animationManager.js';
 import { AnimationUI } from './animationUI.js';
+import { ExportManager } from './exportManager.js';
 import './notifications.js';
 
 
@@ -40,6 +41,20 @@ class StageApp {
         this.gizmoDragJustEnded = false;
         this.originalColors = new Map();
 
+        // Snap state
+        this.snapEnabled = APP_DEFAULTS.snap.enabled;
+        this.snapMode = APP_DEFAULTS.snap.mode;
+        this.snapGridUnit = APP_DEFAULTS.snap.gridUnit;
+        this.snapThreshold = APP_DEFAULTS.snap.snapThreshold;
+        this.snapEdgeThreshold = APP_DEFAULTS.snap.edgeThreshold;
+        this.snapTarget = null;       // nearest snap-eligible object
+        this.snapFace = null;         // { axis:'x'|'y'|'z', normal: number }
+        this.snapOffset = null;       // THREE.Vector3 snap position
+
+        // Runtime snap guides
+        this.snapGuideLine = null;    // THREE.Line – visual guide from source to target face
+        this.snapGuideFace = null;    // THREE.Mesh – translucent patch on target face
+
         // Initialize Modules
         this.factory = new ObjectFactory(this);
         this.fileManager = new FileManager(this);
@@ -53,6 +68,7 @@ class StageApp {
         this.tutorialConfig = new TutorialConfig(); // Init Tutorial Config
         this.tutorialSystem = new TutorialSystem(this); // Init Tutorial System
         this.aframeExporter = new AFrameExporter(this); // Init A-Frame Exporter
+        this.exportManager = new ExportManager(this); // Init Export Manager
         this.animationManager = new AnimationManager(this); // Init Animation Manager
         this.animationUI = new AnimationUI(this); // Init Animation UI
         this.ui = new UI(this); // UI initialized last so it can access layerManager
@@ -220,14 +236,39 @@ class StageApp {
             });
 
             this.transformControl.addEventListener('change', () => {
+                // --- Apply snapping while gizmo is being dragged ---
+                if (this.snapEnabled && this.selectedObject) {
+                    if (this.snapMode === 'grid') {
+                        this.selectedObject.position.copy(this.snapObjectToGrid(this.selectedObject));
+                    } else if (this.snapMode === 'object') {
+                        const snap = this.findSnapshot(this.selectedObject);
+                        this.snapTarget = snap ? snap.target : null;
+                        this.snapFace = snap ? { axis: snap.faceAxis, normal: snap.faceNormal } : null;
+                        this.snapOffset = snap ? snap.snapPosition : null;
+                        if (snap && snap.snapPosition) {
+                            this.selectedObject.position.copy(snap.snapPosition);
+                        }
+                        this.updateSnapGuides(snap, this.selectedObject);
+                    }
+                }
                 if (this.selectedObject) this.ui.updateUI(this.selectedObject);
             });
 
             // Track transform changes for history
             this.transformControl.addEventListener('mouseUp', () => {
+                // Final snap before recording the transform in history
+                if (this.snapEnabled && this.selectedObject) {
+                    if (this.snapMode === 'grid') {
+                        this.selectedObject.position.copy(this.snapObjectToGrid(this.selectedObject));
+                    } else if (this.snapMode === 'object' && this.snapOffset) {
+                        this.selectedObject.position.copy(this.snapOffset);
+                    }
+                }
                 if (this.selectedObject) {
                     this.captureTransformChange(this.selectedObject);
                 }
+                // Clear snap guides
+                this.clearSnapGuides();
             });
 
             // Ensure transform controls are visible and have proper size
@@ -640,6 +681,7 @@ class StageApp {
         this.selectedObject = null;
         this.transformControl.detach();
         this.transformControl.visible = false;
+        this.clearSnapGuides();
         this.ui.updateUI(null);
         if (this.animationUI) this.animationUI.onObjectDeselected();
     }
@@ -716,7 +758,6 @@ class StageApp {
     }
 
     setAxesVisible(visible) {
-        // Find and toggle axes helper
         this.scene.traverse(obj => {
             if (obj.type === 'AxesHelper') {
                 obj.visible = visible;
@@ -725,6 +766,240 @@ class StageApp {
     }
 
     setSnapEnabled(enabled) {
+        this.snapEnabled = enabled;
+    }
+
+    // --- SNAP: GRID ALIGNMENT ---
+
+    /** Round a value to the nearest snap unit. */
+    snapToGrid(value) {
+        const u = this.snapGridUnit;
+        return Math.round(value / u) * u;
+    }
+
+    /** Snap object position to the nearest grid cell. Leaves y untouched for floor objects. */
+    snapObjectToGrid(obj) {
+        const base = obj.position.clone();
+        base.x = this.snapToGrid(base.x);
+        base.z = this.snapToGrid(base.z);
+        // Only snap Y if the object sits on / above the ground
+        if (base.y > 0.5 || obj.userData.type === 'plane') {
+            base.y = this.snapToGrid(base.y);
+        }
+        return base;
+    }
+
+    // --- SNAP: OBJECT-TO-OBJECT ALIGNMENT ---
+
+    /**
+     * Return the nearest object whose surface we can snap to, or null.
+     *
+     * Snapping is face-detection based along the three axes.  For each
+     * candidate object we compute where the dragged object's bounding-box
+     * bottom edge touches the candidate's top face (and similarly for the
+     * four side faces).  The closest hit within `snapThreshold` wins.
+     */
+    findSnapshot(curObj) {
+        if (!this.snapEnabled || this.snapMode === 'off') return null;
+        if (!curObj || !curObj.geometry) return null;
+
+        const curBB = new THREE.Box3().setFromObject(curObj);
+        const curSize = new THREE.Vector3();
+        const curCenter = new THREE.Vector3();
+        curBB.getSize(curSize);
+        curBB.getCenter(curCenter);
+
+        let best = null;
+        let bestDist = this.snapThreshold;
+
+        const candidates = [];
+        this.scene.traverse(o => {
+            if (o === curObj || o === curObj.parent) return;
+            if (!o.geometry || !o.userData) return;
+            // Only snap against shapes, lights, and figures.
+            const t = o.userData.type;
+            if (t !== 'shape' && t !== 'light' && t !== 'figure') return;
+            const bb = new THREE.Box3().setFromObject(o);
+            // Per-axis distance check – objects must be close in the
+            // perpendicular directions before we even consider this hit.
+            const c2 = new THREE.Vector3();
+            bb.getCenter(c2);
+            const dx = Math.abs(curCenter.x - c2.x);
+            const dy = Math.abs(curCenter.y - c2.y);
+            const dz = Math.abs(curCenter.z - c2.z);
+            if (dx < bestDist * 1.5 && dy < bestDist * 1.5 && dz < bestDist * 1.5) {
+                candidates.push({ obj: o, bb, center: c2 });
+            }
+        });
+
+        // Axis pairs we can snap along: targetAxis is which side of the
+        // candidate we touch; sweepAxes determine where along that face.
+        const faceAxes = [
+            { axis: 'y', write: 'y', sweep: ['x', 'z'], normal: 1 }, // top
+            { axis: 'y', write: 'y', sweep: ['x', 'z'], normal: -1 }, // bottom
+            { axis: 'x', write: 'x', sweep: ['y', 'z'], normal: 1 }, // +x side
+            { axis: 'x', write: 'x', sweep: ['y', 'z'], normal: -1 }, // -x side
+            { axis: 'z', write: 'z', sweep: ['x', 'y'], normal: 1 }, // +z side
+            { axis: 'z', write: 'z', sweep: ['x', 'y'], normal: -1 }, // -z side
+        ];
+
+        for (const fa of faceAxes) {
+            const oMin = candidates.map(c => c.bb.min[fa.axis]);
+            const oMax = candidates.map(c => c.bb.max[fa.axis]);
+
+            const curMin = curBB.min[fa.axis];
+            const curMax = curBB.max[fa.axis];
+
+            for (let i = 0; i < candidates.length; i++) {
+                const target = candidates[i];
+                const tMin = target.bb.min[fa.axis];
+                const tMax = target.bb.max[fa.axis];
+
+                // Compute candidate snap position along the normal axis.
+                // For a top-face snap (normal=+1) we place the bottom of curObj
+                // flush with the top of target.
+                let snapVal;
+                if (fa.normal === 1) {
+                    snapVal = tMax;
+                } else {
+                    snapVal = tMin - curSize[fa.axis];
+                }
+
+                // Distance along the normal axis.
+                const distAlong = Math.abs((curMin + curMax) / 2 - (tMin + tMax) / 2);
+                if (distAlong > this.snapThreshold) continue;
+
+                // Now check sweep-axes: can we align within edge threshold?
+                const [s1, s2] = fa.sweep;
+                for (let si = 0; si < 2; si++) {
+                    const sa = si === 0 ? s1 : s2;
+
+                    // snap so that cur center matches target center on sweep axis
+                    const tCenter = target.center[sa];
+                    const curEdge = curBB.min[sa];
+                    const curEdgeMax = curBB.max[sa];
+
+                    // candidate snap
+                    const snapOnSweep = tCenter - (curCenter[sa] - curBB.min[sa]);
+
+                    // distance
+                    const d = Math.abs(curCenter[sa] - tCenter)
+                            - (Math.abs(curEdgeMax - curEdge) / 2);
+
+                    if (Math.abs(d) > this.snapEdgeThreshold) continue;
+
+                    // Overall distance squared (for ranking)
+                    const dist2 = distAlong * distAlong + (d * d);
+                    if (dist2 >= bestDist * bestDist) continue;
+
+                    bestDist = Math.sqrt(dist2);
+                    best = {
+                        target: target.obj,
+                        targetBB: target.bb,
+                        snapPosition: new THREE.Vector3(
+                            fa.write === 'x' ? snapVal : (si === 0 ? snapOnSweep : curObj.position[si === 0 ? s1 : s2]),
+                            fa.write === 'y' ? snapVal : (si === 0 ? curObj.position.y : (sa === 'y' ? snapOnSweep : curObj.position.y)),
+                            fa.write === 'z' ? snapVal : (si === 0 ? curObj.position.z : (sa === 'z' ? snapOnSweep : curObj.position.z))
+                        ),
+                        faceAxis: fa.axis,
+                        faceNormal: fa.normal === 1 ? 1 : -1
+                    };
+                }
+            }
+        }
+
+        return best;
+    }
+
+    // --- SNAP: VISUAL GUIDES ---
+
+    clearSnapGuides() {
+        if (this.snapGuideLine) {
+            this.scene.remove(this.snapGuideLine);
+            this.snapGuideLine.geometry.dispose();
+            this.snapGuideLine = null;
+        }
+        if (this.snapGuideFace) {
+            this.scene.remove(this.snapGuideFace);
+            this.snapGuideFace.material.dispose();
+            this.snapGuideFace = null;
+        }
+        this.snapTarget = null;
+        this.snapFace = null;
+    }
+
+    updateSnapGuides(snapResult, selectedObj) {
+        this.clearSnapGuides();
+
+        if (!snapResult || !selectedObj) return;
+
+        const srcBB = new THREE.Box3().setFromObject(selectedObj);
+        const tgtBB = snapResult.targetBB;
+        const targetObj = snapResult.target;
+
+        // Compute closest face alignment on sweep axes
+        const selPos = selectedObj.position.clone();
+        const tgtPos = targetObj.position.clone();
+        const snapPos = snapResult.snapPosition.clone();
+
+        // --- Guide line: from closest face edge of source to target face ---
+        // Determine which face of the target we touched and build a
+        // thin colored line from the source face edge to the target face.
+        const fa = snapResult.faceAxis;
+        const fn = snapResult.faceNormal;
+        const tCenter = new THREE.Vector3();
+        tgtBB.getCenter(tCenter);
+        const sMin = srcBB.min[fa];
+        const sMax = srcBB.max[fa];
+
+        // Place one end at the innermost edge of the source box
+        const srcEdgePos = selPos.clone();
+        srcEdgePos[snapResult.faceAxis] = fn === 1 ? sMin : sMax;
+
+        // Place the other end on the nearest edge of the target box
+        const tgtEdgePos = tCenter.clone();
+        if (fn === 1) {
+            tgtEdgePos[fa] = tgtBB.max[fa];
+        } else {
+            tgtEdgePos[fa] = tgtBB.min[fa];
+        }
+
+        // Only use sensible guide line if two-point pair is valid
+        if (srcEdgePos.distanceTo(tgtEdgePos) > this.snapThreshold * 3) {
+            // skip awkward far-apart guides
+            return;
+        }
+
+        const lp = new THREE.LineBasicMaterial({
+            color: 0x00ff88,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.9
+        });
+        const geo = new THREE.BufferGeometry().setFromPoints([
+            srcEdgePos, tgtEdgePos
+        ]);
+        this.snapGuideLine = new THREE.Line(geo, lp);
+        this.scene.add(this.snapGuideLine);
+
+        // --- Highlight target object's closest face with a thin translucent patch ---
+        const facePatchMat = new THREE.MeshBasicMaterial({
+            color: 0x00ff88,
+            transparent: true,
+            opacity: 0.18,
+            depthTest: false,
+            side: THREE.DoubleSide,
+        });
+        const fW = tgtBB.max[(fa + 1) % 3] - tgtBB.min[(fa + 1) % 3];
+        const fH = tgtBB.max[(fa + 2) % 3] - tgtBB.min[(fa + 2) % 3];
+        const patch = new THREE.Mesh(new THREE.PlaneGeometry(fW, fH), facePatchMat);
+        patch.renderOrder = 999;
+        patch.position.copy(tCenter);
+        patch.position[fa] = fn === 1 ? tgtBB.max[fa] + 0.005 : tgtBB.min[fa] - 0.005;
+        // Face outward
+        patch.rotation[fa] = fn === 1 ? 0 : Math.PI;
+        this.snapGuideFace = patch;
+        this.scene.add(patch);
     }
 
     setCameraSpeed(speed) {

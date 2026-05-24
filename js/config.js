@@ -116,5 +116,14 @@ export const APP_DEFAULTS = {
         orbitRotateSpeed: 0.8,
         dampingFactor: 0.07,
         handPanSpeed: 1.0
+    },
+
+    // Snap Settings
+    snap: {
+        enabled: true,
+        mode: 'grid',       // 'grid' | 'object' | 'off'
+        gridUnit: 1,        // snap to nearest N units on grid
+        snapThreshold: 1.5, // max distance to snap to another object face
+        edgeThreshold: 0.75 // snapping along X/Z for face-to-face alignment
     }
 };

@@ -28,7 +28,8 @@
  *   this.animationUI.onObjectDeselected();
  */
 
-import { EASING_OPTIONS, Easing, hexToRgb, rgbToHex } from './animationManager.js';
+import { EASING_OPTIONS, Easing } from './animationManager.js';
+import { hexToRgb, rgbToHex } from './colorUtils.js';
 
 // Track meta: label, colour, whether it uses colour swatch rendering
 const TRACK_DEFS = [

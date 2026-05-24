@@ -26,6 +26,24 @@ export class FileManager {
             this.saveSceneJS();
         } else if (format === 'glb') {
             await this.saveSceneGLB();
+        } else if (format === 'gltf') {
+            if (this.app.exportManager) {
+                await this.app.exportManager.exportGLTF();
+            } else {
+                await this.saveSceneGLB();
+            }
+        } else if (format === 'draco') {
+            if (this.app.exportManager) {
+                await this.app.exportManager.exportDraco();
+            } else {
+                this.saveSceneJSON();
+            }
+        } else if (format === 'aframe') {
+            if (this.app.exportManager) {
+                this.app.exportManager.exportAFrame();
+            } else {
+                this.saveSceneJSON();
+            }
         } else if (format === 'fbx') {
             await this.saveSceneFBX();
         } else {
