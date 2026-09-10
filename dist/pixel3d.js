@@ -31309,7 +31309,11 @@
               asset.color,
               asset.metalness ?? 0.2,
               asset.roughness ?? 0.3,
-              (asset.opacity ?? 100) / 100
+              asset.opacity ?? 100,
+              asset.clearcoat ?? 0,
+              asset.transmission ?? 0,
+              asset.sheen ?? 0,
+              asset.alpha ?? 1
             )}')`;
             preview.style.backgroundColor = asset.color;
           }
@@ -31568,14 +31572,16 @@
       return { type, enabled: true, opacity: 100, blendMode: "normal", ...defaults[type] || {} };
     }
     textureLayerFields(layer) {
-      const input = (label, key, type = "number", attrs = "") => `<label>${label}<input data-prop="${key}" type="${type}" value="${layer[key] ?? ""}" ${attrs}></label>`;
+      const field = (content) => `<div class="layer-property-field">${content}</div>`;
+      const input = (label, key, type = "number", attrs = "") => field(`<label><span>${label}</span><input data-prop="${key}" type="${type}" value="${layer[key] ?? ""}" ${attrs}></label>`);
       const color = (label, key) => input(label, key, "color");
+      const checkbox = (label, key) => field(`<label class="layer-property-checkbox"><input data-prop="${key}" type="checkbox" ${layer[key] ? "checked" : ""}><span>${label}</span></label>`);
       const fields = {
         color: () => color("Colour", "color"),
         lighting: () => input("Strength", "strength", "range", 'min="0" max="100"'),
         depth: () => input("Near", "near", "number", 'step="0.1"') + input("Far", "far", "number", 'step="0.1"'),
         image: () => input("Image URL", "url", "url") + input("Repeat X", "repeatX", "number", 'min="0.1" step="0.1"') + input("Repeat Y", "repeatY", "number", 'min="0.1" step="0.1"') + input("Rotation", "rotation", "number"),
-        video: () => input("Video URL", "url", "url") + input("Speed", "playbackRate", "number", 'min="0.1" max="4" step="0.1"') + `<label><input data-prop="autoplay" type="checkbox" ${layer.autoplay ? "checked" : ""}> Autoplay</label><label><input data-prop="loop" type="checkbox" ${layer.loop ? "checked" : ""}> Loop</label>`,
+        video: () => input("Video URL", "url", "url") + input("Speed", "playbackRate", "number", 'min="0.1" max="4" step="0.1"') + checkbox("Autoplay", "autoplay") + checkbox("Loop", "loop"),
         normal: () => input("Normal URL", "url", "url") + input("Strength", "strength", "range", 'min="0" max="2" step="0.01"'),
         gradient: () => color("Start", "colorA") + color("End", "colorB") + input("Angle", "angle"),
         noise: () => color("Dark", "colorA") + color("Light", "colorB") + input("Scale", "scale", "number", 'min="1"') + input("Seed", "seed"),
@@ -31588,7 +31594,7 @@
         glass: () => input("Transmission", "transmission", "range", 'min="0" max="1" step="0.01"') + input("IOR", "ior", "range", 'min="1" max="2.5" step="0.01"') + input("Thickness", "thickness", "number", 'min="0" step="0.1"') + input("Roughness", "roughness", "range", 'min="0" max="1" step="0.01"'),
         reflection: () => input("Intensity", "intensity", "range", 'min="0" max="3" step="0.01"') + input("Metalness", "metalness", "range", 'min="0" max="1" step="0.01"') + input("Roughness", "roughness", "range", 'min="0" max="1" step="0.01"'),
         displace: () => input("Height URL", "url", "url") + input("Scale", "scale", "number", 'step="0.01"') + input("Bias", "bias", "number", 'step="0.01"'),
-        pattern: () => `<label>Pattern<select data-prop="pattern"><option value="checker">Checker</option><option value="stripes">Stripes</option><option value="dots">Dots</option></select></label>` + color("Colour A", "colorA") + color("Colour B", "colorB") + input("Scale", "scale", "number", 'min="1"')
+        pattern: () => field(`<label><span>Pattern</span><select data-prop="pattern"><option value="checker">Checker</option><option value="stripes">Stripes</option><option value="dots">Dots</option></select></label>`) + color("Colour A", "colorA") + color("Colour B", "colorB") + input("Scale", "scale", "number", 'min="1"')
       };
       return (fields[layer.type] || (() => ""))();
     }
@@ -31609,13 +31615,54 @@
         const layer = { ...this.defaultTextureLayer(rawLayer.type || "color"), ...rawLayer };
         const layerEl = document.createElement("div");
         layerEl.className = "material-texture-layer";
-        layerEl.style.cssText = "display:block;padding:8px;margin-bottom:6px;";
         const textureOptions = (this.assets.textures || []).map((texture) => `<option value="${texture.id}">${texture.name}</option>`).join("");
         const positionOptions = layers.map((_, position) => `<option value="${position}" ${position === index ? "selected" : ""}>${position + 1}</option>`).join("");
-        layerEl.innerHTML = `<div style="display:flex;gap:6px;align-items:center"><input class="layer-enabled" type="checkbox" ${layer.enabled ? "checked" : ""}><select class="layer-select" style="flex:1">${this.textureLayerTypes().map((type) => `<option value="${type}" ${type === layer.type ? "selected" : ""}>${type[0].toUpperCase() + type.slice(1)}</option>`).join("")}</select><select class="layer-blend-mode"><option value="normal">Normal</option><option value="add">Add</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select><input class="layer-opacity" type="range" min="0" max="100" value="${layer.opacity}"><select class="layer-position" title="Layer position">${positionOptions}</select><button class="layer-up" title="Move layer up">\u2191</button><button class="layer-down" title="Move layer down">\u2193</button><button class="layer-save-texture" title="Save layer as reusable texture">Save</button><button class="layer-close">&times;</button></div><div style="margin-top:6px"><select class="layer-texture-asset"><option value="">Use reusable texture\u2026</option>${textureOptions}</select></div><div class="layer-properties" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px">${this.textureLayerFields(layer)}</div>`;
+        layerEl.innerHTML = `
+                <div class="material-layer-header">
+                    <label class="layer-toggle">
+                        <input class="layer-enabled" type="checkbox" ${layer.enabled ? "checked" : ""}>
+                        <span>Enabled</span>
+                    </label>
+                    <select class="layer-select" aria-label="Layer type">${this.textureLayerTypes().map((type) => `<option value="${type}" ${type === layer.type ? "selected" : ""}>${type[0].toUpperCase() + type.slice(1)}</option>`).join("")}</select>
+                    <select class="layer-blend-mode" aria-label="Blend mode"><option value="normal">Normal</option><option value="add">Add</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select>
+                    <label class="layer-opacity-control">
+                        <span>Opacity</span>
+                        <input class="layer-opacity" type="range" min="0" max="100" value="${layer.opacity}">
+                        <output>${Number(layer.opacity ?? 100).toFixed(0)}%</output>
+                    </label>
+                    <select class="layer-position" aria-label="Layer position">${positionOptions}</select>
+                    <div class="layer-actions">
+                        <button class="layer-up" title="Move layer up" aria-label="Move layer up"><i class="fas fa-chevron-up"></i></button>
+                        <button class="layer-down" title="Move layer down" aria-label="Move layer down"><i class="fas fa-chevron-down"></i></button>
+                        <button class="layer-save-texture" title="Save layer as reusable texture"><i class="fas fa-save"></i> Save</button>
+                        <button class="layer-close" title="Remove layer" aria-label="Remove layer"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="material-layer-body">
+                    <div class="layer-preview-frame">
+                        <canvas class="layer-preview-canvas" width="64" height="64" aria-label="Layer preview"></canvas>
+                    </div>
+                    <div class="layer-fields">
+                        <select class="layer-texture-asset" aria-label="Reusable texture"><option value="">Use reusable texture\u2026</option>${textureOptions}</select>
+                        <div class="layer-properties">${this.textureLayerFields(layer)}</div>
+                    </div>
+                </div>
+            `;
         layerEl.querySelector(".layer-blend-mode").value = layer.blendMode;
         const pattern = layerEl.querySelector('[data-prop="pattern"]');
         if (pattern) pattern.value = layer.pattern;
+        const opacityInput = layerEl.querySelector(".layer-opacity");
+        const opacityOutput = layerEl.querySelector(".layer-opacity-control output");
+        opacityInput.addEventListener("input", () => {
+          opacityOutput.textContent = `${opacityInput.value}%`;
+        });
+        const updateLayerPreview = () => {
+          const current = this.collectMaterialTextureLayers()[index];
+          this.renderTextureAssetPreview(current, layerEl.querySelector(".layer-preview-canvas"));
+        };
+        layerEl.querySelectorAll("[data-prop], .layer-opacity").forEach((control) => {
+          control.addEventListener("input", updateLayerPreview);
+        });
         layerEl.querySelector(".layer-select").addEventListener("change", (event) => {
           const current = this.collectMaterialTextureLayers();
           current[index] = this.defaultTextureLayer(event.target.value);
@@ -31666,6 +31713,7 @@
           this.renderMaterialTextureLayers(current);
         });
         container.appendChild(layerEl);
+        this.renderTextureAssetPreview(layer, layerEl.querySelector(".layer-preview-canvas"));
       });
     }
     initSettingsModal() {

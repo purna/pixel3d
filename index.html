@@ -791,79 +791,110 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
     </div>
 
     <!-- MATERIAL ASSET MODAL -->
-    <div class="modal-overlay" id="material-asset-modal">
+    <div class="modal-overlay material-asset-modal-shell" id="material-asset-modal">
       <div class="modal">
         <div class="modal-top-section">
-          <h2 class="modal-title-text">Edit Material Asset</h2>
-          <button class="modal-close-btn">&times;</button>
+          <div>
+            <h2 class="modal-title-text">Edit Material Asset</h2>
+            <p class="modal-subtitle">Compose layers and tune the finished surface.</p>
+          </div>
+          <button class="modal-close-btn" aria-label="Close material editor">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="material-asset-container">
-            <div class="material-asset-meta">
-              <div class="material-asset-name">
-                <input type="text" class="modal-input" placeholder="Material Name" id="material-asset-name">
-              </div>
-              <div class="material-asset-preview">
+          <div class="material-editor-layout">
+            <aside class="material-preview-card">
+              <div class="editor-card-label">Preview</div>
+              <div class="material-preview-frame">
                 <div class="material-preview-color" id="material-preview-color"></div>
-                <input type="color" id="material-color-picker" value="#888888" title="Material Color">
+              </div>
+              <div class="material-preview-actions">
+                <label class="material-color-control">
+                  <span>Base colour</span>
+                  <input type="color" id="material-color-picker" value="#888888" title="Material Color">
+                </label>
                 <button class="select-objects-btn" title="Select Objects"><i class="fas fa-mouse-pointer"></i></button>
               </div>
-            </div>
-            <div class="material-asset-panel">
-              <div class="panel-header">
-                <div class="panel-header-title">Material</div>
-                <div class="panel-header-attachment">
-                  <div class="alpha-override">
-                    <input type="number" class="number-input" id="material-alpha" value="1" min="0" max="1" step="0.01">
+              <div class="material-preview-meta">
+                <span><i class="fas fa-circle"></i> Live material</span>
+                <span>Physical surface</span>
+              </div>
+            </aside>
+
+            <div class="material-editor-main">
+              <div class="material-name-field">
+                <label class="modal-field-label" for="material-asset-name">Material name</label>
+                <input type="text" class="modal-input" placeholder="Material Name" id="material-asset-name">
+              </div>
+
+              <section class="material-layers-panel">
+                <header class="editor-section-header">
+                  <div>
+                    <h3>Layers</h3>
+                    <p>Stack textures to build the surface.</p>
                   </div>
-                  <button class="add-material-btn" title="Add Material"><i class="fas fa-plus"></i></button>
+                  <div class="panel-header-attachment">
+                    <label class="alpha-control">
+                      <span>Alpha</span>
+                      <input type="number" class="number-input" id="material-alpha" value="1" min="0" max="1" step="0.01">
+                    </label>
+                    <button class="add-material-btn" title="Add Material"><i class="fas fa-plus"></i></button>
+                  </div>
+                </header>
+                <div class="panel-items material-layer-list" id="material-asset-items">
+                  <!-- Material texture layers will be rendered here -->
                 </div>
-              </div>
-              <div class="panel-items" id="material-asset-items">
-                <!-- Material texture layers will be rendered here -->
-              </div>
-              <div class="material-layer-actions">
-                <button class="add-layer-btn" id="add-material-layer-btn"><i class="fas fa-plus"></i> Add Layer</button>
-              </div>
-            </div>
-            <div class="material-texture-controls">
-              <div class="material-control-row">
-                <label class="material-control-label">Lighting</label>
-                <input type="range" id="material-lighting" min="0" max="100" value="0" class="material-slider">
-                <span class="material-control-value" id="material-lighting-value">0</span>
-              </div>
-              <div class="material-control-row"><label class="material-control-label">Metallic</label><input type="range" id="material-metalness" min="0" max="1" step="0.01" value="0.2" class="material-slider"><span class="material-control-value" id="material-metalness-value">0.20</span></div>
-              <div class="material-control-row"><label class="material-control-label">Roughness</label><input type="range" id="material-roughness" min="0" max="1" step="0.01" value="0.3" class="material-slider"><span class="material-control-value" id="material-roughness-value">0.30</span></div>
-              <div class="material-control-row"><label class="material-control-label">Clearcoat</label><input type="range" id="material-clearcoat" min="0" max="1" step="0.01" value="0" class="material-slider"><span class="material-control-value" id="material-clearcoat-value">0.00</span></div>
-              <div class="material-control-row"><label class="material-control-label">Transmission</label><input type="range" id="material-transmission" min="0" max="1" step="0.01" value="0" class="material-slider"><span class="material-control-value" id="material-transmission-value">0.00</span></div>
-              <div class="material-control-row"><label class="material-control-label">Sheen</label><input type="range" id="material-sheen" min="0" max="1" step="0.01" value="0" class="material-slider"><span class="material-control-value" id="material-sheen-value">0.00</span></div>
-              <div class="material-control-row">
-                <label class="material-control-label">Opacity</label>
-                <input type="range" id="material-opacity" min="0" max="100" value="100" class="material-slider">
-                <span class="material-control-value" id="material-opacity-value">100</span>
-              </div>
-              <div class="material-control-row">
-                <label class="material-control-label">Depth</label>
-                <select id="material-depth" class="material-select">
-                  <option value="none">None</option>
-                  <option value="color">Color</option>
-                  <option value="image">Image</option>
-                  <option value="video">Video</option>
-                  <option value="normal">Normal</option>
-                  <option value="gradient">Gradient</option>
-                  <option value="noise">Noise</option>
-                  <option value="fresnel">Fresnel</option>
-                  <option value="cavity">Cavity</option>
-                  <option value="duct">Duct</option>
-                  <option value="rainbow">Rainbow</option>
-                  <option value="toon">Toon</option>
-                  <option value="outline">Outline</option>
-                  <option value="glass">Glass</option>
-                  <option value="reflection">Reflection</option>
-                  <option value="displace">Displace</option>
-                  <option value="pattern">Pattern</option>
-                </select>
-              </div>
+                <footer class="material-layer-actions">
+                  <button class="add-layer-btn" id="add-material-layer-btn"><i class="fas fa-plus"></i> Add Layer</button>
+                </footer>
+              </section>
+
+              <section class="material-properties-panel">
+                <header class="editor-section-header">
+                  <div>
+                    <h3>Material properties</h3>
+                    <p>Adjust the physical response of the base material.</p>
+                  </div>
+                </header>
+                <div class="material-texture-controls">
+                  <div class="material-control-row">
+                    <label class="material-control-label" for="material-lighting">Lighting</label>
+                    <input type="range" id="material-lighting" min="0" max="100" value="0" class="material-slider">
+                    <output class="material-control-value" id="material-lighting-value">0</output>
+                  </div>
+                  <div class="material-control-row"><label class="material-control-label" for="material-metalness">Metallic</label><input type="range" id="material-metalness" min="0" max="1" step="0.01" value="0.2" class="material-slider"><output class="material-control-value" id="material-metalness-value">0.20</output></div>
+                  <div class="material-control-row"><label class="material-control-label" for="material-roughness">Roughness</label><input type="range" id="material-roughness" min="0" max="1" step="0.01" value="0.3" class="material-slider"><output class="material-control-value" id="material-roughness-value">0.30</output></div>
+                  <div class="material-control-row"><label class="material-control-label" for="material-clearcoat">Clearcoat</label><input type="range" id="material-clearcoat" min="0" max="1" step="0.01" value="0" class="material-slider"><output class="material-control-value" id="material-clearcoat-value">0.00</output></div>
+                  <div class="material-control-row"><label class="material-control-label" for="material-transmission">Transmission</label><input type="range" id="material-transmission" min="0" max="1" step="0.01" value="0" class="material-slider"><output class="material-control-value" id="material-transmission-value">0.00</output></div>
+                  <div class="material-control-row"><label class="material-control-label" for="material-sheen">Sheen</label><input type="range" id="material-sheen" min="0" max="1" step="0.01" value="0" class="material-slider"><output class="material-control-value" id="material-sheen-value">0.00</output></div>
+                  <div class="material-control-row">
+                    <label class="material-control-label" for="material-opacity">Opacity</label>
+                    <input type="range" id="material-opacity" min="0" max="100" value="100" class="material-slider">
+                    <output class="material-control-value" id="material-opacity-value">100</output>
+                  </div>
+                  <div class="material-control-row">
+                    <label class="material-control-label" for="material-depth">Depth</label>
+                    <select id="material-depth" class="material-select">
+                      <option value="none">None</option>
+                      <option value="color">Color</option>
+                      <option value="image">Image</option>
+                      <option value="video">Video</option>
+                      <option value="normal">Normal</option>
+                      <option value="gradient">Gradient</option>
+                      <option value="noise">Noise</option>
+                      <option value="fresnel">Fresnel</option>
+                      <option value="cavity">Cavity</option>
+                      <option value="duct">Duct</option>
+                      <option value="rainbow">Rainbow</option>
+                      <option value="toon">Toon</option>
+                      <option value="outline">Outline</option>
+                      <option value="glass">Glass</option>
+                      <option value="reflection">Reflection</option>
+                      <option value="displace">Displace</option>
+                      <option value="pattern">Pattern</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -875,21 +906,53 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
     </div>
 
     <!-- TEXTURE ASSET MODAL -->
-    <div class="modal-overlay" id="texture-asset-modal">
+    <div class="modal-overlay texture-asset-modal-shell" id="texture-asset-modal">
       <div class="modal">
-        <div class="modal-top-section"><h2 class="modal-title-text">Edit Texture Asset</h2><button class="modal-close-btn">&times;</button></div>
+        <div class="modal-top-section">
+          <div>
+            <h2 class="modal-title-text">Edit Texture Asset</h2>
+            <p class="modal-subtitle">Create a reusable texture layer for your materials.</p>
+          </div>
+          <button class="modal-close-btn" aria-label="Close texture editor">&times;</button>
+        </div>
         <div class="modal-body">
-          <input type="text" class="modal-input" placeholder="Texture Name" id="texture-asset-name">
-          <div style="display:grid;grid-template-columns:180px 1fr;gap:16px;margin-top:12px">
-            <canvas id="texture-asset-preview" width="256" height="256" style="width:180px;height:180px;border:1px solid var(--border-color);border-radius:6px;background:#222"></canvas>
-            <div>
-              <label class="material-control-label">Texture Type</label>
-              <select id="texture-asset-type" class="material-select"></select>
-              <div id="texture-asset-properties" class="layer-properties" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px"></div>
+          <div class="texture-editor-layout">
+            <aside class="texture-preview-card">
+              <div class="editor-card-label">Preview</div>
+              <div class="texture-preview-frame">
+                <canvas id="texture-asset-preview" width="256" height="256"></canvas>
+              </div>
+              <div class="texture-preview-meta">
+                <span><i class="fas fa-expand"></i> 256 × 256</span>
+                <span>Seamless layer</span>
+              </div>
+            </aside>
+
+            <div class="texture-editor-main">
+              <div class="texture-name-field">
+                <label class="modal-field-label" for="texture-asset-name">Texture name</label>
+                <input type="text" class="modal-input" placeholder="Texture Name" id="texture-asset-name">
+              </div>
+              <div class="texture-type-field">
+                <label class="modal-field-label" for="texture-asset-type">Texture type</label>
+                <select id="texture-asset-type" class="material-select"></select>
+              </div>
+              <section class="texture-properties-panel">
+                <header class="editor-section-header">
+                  <div>
+                    <h3>Properties</h3>
+                    <p>Configure the selected texture type.</p>
+                  </div>
+                </header>
+                <div id="texture-asset-properties" class="layer-properties texture-layer-properties"></div>
+              </section>
             </div>
           </div>
         </div>
-        <div class="modal-footer"><button class="btn" data-close-modal="texture-asset-modal">Cancel</button><button class="btn primary" id="texture-asset-save">Save Texture</button></div>
+        <div class="modal-footer">
+          <button class="btn" data-close-modal="texture-asset-modal">Cancel</button>
+          <button class="btn primary" id="texture-asset-save">Save Texture</button>
+        </div>
       </div>
     </div>
 
