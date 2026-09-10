@@ -165,6 +165,16 @@
     color: #00d9ff;
 }
 
+/* Menu parent buttons (Shapes, 2D Shapes, Characters, Lights) */
+.tool-btn.menu-parent {
+    color: #00d9ff;
+}
+
+.tool-btn.menu-parent:hover {
+    background: rgba(0, 217, 255, 0.1);
+    color: #00d9ff;
+}
+
 /* Overlay toggle tool button */
 .tool-btn.overlay-toggle-btn {
     color: #ff6b9d;

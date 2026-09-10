@@ -54,7 +54,7 @@ function applyEase(easeName, t) {
 export class AnimationClip {
     constructor(objectId, data = {}) {
         this.objectId = objectId;
-        this.duration = data.duration || 5;
+        this.duration = data.duration || 3;
         this.tracks   = { position: [], rotation: [], scale: [], color: [] };
 
         if (data.tracks) {
@@ -84,6 +84,18 @@ export class AnimationClip {
     deleteKeyframe(prop, time) {
         if (!this.tracks[prop]) return;
         this.tracks[prop] = this.tracks[prop].filter(k => Math.abs(k.time - time) >= 0.005);
+    }
+
+    moveKeyframe(prop, fromTime, toTime) {
+        const track = this.tracks[prop];
+        if (!track) return null;
+        const keyframe = track.find(k => Math.abs(k.time - fromTime) < 0.005);
+        if (!keyframe) return null;
+        const nextTime = Math.max(0, Math.min(this.duration, Math.round(toTime * 100) / 100));
+        if (track.some(k => k !== keyframe && Math.abs(k.time - nextTime) < 0.005)) return keyframe.time;
+        keyframe.time = nextTime;
+        track.sort((a, b) => a.time - b.time);
+        return nextTime;
     }
 
     updateKeyframeEasing(prop, time, easing) {
@@ -172,9 +184,16 @@ export class AnimationClip {
 
     /** Find the first usable material on a THREE object (handles Groups). */
     static _findMaterial(obj) {
-        if (obj.isMesh && obj.material) return obj.material;
+        if (obj.isMesh && obj.material) {
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            return materials[Math.min(obj.userData?.activeMaterialSlot || 0, materials.length - 1)];
+        }
         let mat = null;
-        obj.traverse(o => { if (!mat && o.isMesh && o.material) mat = o.material; });
+        obj.traverse(o => {
+            if (mat || !o.isMesh || !o.material) return;
+            const materials = Array.isArray(o.material) ? o.material : [o.material];
+            mat = materials[Math.min(o.userData?.activeMaterialSlot || 0, materials.length - 1)];
+        });
         return mat;
     }
 
@@ -228,7 +247,7 @@ export class AnimationManager {
     hasClip(objectId)    { return this.clips.has(objectId); }
 
     get totalDuration() {
-        let max = 1;
+        let max = 3;
         for (const clip of this.clips.values()) max = Math.max(max, clip.duration);
         return max;
     }

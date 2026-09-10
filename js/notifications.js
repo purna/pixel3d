@@ -3,7 +3,7 @@
  * A standalone notification system that can be easily integrated into any application
  */
 
-class Notifications {
+export class Notifications {
     /**
      * Show a notification message
      * @param {string} message - The message to display
@@ -88,9 +88,6 @@ class Notifications {
     }
 }
 
-// Export for module systems (CommonJS, ES6, or global)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Notifications;
-} else if (typeof window !== 'undefined') {
-    window.Notifications = Notifications;
-}
+// Retain the global for older integrations while using a reliable ES module
+// export in the application and bundled build.
+if (typeof window !== 'undefined') window.Notifications = Notifications;

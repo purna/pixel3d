@@ -1,7 +1,7 @@
 export class LayerManager {
     constructor(app) {
         this.app = app;
-        this.container = document.getElementById('layers-list');
+        this.container = document.getElementById('hierarchy-list');
         this.folders = []; // Array to store folder objects
         this.dragSource = null; // Track dragged item
         this.dragType = null; // 'object' or 'foxlder'
@@ -207,6 +207,17 @@ export class LayerManager {
                 case 'cylinder': iconClass = 'fa-database'; break;
                 case 'plane': iconClass = 'fa-vector-square'; break;
                 case 'torus': iconClass = 'fa-life-ring'; break;
+                default: iconClass = 'fa-shapes';
+            }
+        }
+        else if (obj.userData.type === 'shape2d') {
+            switch(obj.userData.shapeType) {
+                case 'rectangle': iconClass = 'fa-square'; break;
+                case 'circle': iconClass = 'fa-circle'; break;
+                case 'triangle': iconClass = 'fa-play'; break;
+                case 'star': iconClass = 'fa-star'; break;
+                case 'heart': iconClass = 'fa-heart'; break;
+                case 'text': iconClass = 'fa-font'; break;
                 default: iconClass = 'fa-shapes';
             }
         }

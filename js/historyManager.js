@@ -133,6 +133,12 @@ export class AddObjectCommand {
         
         // Select the new object
         this.app.selectObject(this.object);
+        const objectId = this.object.userData?.id || this.object.uuid;
+        if (this.animationData) this.app.animationManager?.createClip(objectId, this.animationData);
+        if (this.hadPhysics || this.object.userData?.physicsEnabled) {
+            this.app.physicsManager?.addMesh(this.object, physicsOptions(this.object));
+        }
+        this.app.animationUI?.refresh();
         
         return true;
     }
@@ -145,6 +151,13 @@ export class AddObjectCommand {
             this.app.deselect();
         }
         
+        const objectId = this.object.userData?.id || this.object.uuid;
+        const clip = this.app.animationManager?.getClip(objectId);
+        this.animationData = clip ? clip.toJSON() : null;
+        this.hadPhysics = !!this.app.physicsManager?.getBodyForMesh(this.object);
+        this.app.physicsManager?.removeMesh(this.object);
+        this.app.animationManager?.removeClip(objectId);
+
         // Remove from scene
         this.app.scene.remove(this.object);
         
@@ -156,6 +169,7 @@ export class AddObjectCommand {
         
         // Update UI
         this.app.ui.updateUI(null);
+        this.app.animationUI?.refresh();
         
         return true;
     }
@@ -165,88 +179,64 @@ export class DeleteObjectCommand {
     constructor(app, object) {
         this.app = app;
         this.object = object;
-        this.serializedObject = null;
+        this.animationData = undefined;
+        this.hadPhysics = false;
+        this.folderMemberships = [];
     }
 
     execute() {
         if (!this.object) return false;
-        
-        // Serialize object before deletion
-        this.serializedObject = this.serializeObject(this.object);
-        
-        // Deselect if this object is selected
-        if (this.app.selectedObject === this.object) {
+
+        let root = this.object;
+        while (root.parent && root.parent !== this.app.scene) root = root.parent;
+        this.object = root;
+
+        const objectId = root.userData?.id || root.uuid;
+        if (this.animationData === undefined) {
+            const clip = this.app.animationManager?.getClip(objectId);
+            this.animationData = clip ? clip.toJSON() : null;
+            this.hadPhysics = !!this.app.physicsManager?.getBodyForMesh(root);
+            this.folderMemberships = (this.app.layerManager?.folders || [])
+                .filter(folder => folder.objects?.includes(root));
+        }
+
+        let selected = this.app.selectedObject;
+        while (selected?.parent && selected.parent !== this.app.scene) selected = selected.parent;
+        if (selected === root) {
             this.app.deselect();
         }
-        
-        // Find root object to remove
-        let root = this.object;
-        while (root.parent && root.parent !== this.app.scene) {
-            root = root.parent;
-        }
-        
-        // Remove from scene
+
+        this.app.physicsManager?.removeMesh(root);
+        this.app.animationManager?.removeClip(objectId);
+        this.folderMemberships.forEach(folder => {
+            folder.objects = folder.objects.filter(object => object !== root);
+        });
         this.app.scene.remove(root);
-        
-        // Remove from objects array
         const idx = this.app.objects.indexOf(root);
-        if (idx > -1) {
-            this.app.objects.splice(idx, 1);
-        }
-        
-        // Update UI
+        if (idx > -1) this.app.objects.splice(idx, 1);
         this.app.ui.updateUI(null);
-        
+        this.app.animationUI?.refresh();
         return true;
     }
 
     undo() {
-        if (!this.serializedObject) return false;
-        
-        // Deserialize and recreate object
-        const restoredObject = this.deserializeObject(this.serializedObject);
-        if (restoredObject) {
-            this.app.addToScene(restoredObject);
-            
-            // Select the restored object
-            this.app.selectObject(restoredObject);
-            
-            return true;
-        }
-        
-        return false;
-    }
+        if (!this.object) return false;
 
-    serializeObject(obj) {
-        // Basic serialization for simple restoration
-        return {
-            type: obj.userData.type || obj.type,
-            position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
-            rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
-            scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
-            userData: { ...obj.userData }
-        };
-    }
+        this.app.addToScene(this.object);
+        this.folderMemberships.forEach(folder => {
+            if (!folder.objects.includes(this.object)) folder.objects.push(this.object);
+        });
 
-    deserializeObject(data) {
-        // This creates a basic Three.js object
-        // In a real implementation, you'd want to use the ObjectFactory
-        const obj = new THREE.Object3D();
-        obj.position.set(data.position.x, data.position.y, data.position.z);
-        obj.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
-        obj.scale.set(data.scale.x, data.scale.y, data.scale.z);
-        obj.userData = { ...data.userData };
-        
-        // Add basic geometry based on type
-        if (data.userData.type === 'shape' && data.userData.shapeType) {
-            const geometry = new THREE.BoxGeometry(1, 1, 1); // Default geometry
-            const material = new THREE.MeshLambertMaterial({ color: 0x00ff41 });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.userData = { ...data.userData };
-            obj.add(mesh);
+        const objectId = this.object.userData?.id || this.object.uuid;
+        if (this.animationData) {
+            this.app.animationManager?.createClip(objectId, this.animationData);
         }
-        
-        return obj;
+        if (this.hadPhysics || this.object.userData?.physicsEnabled) {
+            this.app.physicsManager?.addMesh(this.object, physicsOptions(this.object));
+        }
+        this.app.selectObject(this.object);
+        this.app.animationUI?.refresh();
+        return true;
     }
 }
 
@@ -312,69 +302,58 @@ export class TransformObjectCommand {
 export class ClearSceneCommand {
     constructor(app) {
         this.app = app;
-        this.serializedScene = null;
+        this.objects = null;
+        this.animationData = null;
+        this.physicsObjects = new Set();
+        this.folderMemberships = new Map();
     }
 
     execute() {
-        // Serialize current scene before clearing
-        this.serializedScene = this.serializeScene();
-        
-        // Clear the scene
-        this.app.clearScene();
-        
+        if (!this.objects) {
+            this.objects = [...this.app.objects];
+            this.animationData = this.app.animationManager?.toJSON() || { clips: {} };
+            this.objects.forEach(object => {
+                if (this.app.physicsManager?.getBodyForMesh(object)) this.physicsObjects.add(object);
+                const folders = (this.app.layerManager?.folders || [])
+                    .filter(folder => folder.objects?.includes(object));
+                if (folders.length) this.folderMemberships.set(object, folders);
+            });
+        }
+        this.app._clearSceneNow();
+        this.app.animationUI?.refresh();
         return true;
     }
 
     undo() {
-        if (!this.serializedScene) return false;
-        
-        // Restore scene from serialization
-        this.deserializeScene(this.serializedScene);
-        
-        return true;
-    }
-
-    serializeScene() {
-        const sceneData = [];
-        this.app.objects.forEach(obj => {
-            sceneData.push(this.serializeObject(obj));
-        });
-        return sceneData;
-    }
-
-    deserializeScene(sceneData) {
-        // Clear current scene first
-        this.app.clearScene();
-        
-        // Recreate objects (simplified implementation)
-        sceneData.forEach(objData => {
-            const obj = this.deserializeObject(objData);
-            if (obj) {
-                this.app.addToScene(obj);
+        if (!this.objects) return false;
+        this.app._clearSceneNow();
+        this.objects.forEach(object => {
+            this.app.addToScene(object);
+            for (const folder of this.folderMemberships.get(object) || []) {
+                if (!folder.objects.includes(object)) folder.objects.push(object);
+            }
+            if (this.physicsObjects.has(object) || object.userData?.physicsEnabled) {
+                this.app.physicsManager?.addMesh(object, physicsOptions(object));
             }
         });
-        
+        this.app.animationManager?.fromJSON(this.animationData || { clips: {} });
+        this.app.animationManager?.seek(0);
         this.app.ui.updateUI(null);
+        this.app.animationUI?.refresh();
+        return true;
     }
+}
 
-    serializeObject(obj) {
-        return {
-            type: obj.userData.type || obj.type,
-            position: { x: obj.position.x, y: obj.position.y, z: obj.position.z },
-            rotation: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },
-            scale: { x: obj.scale.x, y: obj.scale.y, z: obj.scale.z },
-            userData: obj.userData
-        };
-    }
-
-    deserializeObject(data) {
-        const obj = new THREE.Object3D();
-        obj.position.set(data.position.x, data.position.y, data.position.z);
-        obj.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
-        obj.scale.set(data.scale.x, data.scale.y, data.scale.z);
-        obj.userData = { ...data.userData };
-        return obj;
-    }
+function physicsOptions(object) {
+    const data = object.userData || {};
+    return {
+        mass: data.physicsMass ?? 1,
+        bodyType: data.physicsBodyType ?? 2,
+        friction: data.physicsFriction ?? 0.3,
+        restitution: data.physicsRestitution ?? 0.2,
+        linearDamping: data.physicsLinearDamping ?? 0.01,
+        angularDamping: data.physicsAngularDamping ?? 0.01
+    };
 }
 
 export class AddCharacterCommand {

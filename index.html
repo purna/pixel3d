@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel 3D - Pro Staging Studio</title>
     <!-- Fonts & Icons -->
-    <link rel="icon" type="image/png" href="/pixel3d/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
     <!-- Google Fonts - Press Start 2P -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <!-- Custom Font -->
@@ -33,7 +33,7 @@
     <link rel="stylesheet" href="css/tutorials.css">
     <link rel="stylesheet" href="css/animation.css">
 
-    <!-- Local Font Awesome Implementation - No fallbacks needed -->
+    <!-- Local Font Awesome -->
     <link rel="stylesheet" href="fonts/fontawesome-free-6.5.0/css/all.min.css">
 
     <!-- Three.js Import Map -->
@@ -41,7 +41,9 @@
         {
             "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js",
+                "three.quarks": "https://cdn.jsdelivr.net/npm/three.quarks@0.10.18/dist/three.quarks.esm.js"
             }
         }
     </script>
@@ -64,6 +66,8 @@
             <button class="btn" id="btn-load"><i class="fas fa-folder-open"></i> Load</button>
             <button class="btn primary" id="btn-save"><i class="fas fa-save"></i> Save to Browser</button>
             <button class="btn" id="btn-export"><i class="fas fa-download"></i> Export</button>
+            <div class="separator" style="height: 20px; width: 1px; margin: 0 10px;"></div>
+            <button class="btn icon-only" id="tool-settings" title="Settings"><i class="fas fa-cog"></i></button>
         </div>
     </header>
 
@@ -90,33 +94,43 @@ Uses Gemini AI for generation"><i class="fas fa-wand-magic-sparkles"></i></div>
 Hover to see all available shapes">
                 <i class="fas fa-shapes"></i>
                 <div class="tool-submenu">
-                    <div class="tool-btn" data-action="addShape" data-type="box" data-tooltip="**Box**"><i
-                            class="fas fa-cube"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="sphere" data-tooltip="**Sphere**"><i
-                            class="fas fa-circle"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="cone" data-tooltip="**Cone**"><i
-                            class="fas fa-caret-up"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="cylinder" data-tooltip="**Cylinder**"><i
-                            class="fas fa-database"></i></div>
+                    <div class="tool-btn" data-action="addShape" data-type="box" data-tooltip="**Box**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" fill="currentColor" fill-opacity="0.2"/><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" stroke-width="1.5"/><polyline points="3.27,6.96 12,12.01 20.73,6.96" stroke-width="1.5"/><line x1="12" y1="22.08" x2="12" y2="12" stroke-width="1.5"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="sphere" data-tooltip="**Sphere**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10" fill="currentColor" fill-opacity="0.25"/><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="4" ry="10"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(45 12 12)" stroke-opacity="0.5"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="cone" data-tooltip="**Cone**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 22,20 2,20" fill="currentColor" fill-opacity="0.25"/><polygon points="12,2 22,20 2,20" stroke-width="1.5"/><polygon points="12,2 12,20 2,20" fill="currentColor" fill-opacity="0.15"/><ellipse cx="12" cy="20" rx="10" ry="3" fill="currentColor" fill-opacity="0.4"/><ellipse cx="12" cy="20" rx="10" ry="3"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="cylinder" data-tooltip="**Cylinder**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="5" rx="8" ry="3" fill="currentColor" fill-opacity="0.4"/><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" fill="currentColor" fill-opacity="0.2"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" stroke-width="1.5"/><ellipse cx="12" cy="19" rx="8" ry="3" fill="currentColor" fill-opacity="0.3"/><ellipse cx="12" cy="19" rx="8" ry="3"/></svg></span></div>
                     <div class="tool-btn" data-action="addShape" data-type="plane" data-tooltip="**Plane**
-Great for floors"><i class="fas fa-vector-square"></i></div>
+Great for floors"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="2,15 12,8 22,15 12,22" fill="currentColor" fill-opacity="0.2"/><polygon points="2,15 12,8 22,15 12,22" stroke-width="1.5"/><path d="M2 15L22 15M12 8L12 22" stroke-width="1" stroke-opacity="0.5"/><path d="M7 11.5L12 15L17 11.5" stroke-width="0.75" stroke-opacity="0.35"/></svg></span></div>
                     <div class="tool-btn" data-action="addShape" data-type="torus" data-tooltip="**Torus**
-Donut shape"><i class="fas fa-life-ring"></i></div>
-                    <!---
-                    <div class="tool-btn" data-action="addShape" data-type="tetrahedron" data-tooltip="**Tetrahedron**">
-                        <i class="fas fa-gem"></i>
-                    </div>
-                    <div class="tool-btn" data-action="addShape" data-type="octahedron" data-tooltip="**Octahedron**"><i
-                            class="fas fa-dice-d8"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="dodecahedron"
-                        data-tooltip="**Dodecahedron**"><i class="fas fa-dice-d20"></i></div>
-                    <div class="tool-btn" data-action="addShape" data-type="icosahedron" data-tooltip="**Icosahedron**">
-                        <i class="fas fa-star"></i>
-                    </div>
+Donut shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="12" rx="10" ry="4" fill="currentColor" fill-opacity="0.15"/><ellipse cx="12" cy="12" rx="10" ry="4" stroke-width="1.5"/><ellipse cx="12" cy="12" rx="5" ry="2" fill="currentColor" fill-opacity="0.4"/><ellipse cx="12" cy="12" rx="5" ry="2" stroke-width="1.5"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)" stroke-width="1" stroke-opacity="0.4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-60 12 12)" stroke-width="1" stroke-opacity="0.4"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="pyramid" data-tooltip="**Pyramid**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 22,20 2,20" fill="currentColor" fill-opacity="0.25"/><polygon points="12,2 22,20 2,20" stroke-width="1.5"/><polygon points="12,2 12,20 2,20" fill="currentColor" fill-opacity="0.15"/><line x1="12" y1="2" x2="12" y2="20" stroke-width="1" stroke-opacity="0.6"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="icosahedron" data-tooltip="**Icosahedron**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 20,8 20,16 12,22 4,16 4,8" fill="currentColor" fill-opacity="0.25"/><polygon points="12,2 20,8 20,16 12,22 4,16 4,8" stroke-width="1.5"/><polygon points="12,2 12,22 4,8" fill="currentColor" fill-opacity="0.15"/><line x1="12" y1="2" x2="12" y2="22" stroke-width="1" stroke-opacity="0.6"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="dodecahedron" data-tooltip="**Dodecahedron**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 22,8 22,16 12,22 2,16 2,8" fill="currentColor" fill-opacity="0.25"/><polygon points="12,2 22,8 22,16 12,22 2,16 2,8" stroke-width="1.5"/><polygon points="12,2 12,22 2,8" fill="currentColor" fill-opacity="0.15"/><line x1="12" y1="2" x2="12" y2="22" stroke-width="1" stroke-opacity="0.6"/></svg></span></div>
                     <div class="tool-btn" data-action="addShape" data-type="torusknot" data-tooltip="**Torus Knot**
-Complex twisted shape"><i class="fas fa-bezier-curve"></i></div>
+Complex twisted shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c5 0 9 4 9 9s-4 9-9 9-9-4-9-9 4-9 9-9z" fill="currentColor" fill-opacity="0.15"/><path d="M12 3c5 0 9 4 9 9s-4 9-9 9-9-4-9-9 4-9 9-9z" stroke-width="1.5"/><path d="M5 8c4 3 10 5 14 8M19 8c-4 3-10 5-14 8" stroke-width="1" stroke-opacity="0.55"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape" data-type="tetrahedron" data-tooltip="**Tetrahedron**">
+                        <span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 22,20 2,20" fill="currentColor" fill-opacity="0.25"/><polygon points="12,2 22,20 2,20" stroke-width="1.5"/><path d="M12 2L12 13M2 20L12 13L22 20" stroke-width="1" stroke-opacity="0.6"/></svg></span>
+                    </div>
+                    <div class="tool-btn" data-action="addShape" data-type="octahedron" data-tooltip="**Octahedron**"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 22,12 12,22 2,12" fill="currentColor" fill-opacity="0.25"/><polygon points="12,2 22,12 12,22 2,12" stroke-width="1.5"/><polygon points="12,2 12,22 2,12" fill="currentColor" fill-opacity="0.15"/><line x1="12" y1="2" x2="12" y2="22" stroke-width="1" stroke-opacity="0.6"/></svg></span></div>
+                </div>
+            </div>
 
-                -->
+            <!-- 2D Shapes Menu -->
+            <div class="tool-btn menu-parent" data-tooltip="**2D Shapes**
+Add flat 2D shapes and labels">
+                <i class="fas fa-shapes"></i>
+                <div class="tool-submenu">
+                    <div class="tool-btn" data-action="addShape2D" data-type="rectangle" data-tooltip="**Rectangle**
+2D rectangle shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="14" rx="1" fill="currentColor" fill-opacity="0.35"/><rect x="3" y="5" width="18" height="14" rx="1"/><rect x="3" y="5" width="9" height="14" fill="currentColor" fill-opacity="0.15"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape2D" data-type="circle" data-tooltip="**Circle**
+2D circle shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.35"/><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" fill="currentColor" fill-opacity="0.2"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape2D" data-type="triangle" data-tooltip="**Triangle**
+2D triangle shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,3 21,21 3,21" fill="currentColor" fill-opacity="0.35"/><polygon points="12,3 21,21 3,21" stroke-width="1.5"/><polygon points="12,3 12,21 3,21" fill="currentColor" fill-opacity="0.15"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape2D" data-type="star" data-tooltip="**Star**
+2D star shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" fill="currentColor" fill-opacity="0.4"/><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" stroke-width="1.5"/><polygon points="12,2 12,17 6,21 8,14 2,9 9,9" fill="currentColor" fill-opacity="0.2"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape2D" data-type="heart" data-tooltip="**Heart**
+2D heart shape"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" fill="currentColor" fill-opacity="0.4"/><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke-width="1.5"/><path d="M12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23" fill="currentColor" fill-opacity="0.2"/></svg></span></div>
+                    <div class="tool-btn" data-action="addShape2D" data-type="text" data-tooltip="**Text Label**
+Add text to your scene"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1" fill="currentColor" fill-opacity="0.15"/><rect x="3" y="5" width="18" height="14" rx="1"/><polyline points="7,7 7,4 17,4 17,7" stroke-width="1.5"/><line x1="12" y1="4" x2="12" y2="19" stroke-width="1.5"/><line x1="8" y1="19" x2="16" y2="19" stroke-width="1.5"/></svg></span></div>
                 </div>
             </div>
 
@@ -126,9 +140,9 @@ Add animated 3D characters">
                 <i class="fas fa-user"></i>
                 <div class="tool-submenu">
                     <div class="tool-btn" data-action="addCharacter" data-type="xbot" data-tooltip="**Xbot Character**
-Animated female character with idle/walk/run animations"><i class="fas fa-female"></i></div>
+Animated female character with idle/walk/run animations"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="3.5" fill="currentColor" fill-opacity="0.3"/><circle cx="12" cy="6" r="3.5"/><path d="M12 2.5V1" stroke-width="1.25"/><path d="M5 21v-1.5a7 7 0 0114 0V21" fill="currentColor" fill-opacity="0.2"/><path d="M5 21v-1.5a7 7 0 0114 0V21"/></svg></span></div>
                     <div class="tool-btn" data-action="addCharacter" data-type="ybot" data-tooltip="**Ybot Character**
-Animated male character with idle/walk/run animations"><i class="fas fa-male"></i></div>
+Animated male character with idle/walk/run animations"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="3" width="7" height="5.5" rx="1.5" fill="currentColor" fill-opacity="0.3"/><rect x="8.5" y="3" width="7" height="5.5" rx="1.5"/><path d="M6 21v-2.5a6 6 0 0112 0V21" fill="currentColor" fill-opacity="0.2"/><path d="M6 21v-2.5a6 6 0 0112 0V21"/></svg></span></div>
                 </div>
             </div>
 
@@ -138,15 +152,15 @@ Illuminate your scene">
                 <i class="fas fa-lightbulb"></i>
                 <div class="tool-submenu">
                     <div class="tool-btn" data-action="addLight" data-type="point" data-tooltip="**Point Light**
-Radiates in all directions"><i class="far fa-lightbulb"></i></div>
+Radiates in all directions"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5" fill="currentColor" fill-opacity="0.5"/><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke-width="1.5"/></svg></span></div>
                     <div class="tool-btn" data-action="addLight" data-type="spot" data-tooltip="**Spot Light**
-Focused beam of light"><i class="fas fa-bullseye"></i></div>
+Focused beam of light"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.74V17h8v-2.26A7 7 0 0012 2z" fill="currentColor" fill-opacity="0.3"/><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.74V17h8v-2.26A7 7 0 0012 2z" stroke-width="1.5"/><path d="M10 8l-3 8h10l-3-8" fill="currentColor" fill-opacity="0.2"/><path d="M7 18l-2 4M17 18l2 4" stroke-width="1" stroke-opacity="0.6"/></svg></span></div>
                     <div class="tool-btn" data-action="addLight" data-type="directional" data-tooltip="**Directional Light**
-Like sunlight, parallel rays"><i class="fas fa-sun"></i></div>
+Like sunlight, parallel rays"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="4" fill="currentColor" fill-opacity="0.4"/><circle cx="12" cy="12" r="4"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.34 6.34l1.42 1.42M16.24 16.24l1.42 1.42M6.34 17.66l1.42-1.42M16.24 7.76l1.42-1.42" stroke-width="1.5"/><rect x="10" y="2" width="4" height="2" fill="currentColor" fill-opacity="0.3"/><rect x="10" y="20" width="4" height="2" fill="currentColor" fill-opacity="0.3"/><rect x="2" y="10" width="2" height="4" fill="currentColor" fill-opacity="0.3"/><rect x="20" y="10" width="2" height="4" fill="currentColor" fill-opacity="0.3"/></svg></span></div>
                     <div class="tool-btn" data-action="addLight" data-type="ambient" data-tooltip="**Ambient Light**
-Overall scene lighting"><i class="fas fa-globe"></i></div>
+Overall scene lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9" fill="currentColor" fill-opacity="0.2"/><circle cx="12" cy="12" r="9" stroke-width="1.5"/><circle cx="12" cy="12" r="5" fill="currentColor" fill-opacity="0.4"/><circle cx="12" cy="12" r="5"/><path d="M12 3v18M3 12h18" stroke-width="1.5" stroke-opacity="0.6"/></svg></span></div>
                     <div class="tool-btn" data-action="addLight" data-type="hemisphere" data-tooltip="**Hemisphere Light**
-Sky and ground lighting"><i class="fas fa-adjust"></i></div>
+Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" fill="currentColor" fill-opacity="0.3"/><path d="M12 2a10 10 0 000 20" fill="currentColor" fill-opacity="0.5"/><path d="M12 2a10 10 0 00-10 10h20a10 10 0 00-10-10z" fill="currentColor" fill-opacity="0.15"/><path d="M12 2a10 10 0 100 20 10 10 0 000-20z" stroke-width="1.5"/></svg></span></div>
                 </div>
             </div>
 
@@ -160,6 +174,14 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
              <!-- Animation Tool -->
              <div class="tool-btn" id="tool-animate" data-tooltip="**Animation**
              Create and edit keyframe animations"><i class="fas fa-play"></i></div>
+
+             <!-- Particles Tool -->
+             <div class="tool-btn particles-tool" id="tool-particles" data-tooltip="**Particle Systems**
+             Create and manage particle effects"><i class="fas fa-wind"></i></div>
+
+             <!-- Physics Tool -->
+             <div class="tool-btn physics-tool" id="tool-physics" data-tooltip="**Physics Simulation**
+             Enable physics for scene objects"><i class="fas fa-atom"></i></div>
 
              <!-- Scene Settings Tool -->
             <div class="tool-btn scene-settings-tool" id="tool-scene-settings" data-tooltip="**Scene Settings**
@@ -177,11 +199,9 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             Show/Hide all visual aids (Grid, Axes, Helpers)
             --Keyboard: Ctrl+Shift+O--"><i class="fas fa-eye-slash"></i></div>
 
-            <!-- Settings at bottom -->
+            <!-- Settings moved to header -->
             <div style="margin-top: auto;"></div>
             <div class="tool-divider"></div>
-            <div class="tool-btn" id="tool-settings" data-tooltip="**Settings**
-            Configure application"><i class="fas fa-cog"></i></div>
         </div>
 
 
@@ -213,11 +233,11 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             <div class="zoom-control">
                 <button class="btn icon-only" id="zoom-out" title="Zoom Out (-)" data-tooltip="**Zoom Out**
                 Move camera away from scene
-                --Keyboard: ---"><i class="fas fa-search-minus"></i></button>
+                --Keyboard: ---"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7" fill="currentColor" fill-opacity="0.15"/><circle cx="10" cy="10" r="7"/><line x1="7" y1="7" x2="13" y2="13" stroke-width="2"/><line x1="7" y1="10" x2="13" y2="10" stroke-width="1.5"/></svg></span></button>
                 <input type="range" id="zoom-slider" min="1" max="100" value="50" class="zoom-slider">
                 <button class="btn icon-only" id="zoom-in" title="Zoom In (+)" data-tooltip="**Zoom In**
                 Move camera closer to scene
-                --Keyboard: +--"><i class="fas fa-search-plus"></i></button>
+                --Keyboard: +--"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7" fill="currentColor" fill-opacity="0.15"/><circle cx="10" cy="10" r="7"/><line x1="7" y1="7" x2="13" y2="13" stroke-width="2"/><line x1="10" y1="5" x2="10" y2="11" stroke-width="1.5"/><line x1="5" y1="10" x2="11" y2="10" stroke-width="1.5"/></svg></span></button>
             </div>
             <div id="canvas-container" style="width: 100%; height: 100%;"></div>
             
@@ -237,176 +257,223 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             <i class="fas fa-chevron-right"></i>
         </div>
 
-        <!-- RIGHT PANEL - Combined Scene Objects and Properties -->
+        <!-- RIGHT PANEL - Unified scrollable panel -->
         <div class="right-panel" id="right-panel">
-            <!-- Scene Objects Section -->
-            <div class="panel-header">
-                <div class="panel-header-title"><i class="fas fa-layer-group"></i> Scene Objects</div>
+            <div class="right-panel-tabs">
+                <button class="right-tab active" data-right-tab="hierarchy">Hierarchy</button>
+                <button class="right-tab" data-right-tab="object-properties">Properties</button>
+                <button class="right-tab" data-right-tab="assets">Assets</button>
+                <button class="right-tab" data-right-tab="scene-settings">Scene</button>
             </div>
-
-            <!-- LAYERS LIST (Managed by LayerManager.js) -->
-            <div id="layers-list" class="layers-container">
-                <!-- Layer items will be injected here dynamically -->
-            </div>
-
-            <!-- Properties Section -->
-            <div class="panel-header" style="border-top:1px solid var(--border-color);">
-                <div class="panel-header-title"><i class="fas fa-sliders-h"></i> Properties</div>
-            </div>
-            <div id="props-content" class="panel-content">
-                <div class="empty-state">
-                    <p>Click on an object to edit properties</p>
-                    <br>
-                    <p>Right click to deselect an object</p>
-               </div>
-            </div>
-
-            <!-- Materials Section (hidden by default) -->
-            <div id="materials-section" class="materials-section" style="display: none;">
-                <div class="panel-header" style="border-top:1px solid var(--border-color);">
-                    <div class="panel-header-title"><i class="fas fa-palette"></i> Materials</div>
-                </div>
-                <div id="materials-content" class="panel-content">
-                    <div class="empty-state">No materials created yet</div>
-                </div>
-            </div>
-
-            <!-- Scene Section (hidden by default) -->
-            <div id="scene-section" class="scene-section" style="display: none;">
-                <div class="panel-header" style="border-top:1px solid var(--border-color);">
-                    <div class="panel-header-title"><i class="fas fa-image"></i> Scene Export</div>
-                </div>
-                <div id="scene-content" class="panel-content">
-                    <!-- Export Settings -->
-                    <div class="property-group">
-                        <div class="property-label">Export Settings</div>
-
-                        <!-- Canvas Size Controls -->
-                        <div class="property-group">
-                            <div class="property-label">Canvas Size</div>
-                            <select id="export-resolution"
-                                style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
-                                <!-- Game Asset Sizes -->
-                                <option value="24x24">24×24 - Game Icon</option>
-                                <option value="36x36">36×36 - Game Icon</option>
-                                <option value="48x48">48×48 - Game Icon</option>
-                                <option value="128x128">128×128 - Game Sprite</option>
-                                <option value="512x512">512×512 - Game Texture</option>
-                                <option value="1024x1024">1024×1024 - High-res Texture</option>
-
-                                <!-- Standard Resolutions -->
-                                <option value="1920x1080" selected>1920×1080 - Full HD</option>
-                                <option value="2560x1440">2560×1440 - 2K</option>
-                                <option value="3840x2160">3840×2160 - 4K</option>
-                                <option value="custom">Custom Size</option>
-                            </select>
-                        </div>
-
-                        <!-- Camera Border Toggle -->
-                        <div class="property-group">
-                            <label class="property-label">
-                                <input type="checkbox" id="show-camera-border" checked>
-                                Show Camera Border
-                            </label>
-                        </div>
-
-                        <!-- Customer Resolution Group (hidden by default) -->
-                        <div class="property-group" id="custom-resolution-group" style="display: none;">
-                            <label class="property-label">
-                                Custom Width:
-                                <input type="number" id="export-width" value="1920" min="100" max="8000">
-                            </label>
-                            <label class="property-label">
-                                Custom Height:
-                                <input type="number" id="export-height" value="1080" min="100" max="8000">
-                            </label>
-                        </div>
-
-                        <!-- Include Lights toggle (applies to JS export) -->
-                        <div class="property-group">
-                            <label class="property-label">
-                                <input type="checkbox" id="export-include-lights" checked>
-                                Include Lights
-                            </label>
-                        </div>
-
-                        <!-- Export Button -->
-                        <button class="btn primary" id="btn-export-png" style="width: 100%; margin-top: 10px;">
-                            <i class="fas fa-download"></i> Export as PNG
-                        </button>
-                    </div>
-
-                    <!-- Camera Border Visualization -->
-                    <div class="property-group">
-                        <div class="property-label">Camera Border Preview</div>
-                        <div id="camera-border-preview"
-                            style="width: 100%; height: 200px; background: rgba(0, 217, 255, 0.1); border: 1px dashed var(--accent-tertiary); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 0.8rem; cursor: move;">
-                            Camera border visualization will appear here
-                        </div>
+            <div class="right-panel-scroll">
+                <!-- Hierarchy Tab -->
+                <div class="right-tab-content active" id="tab-hierarchy">
+                    <div class="panel-section" id="section-hierarchy">
+                        <div class="panel-header"><div class="panel-header-title"><i data-icon="hierarchy"></i> Hierarchy</div></div>
+                        <div class="hierarchy-panel-content"><div id="hierarchy-list" class="layers-container"></div></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- A-Frame Export Section (hidden by default) -->
-            <div id="aframe-section" class="aframe-section" style="display: none;">
-                <div class="panel-header" style="border-top:1px solid var(--border-color);">
-                    <div class="panel-header-title"><i class="fas fa-vr-cardboard"></i> A-Frame Export</div>
+                <!-- Scene Settings Tab -->
+                <div class="right-tab-content" id="tab-scene-settings">
+                    <div class="panel-section" id="section-scene">
+                        <div class="panel-header">
+                            <div class="panel-header-title"><i data-icon="scene"></i> Scene</div>
+                        </div>
+                        <div id="scene-content" class="panel-content">
+                            <!-- Scene Settings Sections -->
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="scene-section">
+                                    <span>Scene</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="scene-section">
+                                    <div class="property-group">
+                                        <label class="property-label">Scene Title: <input type="text" id="scene-title" value="My Scene" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="scene-ambient-occlusion" checked> Ambient Occlusion</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="scene-bloom" checked> Bloom Effect</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="play-camera-section">
+                                    <span>Play Camera</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="play-camera-section">
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="play-camera-enabled" checked> Enable Play Camera</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Camera Position X: <input type="number" id="play-cam-x" value="0" step="0.1" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary); width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Camera Position Y: <input type="number" id="play-cam-y" value="5" step="0.1" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary); width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Camera Position Z: <input type="number" id="play-cam-z" value="10" step="0.1" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary); width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="light-section">
+                                    <span>Light</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="light-section">
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="scene-ambient-light" checked> Ambient Light</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Intensity: <input type="range" id="ambient-intensity" min="0" max="2" step="0.1" value="0.6" style="width: 100%;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Color: <input type="color" id="ambient-color" value="#ffffff" style="width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="simulation-section">
+                                    <span>Simulation</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="simulation-section">
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="physics-enabled"> Enable Physics Simulation</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <div class="property-label">Gravity</div>
+                                        <div style="display: flex; gap: 8px; margin-top: 6px;">
+                                            <div style="flex: 1;"><label style="font-size: 0.7rem; color: var(--text-secondary);">X</label><input type="number" id="physics-gravity-x" value="0" step="0.1" style="width: 100%; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary);"></div>
+                                            <div style="flex: 1;"><label style="font-size: 0.7rem; color: var(--text-secondary);">Y</label><input type="number" id="physics-gravity-y" value="-9.81" step="0.1" style="width: 100%; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary);"></div>
+                                            <div style="flex: 1;"><label style="font-size: 0.7rem; color: var(--text-secondary);">Z</label><input type="number" id="physics-gravity-z" value="0" step="0.1" style="width: 100%; background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary);"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="effects-section">
+                                    <span>Effects</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="effects-section">
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="scene-bloom-effect" checked> Bloom</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Bloom Strength: <input type="range" id="bloom-strength" min="0" max="2" step="0.1" value="0.5" style="width: 100%;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="fog-section">
+                                    <span>Fog</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="fog-section">
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="fog-enabled"> Enable Fog</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Fog Color: <input type="color" id="fog-color" value="#1a1a2e" style="width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Fog Near: <input type="number" id="fog-near" value="30" min="1" max="100" step="1" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary); width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Fog Far: <input type="number" id="fog-far" value="100" min="50" max="300" step="5" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 6px; font-size: 0.75rem; color: var(--text-primary); width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="sky-section">
+                                    <span>Sky</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="sky-section">
+                                    <div class="property-group">
+                                        <label class="property-label">Sky Color: <input type="color" id="sky-color" value="#2a2a4e" style="width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="sky-gradient" checked> Use Gradient</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="ambient-shadows-section">
+                                    <span>Ambient Shadows</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="ambient-shadows-section">
+                                    <div class="property-group">
+                                        <label class="property-label"><input type="checkbox" id="ambient-shadows-enabled" checked> Enable Ambient Shadows</label>
+                                    </div>
+                                    <div class="property-group">
+                                        <label class="property-label">Shadow Intensity: <input type="range" id="shadow-intensity" min="0" max="1" step="0.1" value="0.5" style="width: 100%;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="collapsible-section">
+                                <div class="collapsible-header" data-target="color-section">
+                                    <span>Color</span>
+                                    <i class="fas fa-chevron-down"></i>
+                                </div>
+                                <div class="collapsible-content" id="color-section">
+                                    <div class="property-group">
+                                        <label class="property-label">Background Color: <input type="color" id="bg-color" value="#2a2a4e" style="width: 100%; margin-top: 6px;"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div id="aframe-content" class="panel-content">
-                    <!-- A-Frame Export Options -->
-                    <div class="property-group">
-                        <div class="property-label">Export Options</div>
-                        
-                        <div class="property-group">
-                            <label class="property-label">
-                                <input type="checkbox" id="aframe-include-inspector" checked>
-                                Include A-Frame Inspector
-                            </label>
+
+                <!-- Object Properties Tab -->
+                <div class="right-tab-content" id="tab-object-properties">
+                    <div class="panel-section" id="section-properties">
+                        <div class="panel-header" style="border-top:1px solid var(--border-color);">
+                            <div class="panel-header-title"><i data-icon="properties"></i> Properties</div>
                         </div>
-                        
-                        <div class="property-group">
-                            <label class="property-label">
-                                <input type="checkbox" id="aframe-include-stats">
-                                Include Stats Panel
-                            </label>
-                        </div>
-                        
-                        <div class="property-group">
-                            <label class="property-label">
-                                Scene Title:
-                                <input type="text" id="aframe-scene-title" value="Pixel 3D - A-Frame Export" 
-                                    style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; color: var(--text-primary); width: 100%; margin-top: 6px;">
-                            </label>
+                        <div id="props-content" class="panel-content">
+                            <div class="empty-state">
+                                <p>Click on an object to edit properties</p>
+                                <br>
+                                <p>Right click to deselect an object</p>
+                           </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- A-Frame Preview -->
-                    <div class="property-group">
-                        <div class="property-label">HTML Preview</div>
-                        <div id="aframe-preview-container" style="position: relative;">
-                            <textarea id="aframe-html-preview" readonly
-                                style="width: 100%; height: 300px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.7rem; color: var(--text-primary); resize: vertical; white-space: pre; overflow: auto;"></textarea>
-                            <button id="btn-copy-aframe" class="btn icon-only" title="Copy to Clipboard"
-                                style="position: absolute; top: 8px; right: 8px; background: var(--bg-medium); border: 1px solid var(--border-color);">
-                                <i class="fas fa-copy"></i>
-                            </button>
+                <!-- Assets Tab -->
+                <div class="right-tab-content" id="tab-assets">
+                    <div class="panel-section" id="section-assets">
+                        <div class="panel-header" style="border-top:1px solid var(--border-color);">
+                            <div class="panel-header-title"><i data-icon="assets"></i> Assets</div>
                         </div>
-                    </div>
-
-                    <!-- A-Frame Export Actions -->
-                    <div class="property-group">
-                        <button class="btn" id="btn-refresh-aframe" style="width: 100%; margin-bottom: 8px;">
-                            <i class="fas fa-sync-alt"></i> Refresh Preview
-                        </button>
-                        <button class="btn primary" id="btn-download-aframe" style="width: 100%;">
-                            <i class="fas fa-download"></i> Download HTML
-                        </button>
+                        <div class="assets-tabs">
+                            <button class="asset-tab active" data-asset-tab="components">Components</button>
+                            <button class="asset-tab" data-asset-tab="materials">Materials</button>
+                            <button class="asset-tab" data-asset-tab="textures">Textures</button>
+                            <button class="asset-tab" data-asset-tab="colors">Colors</button>
+                            <button class="asset-tab" data-asset-tab="images">Images</button>
+                            <button class="asset-tab" data-asset-tab="media">Media</button>
+                            <button class="asset-tab" data-asset-tab="audio">Audio</button>
+                        </div>
+                        <div class="assets-panel-content">
+                            <div class="asset-search">
+                                <input type="text" placeholder="Search assets..." id="asset-search-input">
+                            </div>
+                            <div id="assets-list" class="assets-list">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
-    </div>
 
     <!-- AI MODAL -->
     <div class="modal-overlay" id="ai-modal">
@@ -534,6 +601,55 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
                                 <label class="property-label">
                                     Background Color:
                                     <input type="color" id="setting-background-color" value="#1a1a2e">
+                                </label>
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-background-gradient">
+                                    Use Gradient Background
+                                </label>
+                                <label class="property-label">
+                                    Gradient Top Color:
+                                    <input type="color" id="setting-gradient-top" value="#1a1a2e">
+                                </label>
+                                <label class="property-label">
+                                    Gradient Bottom Color:
+                                    <input type="color" id="setting-gradient-bottom" value="#0f0f1b">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Fog Settings Group -->
+                        <div class="settings-section">
+                            <div class="section-heading">Fog Settings</div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-fog-enabled">
+                                    Enable Fog
+                                </label>
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    Fog Color:
+                                    <input type="color" id="setting-fog-color" value="#1a1a2e">
+                                </label>
+                            </div>
+                            <div class="property-group has-slider">
+                                <label class="property-label">
+                                    Fog Near: <span id="fog-near-value">30</span>
+                                </label>
+                                <input type="range" id="setting-fog-near" min="1" max="100" step="1" value="30">
+                            </div>
+                            <div class="property-group has-slider">
+                                <label class="property-label">
+                                    Fog Far: <span id="fog-far-value">100</span>
+                                </label>
+                                <input type="range" id="setting-fog-far" min="50" max="300" step="5" value="100">
+                            </div>
+                            <div class="property-group">
+                                <label class="property-label">
+                                    <input type="checkbox" id="setting-fog-match-bg">
+                                    Match Fog to Background
                                 </label>
                             </div>
                         </div>
@@ -674,8 +790,287 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
         </div>
     </div>
 
-    <!-- MAIN APP ENTRY POINT -->
-    <script type="module" src="js/main.js"></script>
+    <!-- MATERIAL ASSET MODAL -->
+    <div class="modal-overlay" id="material-asset-modal">
+      <div class="modal">
+        <div class="modal-top-section">
+          <h2 class="modal-title-text">Edit Material Asset</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="material-asset-container">
+            <div class="material-asset-meta">
+              <div class="material-asset-name">
+                <input type="text" class="modal-input" placeholder="Material Name" id="material-asset-name">
+              </div>
+              <div class="material-asset-preview">
+                <div class="material-preview-color" id="material-preview-color"></div>
+                <input type="color" id="material-color-picker" value="#888888" title="Material Color">
+                <button class="select-objects-btn" title="Select Objects"><i class="fas fa-mouse-pointer"></i></button>
+              </div>
+            </div>
+            <div class="material-asset-panel">
+              <div class="panel-header">
+                <div class="panel-header-title">Material</div>
+                <div class="panel-header-attachment">
+                  <div class="alpha-override">
+                    <input type="number" class="number-input" id="material-alpha" value="1" min="0" max="1" step="0.01">
+                  </div>
+                  <button class="add-material-btn" title="Add Material"><i class="fas fa-plus"></i></button>
+                </div>
+              </div>
+              <div class="panel-items" id="material-asset-items">
+                <!-- Material texture layers will be rendered here -->
+              </div>
+              <div class="material-layer-actions">
+                <button class="add-layer-btn" id="add-material-layer-btn"><i class="fas fa-plus"></i> Add Layer</button>
+              </div>
+            </div>
+            <div class="material-texture-controls">
+              <div class="material-control-row">
+                <label class="material-control-label">Lighting</label>
+                <input type="range" id="material-lighting" min="0" max="100" value="0" class="material-slider">
+                <span class="material-control-value" id="material-lighting-value">0</span>
+              </div>
+              <div class="material-control-row"><label class="material-control-label">Metallic</label><input type="range" id="material-metalness" min="0" max="1" step="0.01" value="0.2" class="material-slider"><span class="material-control-value" id="material-metalness-value">0.20</span></div>
+              <div class="material-control-row"><label class="material-control-label">Roughness</label><input type="range" id="material-roughness" min="0" max="1" step="0.01" value="0.3" class="material-slider"><span class="material-control-value" id="material-roughness-value">0.30</span></div>
+              <div class="material-control-row"><label class="material-control-label">Clearcoat</label><input type="range" id="material-clearcoat" min="0" max="1" step="0.01" value="0" class="material-slider"><span class="material-control-value" id="material-clearcoat-value">0.00</span></div>
+              <div class="material-control-row"><label class="material-control-label">Transmission</label><input type="range" id="material-transmission" min="0" max="1" step="0.01" value="0" class="material-slider"><span class="material-control-value" id="material-transmission-value">0.00</span></div>
+              <div class="material-control-row"><label class="material-control-label">Sheen</label><input type="range" id="material-sheen" min="0" max="1" step="0.01" value="0" class="material-slider"><span class="material-control-value" id="material-sheen-value">0.00</span></div>
+              <div class="material-control-row">
+                <label class="material-control-label">Opacity</label>
+                <input type="range" id="material-opacity" min="0" max="100" value="100" class="material-slider">
+                <span class="material-control-value" id="material-opacity-value">100</span>
+              </div>
+              <div class="material-control-row">
+                <label class="material-control-label">Depth</label>
+                <select id="material-depth" class="material-select">
+                  <option value="none">None</option>
+                  <option value="color">Color</option>
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                  <option value="normal">Normal</option>
+                  <option value="gradient">Gradient</option>
+                  <option value="noise">Noise</option>
+                  <option value="fresnel">Fresnel</option>
+                  <option value="cavity">Cavity</option>
+                  <option value="duct">Duct</option>
+                  <option value="rainbow">Rainbow</option>
+                  <option value="toon">Toon</option>
+                  <option value="outline">Outline</option>
+                  <option value="glass">Glass</option>
+                  <option value="reflection">Reflection</option>
+                  <option value="displace">Displace</option>
+                  <option value="pattern">Pattern</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" data-close-modal="material-asset-modal">Cancel</button>
+          <button class="btn primary" id="material-asset-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEXTURE ASSET MODAL -->
+    <div class="modal-overlay" id="texture-asset-modal">
+      <div class="modal">
+        <div class="modal-top-section"><h2 class="modal-title-text">Edit Texture Asset</h2><button class="modal-close-btn">&times;</button></div>
+        <div class="modal-body">
+          <input type="text" class="modal-input" placeholder="Texture Name" id="texture-asset-name">
+          <div style="display:grid;grid-template-columns:180px 1fr;gap:16px;margin-top:12px">
+            <canvas id="texture-asset-preview" width="256" height="256" style="width:180px;height:180px;border:1px solid var(--border-color);border-radius:6px;background:#222"></canvas>
+            <div>
+              <label class="material-control-label">Texture Type</label>
+              <select id="texture-asset-type" class="material-select"></select>
+              <div id="texture-asset-properties" class="layer-properties" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer"><button class="btn" data-close-modal="texture-asset-modal">Cancel</button><button class="btn primary" id="texture-asset-save">Save Texture</button></div>
+      </div>
+    </div>
+
+    <!-- COLOR ASSET MODAL -->
+    <div class="modal-overlay" id="color-asset-modal">
+      <div class="modal">
+        <div class="modal-top-section">
+          <h2 class="modal-title-text">Edit Color Asset</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="color-asset-container">
+            <div class="color-asset-input">
+              <input type="text" class="modal-input" placeholder="Color Name" id="color-asset-name">
+            </div>
+            <div class="color-asset-panel">
+              <div class="color-picker-container">
+                <div class="color-picker-main">
+                  <div class="color-sl-picker" id="color-sl-picker">
+                    <div class="color-sl-track"><div class="color-sl-thumb"></div></div>
+                  </div>
+                  <div class="color-preview-col">
+                    <div class="color-preview-swatch" id="color-preview-swatch"></div>
+                    <button class="eyedropper-btn" title="Eyedropper" id="color-eyedropper-btn"><i class="fas fa-eye-dropper"></i></button>
+                  </div>
+                </div>
+                <div class="color-sliders">
+                  <div class="color-slider-row">
+                    <label class="color-slider-label">Spectrum</label>
+                    <div class="hue-slider" id="hue-slider"><div class="slider-track"><div class="slider-thumb"></div><div class="slider-background"></div></div></div>
+                    <input type="number" class="color-slider-value" id="hue-value" min="0" max="360" value="0">
+                  </div>
+                  <div class="color-slider-row">
+                    <label class="color-slider-label">Saturation</label>
+                    <div class="saturation-slider" id="saturation-slider"><div class="slider-track"><div class="slider-thumb"></div><div class="slider-background"></div></div></div>
+                    <input type="number" class="color-slider-value" id="saturation-value" min="0" max="100" value="0">
+                  </div>
+                  <div class="color-slider-row">
+                    <label class="color-slider-label">Transparency</label>
+                    <div class="transparency-slider" id="transparency-slider"><div class="slider-track"><div class="slider-thumb"></div><div class="slider-background"></div></div></div>
+                    <input type="number" class="color-slider-value" id="transparency-value" min="0" max="100" value="100">
+                  </div>
+                </div>
+                <div class="color-format-row">
+                  <select class="format-select" id="color-format-select">
+                    <option value="hex">HEX</option>
+                    <option value="rgb">RGB</option>
+                    <option value="css">CSS</option>
+                    <option value="hsl">HSL</option>
+                    <option value="hsb">HSB</option>
+                  </select>
+                  <div class="color-format-inputs" id="color-format-inputs"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" data-close-modal="color-asset-modal">Cancel</button>
+          <button class="btn primary" id="color-asset-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMAGE ASSET MODAL -->
+    <div class="modal-overlay" id="image-asset-modal">
+      <div class="modal">
+        <div class="modal-top-section">
+          <h2 class="modal-title-text">Edit Image Asset</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="image-asset-container">
+              <div class="image-asset-meta">
+                <input type="text" class="modal-input" placeholder="Image Name" id="image-asset-name">
+              </div>
+              <div class="image-asset-url-row">
+                <label class="asset-url-label">Source URL</label>
+                <input type="text" class="modal-input asset-url-input" placeholder="https://example.com/image.png" id="image-asset-url">
+              </div>
+              <div class="image-asset-panel">
+              <div class="file-upload-container">
+                <label class="file-upload-label">
+                  <div class="file-upload-preview">
+                    <img class="file-upload-image" id="image-preview" src="" alt="Image preview">
+                  </div>
+                  <div class="file-upload-ui">
+                    <div class="file-upload-main-btn">Replace Image</div>
+                    <div class="file-upload-size" id="image-size">1024 x 1024</div>
+                  </div>
+                  <input type="file" accept="image/*,.hdr,.exr" id="image-file-input" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">
+                </label>
+              </div>
+              <div class="image-generate-btn">
+                <button class="btn generate-btn"><i class="fas fa-sparkles"></i> Generate with AI</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" data-close-modal="image-asset-modal">Cancel</button>
+          <button class="btn primary" id="image-asset-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEO ASSET MODAL -->
+    <div class="modal-overlay" id="video-asset-modal">
+      <div class="modal">
+        <div class="modal-top-section">
+          <h2 class="modal-title-text">Edit Video Asset</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="video-asset-container">
+              <div class="video-asset-meta">
+                <input type="text" class="modal-input" placeholder="Video Name" id="video-asset-name">
+              </div>
+              <div class="video-asset-url-row">
+                <label class="asset-url-label">Source URL</label>
+                <input type="text" class="modal-input asset-url-input" placeholder="https://example.com/video.mp4" id="video-asset-url">
+              </div>
+              <div class="video-asset-panel">
+              <div class="file-upload-container">
+                <label class="file-upload-label">
+                  <div class="file-upload-preview">
+                    <img class="file-upload-image" id="video-preview" src="" alt="Video preview">
+                  </div>
+                  <div class="file-upload-ui">
+                    <div class="file-upload-main-btn">Replace Video (MP4)</div>
+                    <div class="file-upload-size" id="video-size">640 x 360</div>
+                  </div>
+                  <input type="file" accept="video/mp4" id="video-file-input" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">
+                </label>
+                <button class="download-btn" title="Download"><i class="fas fa-download"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" data-close-modal="video-asset-modal">Cancel</button>
+          <button class="btn primary" id="video-asset-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIO ASSET MODAL -->
+    <div class="modal-overlay" id="audio-asset-modal">
+      <div class="modal">
+        <div class="modal-top-section">
+          <h2 class="modal-title-text">Edit Audio Asset</h2>
+          <button class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="audio-asset-container">
+            <div class="audio-asset-input">
+              <input type="text" class="modal-input" placeholder="Audio Name" id="audio-asset-name">
+            </div>
+            <div class="audio-asset-url-row">
+              <label class="asset-url-label">Source URL</label>
+              <input type="text" class="modal-input asset-url-input" placeholder="https://example.com/audio.mp3" id="audio-asset-url">
+            </div>
+            <button class="audio-play-btn" id="audio-play-btn"><i class="fas fa-play"></i></button>
+            <div class="audio-asset-property">
+              <div class="property-label">Sound File</div>
+              <label class="file-upload-label-small">
+                <span id="audio-file-name">success.mp3</span>
+                <input type="file" accept="audio/mp3, audio/wav" id="audio-file-input" style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" data-close-modal="audio-asset-modal">Cancel</button>
+          <button class="btn primary" id="audio-asset-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Self-contained app bundle: works over http:// and when index.html is opened directly. -->
+    <script src="dist/pixel3d.js?v=20260910-3"></script>
 
     <!-- ANIMATION TIMELINE PANEL -->
     <div id="anim-panel" style="display:none;">
@@ -701,10 +1096,13 @@ Sky and ground lighting"><i class="fas fa-adjust"></i></div>
             </div>
             <div class="anim-meta">
                 <span class="anim-meta-lbl">Dur</span>
-                <input type="number" id="anim-duration" value="5.0" min="0.5" max="300" step="0.5" title="Clip duration in seconds">
+                <input type="number" id="anim-duration" value="3.0" min="0.5" max="300" step="0.5" title="Clip duration in seconds">
                 <span class="anim-meta-lbl">s</span>
             </div>
-            <span id="anim-time">0.00s / 5.00s</span>
+            <span id="anim-time">0.00s / 3.00s</span>
+            <button id="anim-add-object" title="Add the selected object to the timeline as a 3 second clip">
+                <i class="fas fa-plus"></i>&nbsp; Add Object
+            </button>
             <button id="anim-add-kf" title="Record keyframe for selected object at current time  (K)">
                 <i class="fas fa-diamond" style="font-size:8px"></i>&nbsp;+ Keyframe
             </button>

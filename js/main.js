@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { UI } from './ui.js';
 import { FileManager } from './fileManager.js';
 import { ObjectFactory } from './factory.js';
@@ -18,8 +19,9 @@ import { AFrameExporter } from './aframeExporter.js';
 import { AnimationManager } from './animationManager.js';
 import { AnimationUI } from './animationUI.js';
 import { ExportManager } from './exportManager.js';
-import './notifications.js';
-
+import { PhysicsManager } from './physicsManager.js';
+import { ParticleManager } from './particleManager.js';
+import { Notifications } from './notifications.js';
 
 class StageApp {
     constructor() {
@@ -64,13 +66,15 @@ class StageApp {
         this.cameraManager = new CameraManager(this); // Init Camera Manager
         this.characterManager = new CharacterManager(this); // Init Character Manager
         this.historyManager = new HistoryManager(this); // Init History Manager
-        this.notifications = new window.Notifications(); // Init Notifications System
+        this.notifications = new Notifications(); // Init Notifications System
         this.tutorialConfig = new TutorialConfig(); // Init Tutorial Config
         this.tutorialSystem = new TutorialSystem(this); // Init Tutorial System
         this.aframeExporter = new AFrameExporter(this); // Init A-Frame Exporter
         this.exportManager = new ExportManager(this); // Init Export Manager
         this.animationManager = new AnimationManager(this); // Init Animation Manager
         this.animationUI = new AnimationUI(this); // Init Animation UI
+        this.physicsManager = null; // Initialized in init()
+        this.particleManager = null; // Initialized in init()
         this.ui = new UI(this); // UI initialized last so it can access layerManager
 
         this.init();
@@ -82,7 +86,7 @@ class StageApp {
         // Scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x2a2a4e); // Lighter background for better visibility
-        this.scene.fog = new THREE.Fog(0x2a2a4e, 20, 100); // Less aggressive fog
+        this.scene.fog = new THREE.Fog(0x2a2a4e, 30, 100); // Fog with near=30, far=100
 
         // Camera - will be set by camera manager
         this.camera = null;
@@ -108,6 +112,14 @@ class StageApp {
 
         container.appendChild(this.renderer.domElement);
 
+        // Environment map for PBR materials
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        const roomEnvironment = new RoomEnvironment();
+        const envMap = pmremGenerator.fromScene(roomEnvironment, 0.04).texture;
+        this.scene.environment = envMap;
+        roomEnvironment.dispose();
+        pmremGenerator.dispose();
+
         // Initialize Cameras (before Controls initialization)
         if (this.cameraManager && this.cameraManager.setupCameras) {
             this.cameraManager.setupCameras();
@@ -121,6 +133,12 @@ class StageApp {
         // Lighting (Base ambient)
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
+
+        // Initialize Physics Manager
+        this.physicsManager = new PhysicsManager(this.scene);
+
+        // Initialize Particle Manager
+        this.particleManager = new ParticleManager(this.scene, this.camera);
 
         // Main directional light (like sunlight)
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -171,27 +189,46 @@ class StageApp {
             }
         }, APP_DEFAULTS.init.checkboxInitDelay);
 
-        // Initialize UI Logic
-        this.ui.init();
-
-        // Initialize Animation UI
-        this.animationUI.init();
-
-        // Initialize Tutorial System
-        this.tutorialSystem.init();
-
         // Ensure grid and axes are visible by default
         this.setGridVisible(true);
         this.setAxesVisible(true);
 
-        // Add some default objects for immediate visibility
+        // Establish a usable scene before optional editor panels initialize. A
+        // broken panel must never prevent the renderer or default scene loading.
         this.addDefaultTestObjects();
+
+        this.initializeEditorModules();
 
         // Initialize undo/redo buttons state
         this.historyManager.updateUndoRedoButtons();
 
         // Start Loop
         this.animate();
+    }
+
+    initializeEditorModules() {
+        const modules = [
+            ['UI', () => this.ui.init()],
+            ['Animation UI', () => this.animationUI.init()],
+            ['Tutorial', () => this.tutorialSystem.init()]
+        ];
+
+        modules.forEach(([name, initialize]) => {
+            try {
+                initialize();
+            } catch (error) {
+                console.error(`${name} failed to initialize:`, error);
+            }
+        });
+
+        // Refresh panels after the default objects exist, even if another
+        // optional editor module could not initialize.
+        try {
+            this.ui.renderHierarchyPanel();
+            this.animationUI.refresh?.();
+        } catch (error) {
+            console.error('Editor panels failed to refresh:', error);
+        }
     }
 
     // Setup transform controls after camera is properly initialized
@@ -358,6 +395,12 @@ class StageApp {
         this.historyManager.executeCommand(addCommand);
     }
 
+    addShape2D(type) {
+        const mesh = this.factory.create2DShape(type);
+        const addCommand = new AddObjectCommand(this, mesh);
+        this.historyManager.executeCommand(addCommand);
+    }
+
     async addCharacter(type = 'xbot') {
         try {
             const characterCommand = new AddCharacterCommand(this, type);
@@ -377,11 +420,39 @@ class StageApp {
     addToScene(obj) {
         this.scene.add(obj);
         // Add to interactable objects list if it's a root selectable item
-        if (obj.userData.type === 'shape' || obj.userData.type === 'light') {
+        if (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light') {
             this.objects.push(obj);
         } else if (obj.userData.type === 'figure') {
             this.objects.push(obj); // Store the group as the main object
         }
+    }
+
+    addOutlineToObject(mesh, color, thickness) {
+        if (!mesh || !mesh.geometry) return null;
+        const existing = mesh.getObjectByName('outline');
+        if (existing) {
+            existing.geometry.dispose();
+            existing.material.dispose();
+            mesh.remove(existing);
+        }
+        const outlineMaterial = new THREE.MeshBasicMaterial({
+            color: color || 0x000000,
+            side: THREE.BackSide,
+            transparent: true,
+            opacity: 0.6,
+            depthTest: true,
+            depthWrite: true,
+        });
+        const outlineMesh = new THREE.Mesh(mesh.geometry, outlineMaterial);
+        outlineMesh.name = 'outline';
+        outlineMesh.renderOrder = 0;
+        outlineMesh.material.depthTest = true;
+        outlineMesh.material.depthWrite = true;
+        const s = 1 + (thickness || 0.02);
+        outlineMesh.scale.set(s, s, s);
+        outlineMesh.visible = true;
+        mesh.add(outlineMesh);
+        return outlineMesh;
     }
 
     // Get all objects including those in folders
@@ -402,15 +473,21 @@ class StageApp {
 
         // Find mesh to color
         let targetMesh = null;
-        if (obj.userData.type === 'shape') targetMesh = obj;
+        if (obj.userData.type === 'shape' || obj.userData.type === 'shape2d') targetMesh = obj;
         else if (obj.userData.name) targetMesh = obj.children.find(c => c.isMesh); // Limb
         else if (obj.userData.type === 'figure') targetMesh = obj.children.find(c => c.userData.name === 'Torso');
 
         if (targetMesh || obj.userData.type === 'figure') {
             if (obj.userData.type === 'figure') {
-                obj.traverse(c => { if (c.isMesh) c.material.color.set(hexColor); });
+                obj.traverse(c => {
+                    if (!c.isMesh) return;
+                    const materials = Array.isArray(c.material) ? c.material : [c.material];
+                    materials.forEach(material => material?.color?.set(hexColor));
+                });
             } else if (targetMesh) {
-                targetMesh.material.color.set(hexColor);
+                const materials = Array.isArray(targetMesh.material) ? targetMesh.material : [targetMesh.material];
+                const index = Math.min(targetMesh.userData.activeMaterialSlot || 0, materials.length - 1);
+                materials[index]?.color?.set(hexColor);
             }
             // Force UI update
             this.ui.renderPropertiesPanel(this.selectedObject);
@@ -514,7 +591,7 @@ class StageApp {
         // Track hover for scene objects
         const allSceneObjects = [];
         this.scene.traverse((obj) => {
-            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
                 allSceneObjects.push(obj);
             }
         });
@@ -546,14 +623,17 @@ class StageApp {
         
         // Apply hover highlight
         if (obj && obj.isMesh) {
-            this.originalColors.set(obj.uuid, obj.material.color.getHex());
-            obj.material.color.lerp(new THREE.Color(0xffffff), 0.15);
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            this.originalColors.set(obj.uuid, materials.map(material => material?.color?.getHex()));
+            materials.forEach(material => material?.color?.lerp(new THREE.Color(0xffffff), 0.15));
         }
     }
     
     restoreObjectColor(obj) {
         if (obj && obj.isMesh && this.originalColors.has(obj.uuid)) {
-            obj.material.color.setHex(this.originalColors.get(obj.uuid));
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            const colors = this.originalColors.get(obj.uuid);
+            materials.forEach((material, index) => material?.color?.setHex(colors[index]));
             this.originalColors.delete(obj.uuid);
         }
     }
@@ -579,17 +659,17 @@ class StageApp {
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
         
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        
+this.raycaster.setFromCamera(this.mouse, this.camera);
+
         const allSceneObjects = [];
         this.scene.traverse((obj) => {
-            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
                 allSceneObjects.push(obj);
             }
         });
-        
+
         const intersects = this.raycaster.intersectObjects(allSceneObjects, true);
-        
+
         if (intersects.length === 0) {
             this.deselect();
         }
@@ -629,22 +709,22 @@ class StageApp {
             }
         }
         
-        // Not over gizmo, check if we clicked on an object
+// Not over gizmo, check if we clicked on an object
         const allSceneObjects = [];
         this.scene.traverse((obj) => {
-            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
                 allSceneObjects.push(obj);
             }
         });
-        
+
         const intersects = this.raycaster.intersectObjects(allSceneObjects, true);
 
         if (intersects.length > 0) {
             let target = intersects[0].object;
-            
+
             // Walk up hierarchy to find root selectable object
             while (target.parent && target.parent !== this.scene) {
-                if (target.userData && (target.userData.type === 'shape' || target.userData.type === 'light' || target.userData.type === 'figure')) {
+                if (target.userData && (target.userData.type === 'shape' || target.userData.type === 'shape2d' || target.userData.type === 'light' || target.userData.type === 'figure')) {
                     break;
                 }
                 target = target.parent;
@@ -674,7 +754,7 @@ class StageApp {
         // This triggers UI update which now renders layers via LayerManager
         this.ui.updateUI(this.selectedObject);
 
-        if (this.animationUI) this.animationUI.onObjectSelected(obj);
+        if (this.animationUI) this.animationUI.onObjectSelected(this.selectedObject);
     }
 
     deselect() {
@@ -733,6 +813,22 @@ class StageApp {
     clearScene() {
         const clearCommand = new ClearSceneCommand(this);
         this.historyManager.executeCommand(clearCommand);
+    }
+
+    _clearSceneNow() {
+        this.deselect();
+        for (const object of [...this.objects]) {
+            this.physicsManager?.removeMesh(object);
+            this.scene.remove(object);
+        }
+        this.objects.length = 0;
+        if (this.layerManager?.folders) {
+            this.layerManager.folders.forEach(folder => { folder.objects = []; });
+        }
+        this.animationManager?.pause();
+        this.animationManager?.clips.clear();
+        this.animationManager?.seek(0);
+        this.ui.updateUI(null);
     }
 
     // --- LOOP ---
@@ -1033,6 +1129,40 @@ class StageApp {
         });
     }
 
+    setFog(enabled, colorHex, near, far) {
+        if (enabled) {
+            const color = colorHex ? new THREE.Color(colorHex) : new THREE.Color(0x2a2a4e);
+            this.scene.fog = new THREE.Fog(color, near ?? 30, far ?? 100);
+        } else {
+            this.scene.fog = null;
+        }
+    }
+
+    setGradientBackground(topColorHex, bottomColorHex) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        const topColor = new THREE.Color(topColorHex || '#1a1a2e');
+        const bottomColor = new THREE.Color(bottomColorHex || '#0f0f1b');
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 256);
+        gradient.addColorStop(0, `rgb(${Math.round(topColor.r * 255)}, ${Math.round(topColor.g * 255)}, ${Math.round(topColor.b * 255)})`);
+        gradient.addColorStop(1, `rgb(${Math.round(bottomColor.r * 255)}, ${Math.round(bottomColor.g * 255)}, ${Math.round(bottomColor.b * 255)})`);
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 2, 256);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        this.scene.background = texture;
+    }
+
+    clearGradientBackground() {
+        this.scene.background = new THREE.Color(0x2a2a4e);
+    }
+
     addDefaultTestObjects() {
         // Add a test box to verify the scene is working
         const testBox = this.factory.createShape('box');
@@ -1072,6 +1202,16 @@ class StageApp {
 
         // Update character animations
         this.characterManager.update(delta);
+
+        // Update physics simulation
+        if (this.physicsManager) {
+            this.physicsManager.update(delta);
+        }
+
+        // Update particle systems
+        if (this.particleManager) {
+            this.particleManager.update(delta);
+        }
 
         // Update orbit controls (only if initialized and enabled)
         if (this.orbit && this.orbit.enabled) {

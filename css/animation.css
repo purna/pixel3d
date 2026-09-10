@@ -121,7 +121,7 @@
 #anim-play { width: 30px; }
 
 /* Add-keyframe pill */
-#anim-add-kf {
+#anim-add-kf, #anim-add-object {
     display: flex; align-items: center; gap: 5px;
     padding: 0 10px; height: 26px;
     background: transparent;
@@ -134,7 +134,7 @@
     white-space: nowrap;
     transition: all .13s;
 }
-#anim-add-kf:hover {
+#anim-add-kf:hover, #anim-add-object:hover {
     background: var(--a-accent); color: #000;
     box-shadow: 0 0 10px var(--a-glow);
 }
@@ -143,6 +143,11 @@
     box-shadow: 0 0 20px var(--a-glow);
     transform: scale(1.07);
 }
+#anim-add-kf:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+#anim-add-object[hidden] { display: none; }
+
+.anim-kf-diamond { cursor: grab; touch-action: none; }
+.anim-kf-diamond.is-dragging { cursor: grabbing; z-index: 8; transform: translate(-50%, -50%) rotate(45deg) scale(1.3); }
 
 /* Meta inputs */
 .anim-meta {

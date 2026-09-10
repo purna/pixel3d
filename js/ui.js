@@ -1,8 +1,12 @@
+import * as THREE from 'three';
+import { hexToRgb, rgbToHex, rgbToHsl, hslToRgb, rgbToHsv, hsvToRgb } from './colorUtils.js';
+
 export class UI {
     constructor(app) {
         this.app = app;
         this.propsContent = document.getElementById('props-content');
-        this.layersList = document.getElementById('layers-list');
+        this.hierarchyList = document.getElementById('hierarchy-list');
+        this.layersList = this.hierarchyList;
         this.canvasContainer = document.getElementById('canvas-container');
 
         // Modal Elements
@@ -22,14 +26,46 @@ export class UI {
         this.sceneSettingsModal = document.getElementById('scene-settings-modal');
         this.sceneSettingsInitialized = false;
 
+        // Asset Management System
+        this.assets = {
+            materials: [],
+            textures: [],
+            colors: [],
+            images: [],
+            media: [],
+            audio: []
+        };
+        try {
+            const savedAssets = JSON.parse(localStorage.getItem('pixel3d-assets') || '{}');
+            Object.keys(this.assets).forEach(category => {
+                if (Array.isArray(savedAssets[category])) this.assets[category] = savedAssets[category];
+            });
+        } catch (error) {
+            console.warn('Could not load saved assets:', error);
+        }
+        this.assetIdCounter = 1;
+
         this.currentAIMode = 'scene';
     }
 
     init() {
-        this.setupEventListeners();
-        this.loadSettings();
         this.activeSubmenu = null; // Track currently open submenu
-        this.setupPanelTabs();
+        const initializers = [
+            ['event listeners', () => this.setupEventListeners()],
+            ['saved settings', () => this.loadSettings()],
+            ['panel tabs', () => this.setupPanelTabs()],
+            ['color editor', () => this.setupColorEditor()],
+            ['hierarchy', () => this.renderHierarchyPanel()],
+            ['assets', () => this.renderAssetsPanel('components')]
+        ];
+
+        initializers.forEach(([name, initialize]) => {
+            try {
+                initialize();
+            } catch (error) {
+                console.error(`Could not initialize UI ${name}:`, error);
+            }
+        });
     }
 
     setupEventListeners() {
@@ -168,32 +204,27 @@ export class UI {
 
         // Materials toolbar button
         document.getElementById('tool-materials')?.addEventListener('click', () => {
-            // Show panel if hidden when clicking materials button
-            const panel = document.getElementById('right-panel');
-            if (panel && panel.classList.contains('hidden')) {
-                this.togglePropertiesPanel();
-            }
-            this.toggleMaterialsView();
+            this.scrollToSection('section-scene');
         });
 
         // Scene settings toolbar button - now opens scene panel in right menu
         document.getElementById('tool-scene-settings')?.addEventListener('click', () => {
-            // Show panel if hidden when clicking scene settings button
-            const panel = document.getElementById('right-panel');
-            if (panel && panel.classList.contains('hidden')) {
-                this.togglePropertiesPanel();
-            }
-            this.toggleSceneView();
+            this.scrollToSection('section-scene');
         });
 
         // A-Frame export toolbar button
         document.getElementById('tool-aframe-export')?.addEventListener('click', () => {
-            // Show panel if hidden when clicking A-Frame export button
-            const panel = document.getElementById('right-panel');
-            if (panel && panel.classList.contains('hidden')) {
-                this.togglePropertiesPanel();
-            }
-            this.toggleAFrameView();
+            this.scrollToSection('section-scene');
+        });
+
+        // Particles toolbar button
+        document.getElementById('tool-particles')?.addEventListener('click', () => {
+            this.scrollToSection('section-scene');
+        });
+
+        // Physics toolbar button
+        document.getElementById('tool-physics')?.addEventListener('click', () => {
+            this.scrollToSection('section-scene');
         });
 
         // Settings toolbar button - now opens unified settings
@@ -280,6 +311,171 @@ export class UI {
                     }
                     break;
             }
+        });
+
+        // Collapsible sections
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const targetId = header.dataset.target;
+                const content = document.getElementById(targetId);
+                if (content) {
+                    header.classList.toggle('collapsed');
+                    content.classList.toggle('hidden');
+                }
+            });
+        });
+
+        // Right panel tabs
+        document.querySelectorAll('.right-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.right-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.right-tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                const target = document.getElementById(`tab-${tab.dataset.rightTab}`);
+                if (target) target.classList.add('active');
+
+                if (tab.dataset.rightTab === 'assets') {
+                    this.renderAssetsPanel('components');
+                } else if (tab.dataset.rightTab === 'hierarchy') {
+                    this.renderHierarchyPanel();
+                }
+            });
+        });
+
+        // Asset tabs (inside right panel)
+        document.querySelectorAll('#tab-assets .asset-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('#tab-assets .asset-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                this.renderAssetsPanel(tab.dataset.assetTab);
+            });
+        });
+
+        // Asset search
+        const assetSearch = document.getElementById('asset-search-input');
+        if (assetSearch) {
+            assetSearch.addEventListener('input', (e) => {
+                const activeTab = document.querySelector('#tab-assets .asset-tab.active');
+                this.renderAssetsPanel(activeTab?.dataset.assetTab || 'components', e.target.value);
+            });
+        }
+
+        // Asset modal event listeners
+        document.querySelectorAll('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modalType = btn.dataset.closeModal;
+                const typeMap = {
+                    'material-asset-modal': 'materials',
+                    'texture-asset-modal': 'textures',
+                    'color-asset-modal': 'colors',
+                    'image-asset-modal': 'images',
+                    'video-asset-modal': 'media',
+                    'audio-asset-modal': 'audio'
+                };
+                const type = typeMap[modalType];
+                if (type) this.closeAssetModal(type);
+            });
+        });
+
+        document.querySelectorAll('.modal-close-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = btn.closest('.modal-overlay');
+                const modalType = modal?.id;
+                const typeMap = {
+                    'material-asset-modal': 'materials',
+                    'texture-asset-modal': 'textures',
+                    'color-asset-modal': 'colors',
+                    'image-asset-modal': 'images',
+                    'video-asset-modal': 'media',
+                    'audio-asset-modal': 'audio'
+                };
+                const type = typeMap[modalType];
+                if (type) this.closeAssetModal(type);
+            });
+        });
+
+        // Save buttons
+        const saveBtnMap = {
+            'material-asset-save': 'materials',
+            'texture-asset-save': 'textures',
+            'color-asset-save': 'colors',
+            'image-asset-save': 'images',
+            'video-asset-save': 'media',
+            'audio-asset-save': 'audio'
+        };
+
+        Object.entries(saveBtnMap).forEach(([btnId, type]) => {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                btn.addEventListener('click', () => this.saveAsset(type));
+            }
+        });
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    const modalType = overlay.id;
+                    const typeMap = {
+                        'material-asset-modal': 'materials',
+                        'texture-asset-modal': 'textures',
+                        'color-asset-modal': 'colors',
+                        'image-asset-modal': 'images',
+                        'video-asset-modal': 'media',
+                        'audio-asset-modal': 'audio'
+                    };
+                    const type = typeMap[modalType];
+                    if (type) this.closeAssetModal(type);
+                }
+            });
+        });
+    }
+
+    // --- DRAG-TO-ADJUST NUMBER INPUTS ---
+    enableDragAdjust(input) {
+        if (!input || input.type !== 'number') return;
+
+        let startX = 0;
+        let startValue = 0;
+        let isDragging = false;
+
+        const getStep = () => {
+            const step = parseFloat(input.step);
+            return step > 0 ? step : 0.1;
+        };
+
+        input.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startValue = parseFloat(input.value) || 0;
+            input.style.cursor = 'ew-resize';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging || input !== document.activeElement) return;
+            e.preventDefault();
+
+            const deltaX = e.clientX - startX;
+            const step = getStep();
+            const sensitivity = step * 0.1;
+            const newValue = startValue + deltaX * sensitivity;
+
+            input.value = newValue.toFixed(2);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                input.style.cursor = '';
+            }
+        });
+    }
+
+    enableDragAdjustForContainer(container) {
+        if (!container) return;
+        container.querySelectorAll('input[type="number"]').forEach(input => {
+            this.enableDragAdjust(input);
         });
     }
 
@@ -409,6 +605,14 @@ export class UI {
             : {
                 backgroundEnabled: true,
                 backgroundColor: '#1a1a2e',
+                backgroundGradient: false,
+                gradientTop: '#1a1a2e',
+                gradientBottom: '#0f0f1b',
+                fogEnabled: false,
+                fogColor: '#1a1a2e',
+                fogNear: 20,
+                fogFar: 100,
+                fogMatchBg: false,
                 ambientLight: true,
                 ambientColor: '#ffffff',
                 exportTransparent: false,
@@ -420,6 +624,14 @@ export class UI {
         // Apply defaults to UI
         document.getElementById('setting-background-enabled').checked = defaults.backgroundEnabled;
         document.getElementById('setting-background-color').value = defaults.backgroundColor;
+        document.getElementById('setting-background-gradient').checked = defaults.backgroundGradient || false;
+        document.getElementById('setting-gradient-top').value = defaults.gradientTop || '#1a1a2e';
+        document.getElementById('setting-gradient-bottom').value = defaults.gradientBottom || '#0f0f1b';
+        document.getElementById('setting-fog-enabled').checked = defaults.fogEnabled || false;
+        document.getElementById('setting-fog-color').value = defaults.fogColor || '#1a1a2e';
+        document.getElementById('setting-fog-near').value = defaults.fogNear || 20;
+        document.getElementById('setting-fog-far').value = defaults.fogFar || 100;
+        document.getElementById('setting-fog-match-bg').checked = defaults.fogMatchBg || false;
         document.getElementById('setting-ambient-light').checked = defaults.ambientLight;
         document.getElementById('setting-ambient-color').value = defaults.ambientColor;
         document.getElementById('setting-export-transparent').checked = defaults.exportTransparent;
@@ -427,12 +639,22 @@ export class UI {
         document.getElementById('setting-custom-width').value = defaults.customWidth;
         document.getElementById('setting-custom-height').value = defaults.customHeight;
 
+        // Update slider value displays
+        const fogNearValue = document.getElementById('fog-near-value');
+        const fogFarValue = document.getElementById('fog-far-value');
+        if (fogNearValue) fogNearValue.textContent = defaults.fogNear || 20;
+        if (fogFarValue) fogFarValue.textContent = defaults.fogFar || 100;
+
         // Hide custom resolution group if not custom
         document.getElementById('custom-resolution-group').style.display = 'none';
 
         // Apply defaults to canvas scene
         if (this.app.setBackgroundColor) {
             this.app.setBackgroundColor(defaults.backgroundColor);
+        }
+
+        if (this.app.setFog) {
+            this.app.setFog(false, defaults.fogColor, defaults.fogNear, defaults.fogFar);
         }
 
         this.showNotification('Scene settings reset to defaults!', 'success');
@@ -446,6 +668,16 @@ export class UI {
             // Set UI values
             const bgEnabledEl = document.getElementById('setting-background-enabled');
             const bgColorEl = document.getElementById('setting-background-color');
+            const bgGradientEl = document.getElementById('setting-background-gradient');
+            const gradientTopEl = document.getElementById('setting-gradient-top');
+            const gradientBottomEl = document.getElementById('setting-gradient-bottom');
+            const fogEnabledEl = document.getElementById('setting-fog-enabled');
+            const fogColorEl = document.getElementById('setting-fog-color');
+            const fogNearEl = document.getElementById('setting-fog-near');
+            const fogFarEl = document.getElementById('setting-fog-far');
+            const fogMatchBgEl = document.getElementById('setting-fog-match-bg');
+            const fogNearValue = document.getElementById('fog-near-value');
+            const fogFarValue = document.getElementById('fog-far-value');
             const ambientEl = document.getElementById('setting-ambient-light');
             const ambientColorEl = document.getElementById('setting-ambient-color');
             const transparentEl = document.getElementById('setting-export-transparent');
@@ -455,6 +687,16 @@ export class UI {
 
             if (bgEnabledEl) bgEnabledEl.checked = settings.backgroundEnabled !== false;
             if (bgColorEl) bgColorEl.value = settings.backgroundColor || '#1a1a2e';
+            if (bgGradientEl) bgGradientEl.checked = settings.backgroundGradient || false;
+            if (gradientTopEl) gradientTopEl.value = settings.gradientTop || '#1a1a2e';
+            if (gradientBottomEl) gradientBottomEl.value = settings.gradientBottom || '#0f0f1b';
+            if (fogEnabledEl) fogEnabledEl.checked = settings.fogEnabled || false;
+            if (fogColorEl) fogColorEl.value = settings.fogColor || '#1a1a2e';
+            if (fogNearEl) fogNearEl.value = settings.fogNear || 20;
+            if (fogFarEl) fogFarEl.value = settings.fogFar || 100;
+            if (fogMatchBgEl) fogMatchBgEl.checked = settings.fogMatchBg || false;
+            if (fogNearValue) fogNearValue.textContent = settings.fogNear || 20;
+            if (fogFarValue) fogFarValue.textContent = settings.fogFar || 100;
             if (ambientEl) ambientEl.checked = settings.ambientLight !== false;
             if (ambientColorEl) ambientColorEl.value = settings.ambientColor || '#ffffff';
             if (transparentEl) transparentEl.checked = settings.exportTransparent !== false;
@@ -472,25 +714,44 @@ export class UI {
 
     applySceneSettings() {
         const settings = {
-            backgroundEnabled: document.getElementById('setting-background-enabled').checked,
-            backgroundColor: document.getElementById('setting-background-color').value,
-            ambientLight: document.getElementById('setting-ambient-light').checked,
-            ambientColor: document.getElementById('setting-ambient-color').value,
-            exportTransparent: document.getElementById('setting-export-transparent').checked,
-            exportResolution: document.getElementById('setting-export-resolution').value,
-            customWidth: parseInt(document.getElementById('setting-custom-width').value),
-            customHeight: parseInt(document.getElementById('setting-custom-height').value),
+            backgroundEnabled: document.getElementById('setting-background-enabled')?.checked ?? true,
+            backgroundColor: document.getElementById('setting-background-color')?.value ?? '#1a1a2e',
+            backgroundGradient: document.getElementById('setting-background-gradient')?.checked ?? false,
+            gradientTop: document.getElementById('setting-gradient-top')?.value ?? '#1a1a2e',
+            gradientBottom: document.getElementById('setting-gradient-bottom')?.value ?? '#0f0f1b',
+            fogEnabled: document.getElementById('setting-fog-enabled')?.checked ?? false,
+            fogColor: document.getElementById('setting-fog-color')?.value ?? '#1a1a2e',
+            fogNear: parseInt(document.getElementById('setting-fog-near')?.value ?? 30),
+            fogFar: parseInt(document.getElementById('setting-fog-far')?.value ?? 100),
+            fogMatchBg: document.getElementById('setting-fog-match-bg')?.checked ?? false,
+            ambientLight: document.getElementById('setting-ambient-light')?.checked ?? true,
+            ambientColor: document.getElementById('setting-ambient-color')?.value ?? '#ffffff',
+            exportTransparent: document.getElementById('setting-export-transparent')?.checked ?? false,
+            exportResolution: document.getElementById('setting-export-resolution')?.value ?? '1920x1080',
+            customWidth: parseInt(document.getElementById('setting-custom-width')?.value ?? 1920),
+            customHeight: parseInt(document.getElementById('setting-custom-height')?.value ?? 1080),
             exportIncludeLights: document.getElementById('export-include-lights')?.checked ?? true
         };
 
         // Save settings
         localStorage.setItem('pixel3d-scene-settings', JSON.stringify(settings));
 
-        // Apply settings to the scene
-        if (this.app.setBackgroundColor) {
+        // Apply background settings
+        if (settings.backgroundGradient) {
+            if (this.app.setGradientBackground) {
+                this.app.setGradientBackground(settings.gradientTop, settings.gradientBottom);
+            }
+        } else if (this.app.setBackgroundColor) {
             this.app.setBackgroundColor(settings.backgroundEnabled ? settings.backgroundColor : null);
         }
 
+        // Apply fog settings
+        const fogColor = settings.fogMatchBg ? settings.backgroundColor : settings.fogColor;
+        if (this.app.setFog) {
+            this.app.setFog(settings.fogEnabled, fogColor, settings.fogNear, settings.fogFar);
+        }
+
+        // Apply ambient light
         if (this.app.setAmbientLight) {
             this.app.setAmbientLight(settings.ambientLight, settings.ambientColor);
         }
@@ -507,44 +768,42 @@ export class UI {
         this.showNotification('Scene settings applied successfully!', 'success');
     }
 
-    toggleMaterialsView() {
-        const materialsSection = document.getElementById('materials-section');
-        const sceneSection = document.getElementById('scene-section');
-        const propsContent = document.getElementById('props-content');
-        const layersList = document.getElementById('layers-list');
-
-        if (materialsSection && sceneSection && propsContent && layersList) {
-            const isMaterialsVisible = materialsSection.style.display !== 'none';
-
-            if (isMaterialsVisible) {
-                // Switch to normal view
-                materialsSection.style.display = 'none';
-                sceneSection.style.display = 'none';
-                propsContent.style.display = 'block';
-                layersList.style.display = 'block';
-                document.querySelectorAll('.panel-header').forEach(header => {
-                    header.style.display = 'flex';
-                });
-            } else {
-                // Switch to materials view
-                materialsSection.style.display = 'flex';
-                sceneSection.style.display = 'none';
-                propsContent.style.display = 'none';
-                layersList.style.display = 'none';
-                document.querySelectorAll('.panel-header').forEach((header, index) => {
-                    if (index === 2) { // Materials header
-                        header.style.display = 'flex';
-                    } else {
-                        header.style.display = 'none';
-                    }
-                });
-            }
-
-            // Update materials content
-            if (this.app.materialsManager) {
-                this.app.materialsManager.renderMaterialsSection();
-            }
+    scrollToSection(sectionId) {
+        const panel = document.getElementById('right-panel');
+        if (panel && panel.classList.contains('hidden')) {
+            this.togglePropertiesPanel();
         }
+
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+
+        const panelScroll = panel.querySelector('.right-panel-scroll');
+        if (!panelScroll) return;
+
+        const panelRect = panel.getBoundingClientRect();
+        const sectionRect = section.getBoundingClientRect();
+        const offset = sectionRect.top - panelRect.top + panelScroll.scrollTop - 10;
+
+        panelScroll.scrollTo({
+            top: offset,
+            behavior: 'smooth'
+        });
+
+        // Initialize section content if needed
+        if (sectionId === 'section-materials' && this.app.materialsManager) {
+            this.app.materialsManager.renderMaterialsSection();
+        } else if (sectionId === 'section-scene') {
+            this.initSceneExport();
+        } else if (sectionId === 'section-aframe') {
+            this.initAFrameExport();
+        } else if (sectionId === 'section-particles') {
+            this.initParticleSystems();
+        } else if (sectionId === 'section-physics') {
+            this.initPhysicsControls();
+        }
+
+        // Enable drag-to-adjust for number inputs in this section
+        this.enableDragAdjustForContainer(section);
     }
 
     setupPanelTabs() {
@@ -566,6 +825,1391 @@ export class UI {
                     this.app.layerManager.render();
                 }
             });
+        });
+    }
+
+    renderHierarchyPanel() {
+        const container = document.getElementById('hierarchy-list');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (!this.app.layerManager) return;
+
+        // Use layer manager to render into the new hierarchy container
+        const originalContainer = this.app.layerManager.container;
+        this.app.layerManager.container = container;
+        this.app.layerManager.render();
+        this.app.layerManager.container = originalContainer;
+    }
+
+    generateMaterialPreview(colorHex, metalness = 0.2, roughness = 0.3, opacity = 1, clearcoat = 0, transmission = 0, sheen = 0, alpha = 1, size = 96) {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        let r = 136, g = 136, b = 136;
+        if (typeof colorHex === 'string' && colorHex) {
+            if (colorHex.startsWith('#')) {
+                const hex = colorHex.replace('#', '');
+                if (hex.length === 3) {
+                    r = parseInt(hex[0] + hex[0], 16);
+                    g = parseInt(hex[1] + hex[1], 16);
+                    b = parseInt(hex[2] + hex[2], 16);
+                } else if (hex.length >= 6) {
+                    r = parseInt(hex.substr(0, 2), 16);
+                    g = parseInt(hex.substr(2, 2), 16);
+                    b = parseInt(hex.substr(4, 2), 16);
+                }
+            } else {
+                const match = colorHex.match(/[\d.]+/g);
+                if (match && match.length >= 3) {
+                    r = parseInt(match[0], 10);
+                    g = parseInt(match[1], 10);
+                    b = parseInt(match[2], 10);
+                }
+            }
+        }
+
+        const clamp = (v) => Math.max(0, Math.min(255, v));
+        const normalize = (value) => {
+            const number = Number(value);
+            return Number.isFinite(number) ? Math.max(0, Math.min(1, number)) : 0;
+        };
+        const normalizeOpacity = (value) => {
+            const number = Number(value);
+            if (!Number.isFinite(number)) return 1;
+            const normalized = number > 1 ? number / 100 : number;
+            return Math.max(0, Math.min(1, normalized));
+        };
+        const metal = normalize(metalness);
+        const rough = normalize(roughness);
+        const opacityLevel = normalizeOpacity(opacity);
+        const coat = normalize(clearcoat);
+        const transmit = normalize(transmission);
+        const sheenLevel = normalize(sheen);
+        const alphaLevel = normalize(alpha);
+        const effectiveAlpha = opacityLevel * alphaLevel;
+
+        const cx = size / 2;
+        const cy = size / 2;
+        const radius = size * 0.36;
+
+        const sphere = document.createElement('canvas');
+        sphere.width = sphere.height = size;
+        const sctx = sphere.getContext('2d');
+
+        const baseGrad = sctx.createRadialGradient(
+            cx - radius * 0.45, cy - radius * 0.45, radius * 0.08,
+            cx, cy, radius
+        );
+        const lightBoost = 1 + (1 - rough) * 0.35;
+        const darkFactor = 0.25 + rough * 0.35;
+        baseGrad.addColorStop(0, `rgb(${clamp(r * lightBoost)}, ${clamp(g * lightBoost)}, ${clamp(b * lightBoost)})`);
+        baseGrad.addColorStop(0.55, `rgb(${r}, ${g}, ${b})`);
+        baseGrad.addColorStop(1, `rgb(${clamp(r * darkFactor)}, ${clamp(g * darkFactor)}, ${clamp(b * darkFactor)})`);
+
+        sctx.beginPath();
+        sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        sctx.fillStyle = baseGrad;
+        sctx.fill();
+
+        const specStrength = Math.min(1, (1 - rough * 0.85) * (0.3 + metal * 0.7) + coat * 0.25);
+        const specRadius = radius * (0.16 + rough * 0.42 - coat * 0.04);
+        const specX = cx - radius * 0.38;
+        const specY = cy - radius * 0.42;
+        const specGrad = sctx.createRadialGradient(specX, specY, 0, specX, specY, specRadius);
+        const specR = clamp(200 + (r - 200) * metal * 0.5);
+        const specG = clamp(200 + (g - 200) * metal * 0.5);
+        const specB = clamp(200 + (b - 200) * metal * 0.5);
+        specGrad.addColorStop(0, `rgba(${specR}, ${specG}, ${specB}, ${specStrength})`);
+        specGrad.addColorStop(1, `rgba(${specR}, ${specG}, ${specB}, 0)`);
+        sctx.beginPath();
+        sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        sctx.save();
+        sctx.clip();
+        sctx.fillStyle = specGrad;
+        sctx.fillRect(0, 0, size, size);
+        sctx.restore();
+
+        if (coat > 0) {
+            const coatGrad = sctx.createRadialGradient(specX + radius * 0.16, specY + radius * 0.12, 0, specX + radius * 0.16, specY + radius * 0.12, radius * (0.18 + rough * 0.12));
+            coatGrad.addColorStop(0, `rgba(255,255,255,${0.35 * coat * (1 - rough * 0.45)})`);
+            coatGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            sctx.beginPath();
+            sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            sctx.save();
+            sctx.clip();
+            sctx.fillStyle = coatGrad;
+            sctx.fillRect(0, 0, size, size);
+            sctx.restore();
+        }
+
+        if (transmit > 0) {
+            const glassGrad = sctx.createRadialGradient(cx - radius * 0.28, cy - radius * 0.3, 0, cx, cy, radius);
+            glassGrad.addColorStop(0, `rgba(255,255,255,${0.35 * transmit})`);
+            glassGrad.addColorStop(0.55, `rgba(255,255,255,${0.08 * transmit})`);
+            glassGrad.addColorStop(1, `rgba(255,255,255,${0.18 * transmit})`);
+            sctx.beginPath();
+            sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            sctx.save();
+            sctx.clip();
+            sctx.fillStyle = glassGrad;
+            sctx.fillRect(0, 0, size, size);
+            sctx.restore();
+        }
+
+        if (sheenLevel > 0) {
+            const sheenGrad = sctx.createRadialGradient(cx, cy, radius * 0.58, cx, cy, radius);
+            sheenGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+            sheenGrad.addColorStop(0.82, `rgba(${r}, ${g}, ${b}, ${0.18 * sheenLevel})`);
+            sheenGrad.addColorStop(1, `rgba(${clamp(r * 1.35)}, ${clamp(g * 1.35)}, ${clamp(b * 1.35)}, ${0.28 * sheenLevel})`);
+            sctx.beginPath();
+            sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            sctx.save();
+            sctx.clip();
+            sctx.fillStyle = sheenGrad;
+            sctx.fillRect(0, 0, size, size);
+            sctx.restore();
+        }
+
+        const rimGrad = sctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, radius);
+        rimGrad.addColorStop(0, 'rgba(255,255,255,0)');
+        rimGrad.addColorStop(0.85, `rgba(255,255,255,${0.05 + (1 - rough) * 0.12})`);
+        rimGrad.addColorStop(1, 'rgba(255,255,255,0)');
+        sctx.beginPath();
+        sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        sctx.save();
+        sctx.clip();
+        sctx.fillStyle = rimGrad;
+        sctx.fillRect(0, 0, size, size);
+        sctx.restore();
+
+        const square = size / 4;
+        for (let y = 0; y < 4; y++) {
+            for (let x = 0; x < 4; x++) {
+                ctx.fillStyle = (x + y) % 2 === 0 ? '#2a2a35' : '#1c1c24';
+                ctx.fillRect(x * square, y * square, square, square);
+            }
+        }
+
+        ctx.save();
+        ctx.globalAlpha = effectiveAlpha;
+        ctx.drawImage(sphere, 0, 0);
+        ctx.restore();
+
+        return canvas.toDataURL('image/png');
+    }
+
+    renderAssetsPanel(tab = 'components', searchQuery = '') {
+        const container = document.getElementById('assets-list');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        // Components are Unity-style behaviours. None are defined yet.
+        if (tab === 'components') {
+            container.innerHTML = '<div class="empty-state"><p>No components have been defined yet.</p><br><p>Components will add reusable behaviours to scene objects.</p></div>';
+            return;
+        }
+
+        if (tab === 'materials') this.syncPresetMaterialAssets();
+
+        // For managed asset categories (materials, colors, images, media, audio)
+        // Add button at top
+        const addBtn = document.createElement('div');
+        addBtn.className = 'asset-add-btn';
+        addBtn.innerHTML = `<i class="fas fa-plus"></i> Add ${tab.slice(0, -1)}`;
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openAssetModal(tab);
+        });
+        container.appendChild(addBtn);
+
+        const query = searchQuery.toLowerCase().trim();
+
+        // Get assets from management system
+        let assets = this.assets[tab] || [];
+
+        // Filter by search query
+        const filtered = query ? assets.filter(item => item.name.toLowerCase().includes(query)) : assets;
+
+        filtered.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'asset-item';
+
+            let iconHtml = '';
+            if (tab === 'colors') {
+                iconHtml = `<div class="asset-item-icon" style="background-color: ${item.hex || '#888888'};"></div>`;
+            } else if (tab === 'materials') {
+                iconHtml = item.preview
+                    ? `<div class="asset-item-icon material-asset-preview-icon" style="background-image:url('${item.preview}');background-size:cover"></div>`
+                    : `<div class="asset-item-icon" style="background-color: ${item.color || '#888888'};"></div>`;
+            } else if (tab === 'textures') {
+                iconHtml = item.preview ? `<div class="asset-item-icon" style="background-image:url('${item.preview}');background-size:cover"></div>` : `<div class="asset-item-icon"><i class="fas fa-border-all"></i></div>`;
+            } else if (tab === 'images') {
+                iconHtml = `<div class="asset-item-icon"><i class="fas fa-image"></i></div>`;
+            } else if (tab === 'media') {
+                iconHtml = `<div class="asset-item-icon"><i class="fas fa-video"></i></div>`;
+            } else if (tab === 'audio') {
+                iconHtml = `<div class="asset-item-icon"><i class="fas fa-volume-up"></i></div>`;
+            } else {
+                const iconClass = item.icon || 'fa-cube';
+                iconHtml = `<div class="asset-item-icon"><i class="fas ${iconClass}"></i></div>`;
+            }
+
+            el.innerHTML = `
+                ${iconHtml}
+                <div class="asset-item-details">
+                    <div class="asset-item-name" data-asset-id="${item.id}" data-asset-tab="${tab}">${item.name}</div>
+                    ${(tab === 'textures' && item.layer?.type) ? `<div class="asset-item-url">${item.layer.type}</div>` : ''}
+                    ${(tab === 'images' || tab === 'media' || tab === 'audio') && item.url ? `<div class="asset-item-url">${item.url}</div>` : ''}
+                </div>
+                <button class="asset-item-delete" data-asset-id="${item.id}" data-asset-tab="${tab}" title="Delete">&times;</button>
+            `;
+
+            // Name editing on click
+            const nameEl = el.querySelector('.asset-item-name');
+            nameEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                nameEl.contentEditable = true;
+                nameEl.classList.add('editing');
+                nameEl.focus();
+                // Select all text
+                const range = document.createRange();
+                range.selectNodeContents(nameEl);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+
+                const finishEdit = () => {
+                    nameEl.contentEditable = false;
+                    nameEl.classList.remove('editing');
+                    const newName = nameEl.textContent.trim();
+                    if (newName) {
+                        this.updateAsset(tab, item.id, { name: newName });
+                    } else {
+                        nameEl.textContent = item.name;
+                    }
+                    nameEl.removeEventListener('blur', finishEdit);
+                    nameEl.removeEventListener('keydown', handleKey);
+                };
+
+                const handleKey = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        finishEdit();
+                    } else if (e.key === 'Escape') {
+                        nameEl.textContent = item.name;
+                        finishEdit();
+                    }
+                };
+
+                nameEl.addEventListener('blur', finishEdit);
+                nameEl.addEventListener('keydown', handleKey);
+            });
+
+            // Open edit modal on item click (but not on name edit or delete)
+            el.addEventListener('click', (e) => {
+                if (e.target === nameEl && nameEl.isContentEditable) return;
+                if (e.target.closest('.asset-item-delete')) return;
+                this.openAssetModal(tab, item.id);
+            });
+
+            // Delete button
+            const deleteBtn = el.querySelector('.asset-item-delete');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteAsset(tab, item.id);
+            });
+
+            container.appendChild(el);
+        });
+    }
+
+    // --- ASSET MANAGEMENT ---
+    syncPresetMaterialAssets() {
+        for (const material of this.app.materialsManager?.materials || []) {
+            const stableId = material.sourceAssetId || `preset-${material.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+            const existing = this.assets.materials.find(asset => asset.id === stableId);
+            material.sourceAssetId = stableId;
+            if (existing) { existing.materialId = material.id; continue; }
+            const color = `#${material.color.toString(16).padStart(6, '0')}`;
+            this.assets.materials.push({
+                id: stableId, materialId: material.id, preset: stableId.startsWith('preset-'),
+                type: 'materials', name: material.name, color,
+                metalness: material.metalness, roughness: material.roughness, opacity: (material.opacity ?? 1) * 100,
+                clearcoat: material.clearcoat || 0, transmission: material.transmission || 0, sheen: material.sheen || 0,
+                layers: (material.textureLayers || []).map(layer => ({ ...layer })),
+                preview: this.generateMaterialPreview(color, material.metalness, material.roughness, material.opacity ?? 1, material.clearcoat || 0, material.transmission || 0, material.sheen || 0, 1)
+            });
+        }
+        for (const asset of this.assets.materials) this.app.materialsManager?.compileAssetMaterial(asset);
+        this.saveAssetLibrary();
+    }
+
+    generateAssetId() {
+        return `asset-${this.assetIdCounter++}-${Date.now()}`;
+    }
+
+    addAsset(type, data) {
+        const category = type;
+        const asset = {
+            id: this.generateAssetId(),
+            name: data.name || `New ${type.slice(0, -1)}`,
+            type: type,
+            ...data
+        };
+        this.assets[category].push(asset);
+        this.saveAssetLibrary();
+        this.renderAssetsPanel(category);
+        return asset;
+    }
+
+    updateAsset(type, id, data) {
+        const category = type;
+        const index = this.assets[category].findIndex(a => a.id === id);
+        if (index !== -1) {
+            this.assets[category][index] = { ...this.assets[category][index], ...data };
+            this.saveAssetLibrary();
+            this.renderAssetsPanel(category);
+            return this.assets[category][index];
+        }
+        return null;
+    }
+
+    deleteAsset(type, id) {
+        const category = type;
+        this.assets[category] = this.assets[category].filter(a => a.id !== id);
+        this.saveAssetLibrary();
+        this.renderAssetsPanel(category);
+    }
+
+    getAsset(type, id) {
+        const category = type;
+        return this.assets[category].find(a => a.id === id);
+    }
+
+    saveAssetLibrary() {
+        try {
+            localStorage.setItem('pixel3d-assets', JSON.stringify(this.assets));
+        } catch (error) {
+            this.showNotification('Asset library is too large to save in this browser', 'warning');
+        }
+    }
+
+    syncLightAsset(obj) {
+        const lightObj = obj.children[0];
+        if (!lightObj || !obj.userData.lightType) return;
+
+        const existing = this.assets.colors.find(a => a.lightUuid === obj.uuid);
+        const data = {
+            name: obj.userData.name || `${obj.userData.lightType} light`,
+            hex: '#' + lightObj.color.getHexString(),
+            intensity: lightObj.intensity,
+            castShadow: lightObj.castShadow,
+            lightUuid: obj.uuid
+        };
+
+        if (existing) {
+            this.updateAsset('colors', existing.id, data);
+        } else {
+            this.addAsset('colors', data);
+        }
+    }
+
+    openAssetModal(type, assetId = null) {
+        const modalMap = {
+            materials: 'material-asset-modal',
+            textures: 'texture-asset-modal',
+            colors: 'color-asset-modal',
+            images: 'image-asset-modal',
+            media: 'video-asset-modal',
+            audio: 'audio-asset-modal'
+        };
+
+        const modalId = modalMap[type];
+        if (!modalId) return;
+
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        // Get asset data if editing
+        const asset = assetId ? this.getAsset(type, assetId) : null;
+
+        // Reset form fields
+        this.resetAssetModal(type, assetId);
+
+        // Initialize material color picker
+        if (type === 'materials') {
+            const colorPicker = document.getElementById('material-color-picker');
+            const preview = document.getElementById('material-preview-color');
+            const updatePreview = () => {
+                if (!preview) return;
+                const color = colorPicker?.value || '#888888';
+                const metalness = parseFloat(document.getElementById('material-metalness')?.value ?? 0.2);
+                const roughness = parseFloat(document.getElementById('material-roughness')?.value ?? 0.3);
+                const opacity = parseFloat(document.getElementById('material-opacity')?.value ?? 100);
+                const alpha = parseFloat(document.getElementById('material-alpha')?.value ?? 1);
+                const clearcoat = parseFloat(document.getElementById('material-clearcoat')?.value ?? 0);
+                const transmission = parseFloat(document.getElementById('material-transmission')?.value ?? 0);
+                const sheen = parseFloat(document.getElementById('material-sheen')?.value ?? 0);
+                preview.style.backgroundImage = `url('${this.generateMaterialPreview(color, metalness, roughness, opacity, clearcoat, transmission, sheen, alpha)}')`;
+                preview.style.backgroundColor = color;
+            };
+            if (colorPicker && preview) {
+                const rgbToHex = (rgb) => {
+                    const match = rgb.match(/\d+/g);
+                    if (!match || match.length < 3) return '#888888';
+                    return '#' + match.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+                };
+                const currentColor = preview.style.backgroundColor || 'rgb(136, 136, 136)';
+                colorPicker.value = rgbToHex(currentColor);
+                colorPicker.addEventListener('input', () => {
+                    updatePreview();
+                });
+            }
+
+            const lightingSlider = document.getElementById('material-lighting');
+            const lightingValue = document.getElementById('material-lighting-value');
+            if (lightingSlider && lightingValue) {
+                lightingSlider.value = asset?.lighting || 0;
+                lightingValue.textContent = asset?.lighting || 0;
+                lightingSlider.addEventListener('input', (e) => {
+                    lightingValue.textContent = e.target.value;
+                });
+            }
+
+            const opacitySlider = document.getElementById('material-opacity');
+            const opacityValue = document.getElementById('material-opacity-value');
+            if (opacitySlider && opacityValue) {
+                opacitySlider.value = asset?.opacity || 100;
+                opacityValue.textContent = asset?.opacity || 100;
+                opacitySlider.addEventListener('input', (e) => {
+                    opacityValue.textContent = e.target.value;
+                    updatePreview();
+                });
+            }
+
+            const alphaInput = document.getElementById('material-alpha');
+            if (alphaInput) {
+                alphaInput.addEventListener('input', () => {
+                    updatePreview();
+                });
+            }
+
+            const depthSelect = document.getElementById('material-depth');
+            if (depthSelect) {
+                depthSelect.value = asset?.depth || 'none';
+                depthSelect.onchange = () => {
+                    if (depthSelect.value === 'none') return;
+                    const layers = this.collectMaterialTextureLayers();
+                    layers.push(this.defaultTextureLayer(depthSelect.value));
+                    this.renderMaterialTextureLayers(layers);
+                    depthSelect.value = 'none';
+                };
+            }
+
+            this.renderMaterialTextureLayers(asset?.layers || []);
+
+            const materialValues = {
+                metalness: asset?.metalness ?? 0.2, roughness: asset?.roughness ?? 0.3,
+                clearcoat: asset?.clearcoat ?? 0, transmission: asset?.transmission ?? 0, sheen: asset?.sheen ?? 0
+            };
+            Object.entries(materialValues).forEach(([key, value]) => {
+                const input = document.getElementById(`material-${key}`);
+                const output = document.getElementById(`material-${key}-value`);
+                if (input) input.value = value;
+                if (output) output.textContent = Number(value).toFixed(2);
+                if (input) input.oninput = () => {
+                    if (output) output.textContent = Number(input.value).toFixed(2);
+                    updatePreview();
+                };
+            });
+        }
+
+        if (type === 'textures') this.initTextureAssetEditor(asset);
+
+        // Initialize color editor
+        if (type === 'colors') {
+            this.initColorEditor(asset);
+        }
+
+        // Add layer button for materials
+        if (type === 'materials') {
+            const addLayerBtn = document.getElementById('add-material-layer-btn');
+            if (addLayerBtn) {
+                addLayerBtn.onclick = () => {
+                    const layers = this.collectMaterialTextureLayers();
+                    layers.push(this.defaultTextureLayer('color'));
+                    this.renderMaterialTextureLayers(layers);
+                };
+            }
+        }
+
+        // Show modal
+        modal.classList.add('open');
+
+        // Store current editing asset id
+        modal.dataset.editingAssetId = assetId || '';
+        modal.dataset.editingAssetType = type;
+    }
+
+    closeAssetModal(type) {
+        const modalMap = {
+            materials: 'material-asset-modal',
+            textures: 'texture-asset-modal',
+            colors: 'color-asset-modal',
+            images: 'image-asset-modal',
+            media: 'video-asset-modal',
+            audio: 'audio-asset-modal'
+        };
+
+        const modalId = modalMap[type];
+        if (!modalId) return;
+
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('open');
+            delete modal.dataset.editingAssetId;
+            delete modal.dataset.editingAssetType;
+        }
+    }
+
+    initColorEditor(asset) {
+        let hsl = { h: 0, s: 0, l: 50 };
+        let a = 1;
+
+        if (asset) {
+            if (asset.hsl) {
+                hsl = { ...asset.hsl };
+            } else if (asset.hex) {
+                const rgb = hexToRgb(asset.hex);
+                hsl = rgbToHsl(rgb);
+            }
+            a = asset.alpha ?? 1;
+        }
+
+        this._colorEditorState = { ...hsl, a };
+        this.updateColorEditorUI();
+        this.setupColorFormatSelector();
+    }
+
+    setupColorEditor() {
+        this.setupSLPicker();
+        this.setupColorSlider('hue-slider', 0, 360, (v) => {
+            this._colorEditorState.h = v;
+            this.updateColorEditorUI();
+        });
+        this.setupColorSlider('saturation-slider', 0, 100, (v) => {
+            this._colorEditorState.s = v;
+            this.updateColorEditorUI();
+        });
+        this.setupColorSlider('transparency-slider', 0, 100, (v) => {
+            this._colorEditorState.a = v / 100;
+            this.updateColorEditorUI();
+        });
+
+        this.setupColorValueInputs();
+        this.setupColorEyedropper();
+    }
+
+    updateColorEditorUI() {
+        const state = this._colorEditorState;
+        if (!state) return;
+
+        const rgb = hslToRgb({ h: state.h, s: state.s, l: state.l });
+
+        const slPicker = document.getElementById('color-sl-picker');
+        if (slPicker) {
+            const hueColor = `hsl(${state.h}, 100%, 50%)`;
+            slPicker.style.background = `
+                linear-gradient(to top, #000, transparent),
+                linear-gradient(to right, #fff, transparent),
+                linear-gradient(to right, ${hueColor}, #888)
+            `;
+        }
+
+        const slThumb = slPicker?.querySelector('.color-sl-thumb');
+        if (slThumb) {
+            slThumb.style.left = `${state.s}%`;
+            slThumb.style.top = `${100 - state.l}%`;
+        }
+
+        const preview = document.getElementById('color-preview-swatch');
+        if (preview) {
+            preview.style.backgroundColor = `rgba(${Math.round(rgb.r*255)}, ${Math.round(rgb.g*255)}, ${Math.round(rgb.b*255)}, ${state.a})`;
+        }
+
+        const hueSlider = document.getElementById('hue-slider');
+        const hueThumb = hueSlider?.querySelector('.slider-thumb');
+        if (hueThumb) {
+            hueThumb.style.left = `${(state.h / 360) * 100}%`;
+        }
+        const hueValue = document.getElementById('hue-value');
+        if (hueValue) hueValue.value = Math.round(state.h);
+
+        const satSlider = document.getElementById('saturation-slider');
+        const satThumb = satSlider?.querySelector('.slider-thumb');
+        if (satThumb) {
+            satThumb.style.left = `${state.s}%`;
+        }
+        const satValue = document.getElementById('saturation-value');
+        if (satValue) satValue.value = Math.round(state.s);
+
+        const transSlider = document.getElementById('transparency-slider');
+        const transThumb = transSlider?.querySelector('.slider-thumb');
+        if (transThumb) {
+            transThumb.style.left = `${state.a * 100}%`;
+        }
+        const transValue = document.getElementById('transparency-value');
+        if (transValue) transValue.value = Math.round(state.a * 100);
+
+        this.updateColorFormatInputs();
+    }
+
+    getColorEditorState() {
+        return this._colorEditorState;
+    }
+
+    setupSLPicker() {
+        const picker = document.getElementById('color-sl-picker');
+        if (!picker || picker._slPickerSetup) return;
+        picker._slPickerSetup = true;
+
+        let isDragging = false;
+
+        const updateFromEvent = (e) => {
+            const rect = picker.getBoundingClientRect();
+            const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+            this._colorEditorState.s = x * 100;
+            this._colorEditorState.l = (1 - y) * 100;
+            this.updateColorEditorUI();
+        };
+
+        picker.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            updateFromEvent(e);
+        });
+
+        const onMouseMove = (e) => {
+            if (isDragging) updateFromEvent(e);
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    setupColorSlider(sliderId, min, max, onChange) {
+        const slider = document.getElementById(sliderId);
+        if (!slider || slider._sliderSetup) return;
+        slider._sliderSetup = true;
+
+        const thumb = slider.querySelector('.slider-thumb');
+
+        let isDragging = false;
+
+        const updateFromEvent = (e) => {
+            const rect = slider.getBoundingClientRect();
+            const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const value = min + x * (max - min);
+            onChange(value);
+            if (thumb) {
+                thumb.style.left = `${x * 100}%`;
+            }
+        };
+
+        slider.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            updateFromEvent(e);
+        });
+
+        const onMouseMove = (e) => {
+            if (isDragging) updateFromEvent(e);
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    setupColorValueInputs() {
+        if (this._colorValueInputsSetup) return;
+        this._colorValueInputsSetup = true;
+
+        const hueValue = document.getElementById('hue-value');
+        if (hueValue) {
+            hueValue.addEventListener('input', (e) => {
+                this._colorEditorState.h = Math.max(0, Math.min(360, parseFloat(e.target.value) || 0));
+                this.updateColorEditorUI();
+            });
+        }
+
+        const satValue = document.getElementById('saturation-value');
+        if (satValue) {
+            satValue.addEventListener('input', (e) => {
+                this._colorEditorState.s = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                this.updateColorEditorUI();
+            });
+        }
+
+        const transValue = document.getElementById('transparency-value');
+        if (transValue) {
+            transValue.addEventListener('input', (e) => {
+                const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                this._colorEditorState.a = val / 100;
+                this.updateColorEditorUI();
+            });
+        }
+    }
+
+    setupColorFormatSelector() {
+        if (this._colorFormatSelectorSetup) return;
+        this._colorFormatSelectorSetup = true;
+
+        const formatSelect = document.getElementById('color-format-select');
+        const formatInputs = document.getElementById('color-format-inputs');
+        if (!formatSelect || !formatInputs) return;
+
+        const renderFormatInputs = () => {
+            const format = formatSelect.value;
+            const state = this._colorEditorState;
+            if (!state) return;
+            const rgb = hslToRgb({ h: state.h, s: state.s, l: state.l });
+
+            let html = '';
+            switch (format) {
+                case 'hex':
+                    html = `<input type="text" class="color-format-input" id="fmt-hex" value="${rgbToHex(rgb)}" maxlength="7">`;
+                    break;
+                case 'rgb':
+                    html = `
+                        <input type="number" class="color-format-input" id="fmt-r" value="${Math.round(rgb.r*255)}" min="0" max="255">
+                        <input type="number" class="color-format-input" id="fmt-g" value="${Math.round(rgb.g*255)}" min="0" max="255">
+                        <input type="number" class="color-format-input" id="fmt-b" value="${Math.round(rgb.b*255)}" min="0" max="255">
+                    `;
+                    break;
+                case 'css':
+                    html = `<input type="text" class="color-format-input" id="fmt-css" value="rgb(${Math.round(rgb.r*255)}, ${Math.round(rgb.g*255)}, ${Math.round(rgb.b*255)})">`;
+                    break;
+                case 'hsl':
+                    html = `
+                        <input type="number" class="color-format-input" id="fmt-h" value="${Math.round(state.h)}" min="0" max="360">
+                        <input type="number" class="color-format-input" id="fmt-s" value="${Math.round(state.s)}" min="0" max="100">
+                        <input type="number" class="color-format-input" id="fmt-l" value="${Math.round(state.l)}" min="0" max="100">
+                    `;
+                    break;
+                case 'hsb': {
+                    const hsv = rgbToHsv(rgb);
+                    html = `
+                        <input type="number" class="color-format-input" id="fmt-h" value="${Math.round(hsv.h)}" min="0" max="360">
+                        <input type="number" class="color-format-input" id="fmt-s" value="${Math.round(hsv.s)}" min="0" max="100">
+                        <input type="number" class="color-format-input" id="fmt-v" value="${Math.round(hsv.v)}" min="0" max="100">
+                    `;
+                    break;
+                }
+            }
+            formatInputs.innerHTML = html;
+
+            setTimeout(() => {
+                if (format === 'hex') {
+                    const hexInput = document.getElementById('fmt-hex');
+                    if (hexInput) {
+                        hexInput.addEventListener('input', (e) => {
+                            const val = e.target.value;
+                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                                const rgb2 = hexToRgb(val);
+                                const hsl2 = rgbToHsl(rgb2);
+                                this._colorEditorState.h = hsl2.h;
+                                this._colorEditorState.s = hsl2.s;
+                                this._colorEditorState.l = hsl2.l;
+                                this.updateColorEditorUI();
+                            }
+                        });
+                    }
+                } else if (format === 'rgb') {
+                    ['r', 'g', 'b'].forEach(channel => {
+                        const input = document.getElementById(`fmt-${channel}`);
+                        if (input) {
+                            input.addEventListener('input', (e) => {
+                                const val = Math.max(0, Math.min(255, parseInt(e.target.value) || 0));
+                                const rgb2 = { ...hslToRgb({ h: state.h, s: state.s, l: state.l }), [channel]: val / 255 };
+                                const hsl2 = rgbToHsl(rgb2);
+                                this._colorEditorState.h = hsl2.h;
+                                this._colorEditorState.s = hsl2.s;
+                                this._colorEditorState.l = hsl2.l;
+                                this.updateColorEditorUI();
+                            });
+                        }
+                    });
+                } else if (format === 'css') {
+                    const cssInput = document.getElementById('fmt-css');
+                    if (cssInput) {
+                        cssInput.addEventListener('input', (e) => {
+                            const val = e.target.value;
+                            const match = val.match(/rgb\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+                            if (match) {
+                                const rgb2 = { r: parseInt(match[1])/255, g: parseInt(match[2])/255, b: parseInt(match[3])/255 };
+                                const hsl2 = rgbToHsl(rgb2);
+                                this._colorEditorState.h = hsl2.h;
+                                this._colorEditorState.s = hsl2.s;
+                                this._colorEditorState.l = hsl2.l;
+                                this.updateColorEditorUI();
+                            }
+                        });
+                    }
+                } else if (format === 'hsl') {
+                    ['h', 's', 'l'].forEach(channel => {
+                        const input = document.getElementById(`fmt-${channel}`);
+                        if (input) {
+                            input.addEventListener('input', (e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                if (channel === 'h') this._colorEditorState.h = Math.max(0, Math.min(360, val));
+                                if (channel === 's') this._colorEditorState.s = Math.max(0, Math.min(100, val));
+                                if (channel === 'l') this._colorEditorState.l = Math.max(0, Math.min(100, val));
+                                this.updateColorEditorUI();
+                            });
+                        }
+                    });
+                } else if (format === 'hsb') {
+                    ['h', 's', 'v'].forEach(channel => {
+                        const input = document.getElementById(`fmt-${channel}`);
+                        if (input) {
+                            input.addEventListener('input', (e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                const hsv = rgbToHsv(hslToRgb({ h: state.h, s: state.s, l: state.l }));
+                                if (channel === 'h') hsv.h = Math.max(0, Math.min(360, val));
+                                if (channel === 's') hsv.s = Math.max(0, Math.min(100, val));
+                                if (channel === 'v') hsv.v = Math.max(0, Math.min(100, val));
+                                const rgb2 = hsvToRgb(hsv);
+                                const hsl2 = rgbToHsl(rgb2);
+                                this._colorEditorState.h = hsl2.h;
+                                this._colorEditorState.s = hsl2.s;
+                                this._colorEditorState.l = hsl2.l;
+                                this.updateColorEditorUI();
+                            });
+                        }
+                    });
+                }
+            }, 0);
+        };
+
+        formatSelect.addEventListener('change', renderFormatInputs);
+        renderFormatInputs();
+    }
+
+    setupColorEyedropper() {
+        if (this._colorEyedropperSetup) return;
+        this._colorEyedropperSetup = true;
+
+        const btn = document.getElementById('color-eyedropper-btn');
+        if (!btn) return;
+
+        btn.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'color';
+            const state = this._colorEditorState;
+            const rgb = hslToRgb({ h: state.h, s: state.s, l: state.l });
+            input.value = rgbToHex(rgb);
+            input.style.position = 'fixed';
+            input.style.opacity = '0';
+            input.style.pointerEvents = 'none';
+            document.body.appendChild(input);
+            input.click();
+
+            input.addEventListener('input', (e) => {
+                const rgb2 = hexToRgb(e.target.value);
+                const hsl2 = rgbToHsl(rgb2);
+                this._colorEditorState.h = hsl2.h;
+                this._colorEditorState.s = hsl2.s;
+                this._colorEditorState.l = hsl2.l;
+                this.updateColorEditorUI();
+            });
+
+            input.addEventListener('blur', () => {
+                input.remove();
+            });
+        });
+    }
+
+    updateColorFormatInputs() {
+        const formatSelect = document.getElementById('color-format-select');
+        const formatInputs = document.getElementById('color-format-inputs');
+        if (!formatSelect || !formatInputs) return;
+
+        const format = formatSelect.value;
+        const state = this._colorEditorState;
+        if (!state) return;
+        const rgb = hslToRgb({ h: state.h, s: state.s, l: state.l });
+
+        switch (format) {
+            case 'hex': {
+                const hexInput = document.getElementById('fmt-hex');
+                if (hexInput) hexInput.value = rgbToHex(rgb);
+                break;
+            }
+            case 'rgb': {
+                const rInput = document.getElementById('fmt-r');
+                const gInput = document.getElementById('fmt-g');
+                const bInput = document.getElementById('fmt-b');
+                if (rInput) rInput.value = Math.round(rgb.r * 255);
+                if (gInput) gInput.value = Math.round(rgb.g * 255);
+                if (bInput) bInput.value = Math.round(rgb.b * 255);
+                break;
+            }
+            case 'css': {
+                const cssInput = document.getElementById('fmt-css');
+                if (cssInput) cssInput.value = `rgb(${Math.round(rgb.r*255)}, ${Math.round(rgb.g*255)}, ${Math.round(rgb.b*255)})`;
+                break;
+            }
+            case 'hsl': {
+                const hInput = document.getElementById('fmt-h');
+                const sInput = document.getElementById('fmt-s');
+                const lInput = document.getElementById('fmt-l');
+                if (hInput) hInput.value = Math.round(state.h);
+                if (sInput) sInput.value = Math.round(state.s);
+                if (lInput) lInput.value = Math.round(state.l);
+                break;
+            }
+            case 'hsb': {
+                const hsv = rgbToHsv(rgb);
+                const hInput = document.getElementById('fmt-h');
+                const sInput = document.getElementById('fmt-s');
+                const vInput = document.getElementById('fmt-v');
+                if (hInput) hInput.value = Math.round(hsv.h);
+                if (sInput) sInput.value = Math.round(hsv.s);
+                if (vInput) vInput.value = Math.round(hsv.v);
+                break;
+            }
+        }
+    }
+
+    resetAssetModal(type, assetId = null) {
+        if (type === 'materials') {
+            const nameInput = document.getElementById('material-asset-name');
+            const alphaInput = document.getElementById('material-alpha');
+            const itemsContainer = document.getElementById('material-asset-items');
+            const lightingSlider = document.getElementById('material-lighting');
+            const lightingValue = document.getElementById('material-lighting-value');
+            const opacitySlider = document.getElementById('material-opacity');
+            const opacityValue = document.getElementById('material-opacity-value');
+            const depthSelect = document.getElementById('material-depth');
+            const colorPicker = document.getElementById('material-color-picker');
+            const metalnessInput = document.getElementById('material-metalness');
+            const metalnessValue = document.getElementById('material-metalness-value');
+            const roughnessInput = document.getElementById('material-roughness');
+            const roughnessValue = document.getElementById('material-roughness-value');
+            const clearcoatInput = document.getElementById('material-clearcoat');
+            const clearcoatValue = document.getElementById('material-clearcoat-value');
+            const transmissionInput = document.getElementById('material-transmission');
+            const transmissionValue = document.getElementById('material-transmission-value');
+            const sheenInput = document.getElementById('material-sheen');
+            const sheenValue = document.getElementById('material-sheen-value');
+            if (nameInput) nameInput.value = '';
+            if (alphaInput) alphaInput.value = '1';
+            if (colorPicker) colorPicker.value = '#888888';
+            if (metalnessInput) metalnessInput.value = '0.2';
+            if (metalnessValue) metalnessValue.textContent = '0.20';
+            if (roughnessInput) roughnessInput.value = '0.3';
+            if (roughnessValue) roughnessValue.textContent = '0.30';
+            if (clearcoatInput) clearcoatInput.value = '0';
+            if (clearcoatValue) clearcoatValue.textContent = '0.00';
+            if (transmissionInput) transmissionInput.value = '0';
+            if (transmissionValue) transmissionValue.textContent = '0.00';
+            if (sheenInput) sheenInput.value = '0';
+            if (sheenValue) sheenValue.textContent = '0.00';
+            if (itemsContainer) itemsContainer.innerHTML = '';
+            if (lightingSlider) {
+                lightingSlider.value = '0';
+                if (lightingValue) lightingValue.textContent = '0';
+            }
+            if (opacitySlider) {
+                opacitySlider.value = '100';
+                if (opacityValue) opacityValue.textContent = '100';
+            }
+            if (depthSelect) depthSelect.value = 'none';
+            const preview = document.getElementById('material-preview-color');
+            if (preview) {
+                preview.style.backgroundImage = `url('${this.generateMaterialPreview('#888888', 0.2, 0.3, 1, 0, 0, 0, 1)}')`;
+                preview.style.backgroundColor = '#888888';
+            }
+        } else if (type === 'textures') {
+            const name = document.getElementById('texture-asset-name');
+            if (name) name.value = '';
+        } else if (type === 'colors') {
+            const nameInput = document.getElementById('color-asset-name');
+            const hueValue = document.getElementById('hue-value');
+            const saturationValue = document.getElementById('saturation-value');
+            const transparencyValue = document.getElementById('transparency-value');
+            const formatSelect = document.getElementById('color-format-select');
+            const formatInputs = document.getElementById('color-format-inputs');
+            const preview = document.getElementById('color-preview-swatch');
+            if (nameInput) nameInput.value = '';
+            if (hueValue) hueValue.value = '0';
+            if (saturationValue) saturationValue.value = '0';
+            if (transparencyValue) transparencyValue.value = '100';
+            if (formatSelect) formatSelect.value = 'hex';
+            if (formatInputs) formatInputs.innerHTML = '';
+            if (preview) preview.style.backgroundColor = '#808080';
+            this._colorEditorState = { h: 0, s: 0, l: 50, a: 1 };
+            this.updateColorEditorUI();
+        } else if (type === 'images') {
+            const nameInput = document.getElementById('image-asset-name');
+            const preview = document.getElementById('image-preview');
+            const urlInput = document.getElementById('image-asset-url');
+            if (nameInput) nameInput.value = '';
+            if (preview) preview.src = '';
+            if (urlInput) urlInput.value = '';
+        } else if (type === 'media') {
+            const nameInput = document.getElementById('video-asset-name');
+            const preview = document.getElementById('video-preview');
+            const urlInput = document.getElementById('video-asset-url');
+            if (nameInput) nameInput.value = '';
+            if (preview) preview.src = '';
+            if (urlInput) urlInput.value = '';
+        } else if (type === 'audio') {
+            const nameInput = document.getElementById('audio-asset-name');
+            const fileName = document.getElementById('audio-file-name');
+            const urlInput = document.getElementById('audio-asset-url');
+            if (nameInput) nameInput.value = '';
+            if (fileName) fileName.textContent = 'success.mp3';
+            if (urlInput) urlInput.value = '';
+        }
+
+        // If editing existing asset, populate form
+        if (assetId) {
+            const asset = this.getAsset(type, assetId);
+            if (!asset) return;
+
+            if (type === 'materials') {
+                const nameInput = document.getElementById('material-asset-name');
+                if (nameInput) nameInput.value = asset.name || '';
+                const preview = document.getElementById('material-preview-color');
+                if (preview && asset.color) {
+                    preview.style.backgroundImage = `url('${this.generateMaterialPreview(
+                        asset.color, asset.metalness ?? 0.2, asset.roughness ?? 0.3, (asset.opacity ?? 100) / 100
+                    )}')`;
+                    preview.style.backgroundColor = asset.color;
+                }
+                const lightingSlider = document.getElementById('material-lighting');
+                const lightingValue = document.getElementById('material-lighting-value');
+                if (lightingSlider) {
+                    lightingSlider.value = asset.lighting || 0;
+                    if (lightingValue) lightingValue.textContent = asset.lighting || 0;
+                }
+                const opacitySlider = document.getElementById('material-opacity');
+                const opacityValue = document.getElementById('material-opacity-value');
+                if (opacitySlider) {
+                    opacitySlider.value = asset.opacity || 100;
+                    if (opacityValue) opacityValue.textContent = asset.opacity || 100;
+                }
+                const depthSelect = document.getElementById('material-depth');
+                if (depthSelect) depthSelect.value = asset.depth || 'none';
+            } else if (type === 'colors') {
+                const nameInput = document.getElementById('color-asset-name');
+                if (nameInput) nameInput.value = asset.name || '';
+                let hsl = { h: 0, s: 0, l: 50 };
+                if (asset.hex) {
+                    const rgb = hexToRgb(asset.hex);
+                    hsl = rgbToHsl(rgb);
+                }
+                if (asset.hsl) {
+                    hsl = asset.hsl;
+                }
+                const colorState = { ...hsl, a: asset.alpha ?? 1 };
+                this._colorEditorState = colorState;
+                this.updateColorEditorUI();
+            } else if (type === 'images') {
+                const nameInput = document.getElementById('image-asset-name');
+                const preview = document.getElementById('image-preview');
+                const urlInput = document.getElementById('image-asset-url');
+                if (nameInput) nameInput.value = asset.name || '';
+                if (preview && asset.url) preview.src = asset.url;
+                if (urlInput) urlInput.value = asset.url || '';
+            } else if (type === 'media') {
+                const nameInput = document.getElementById('video-asset-name');
+                const preview = document.getElementById('video-preview');
+                const urlInput = document.getElementById('video-asset-url');
+                if (nameInput) nameInput.value = asset.name || '';
+                if (preview && asset.url) preview.src = asset.url;
+                if (urlInput) urlInput.value = asset.url || '';
+            } else if (type === 'audio') {
+                const nameInput = document.getElementById('audio-asset-name');
+                const fileName = document.getElementById('audio-file-name');
+                const urlInput = document.getElementById('audio-asset-url');
+                if (nameInput) nameInput.value = asset.name || '';
+                if (fileName && asset.fileName) fileName.textContent = asset.fileName;
+                if (urlInput) urlInput.value = asset.url || '';
+            }
+        }
+    }
+
+    saveAsset(type) {
+        const modalMap = {
+            materials: 'material-asset-modal',
+            colors: 'color-asset-modal',
+            images: 'image-asset-modal',
+            media: 'video-asset-modal',
+            audio: 'audio-asset-modal'
+        };
+
+        const modalId = modalMap[type];
+        if (!modalId) return;
+
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        const editingId = modal.dataset.editingAssetId;
+        const editingType = modal.dataset.editingAssetType;
+
+        let data = {};
+
+        if (type === 'materials') {
+            const nameInput = document.getElementById('material-asset-name');
+            const preview = document.getElementById('material-preview-color');
+            const lightingSlider = document.getElementById('material-lighting');
+            const opacitySlider = document.getElementById('material-opacity');
+            const depthSelect = document.getElementById('material-depth');
+            data.name = nameInput ? nameInput.value.trim() : 'New Material';
+            if (preview) data.color = preview.style.backgroundColor || '#888888';
+            data.alpha = parseFloat(document.getElementById('material-alpha')?.value || 1);
+            data.lighting = lightingSlider ? parseInt(lightingSlider.value) : 0;
+            data.opacity = opacitySlider ? parseInt(opacitySlider.value) : 100;
+            data.depth = depthSelect ? depthSelect.value : 'none';
+            data.metalness = parseFloat(document.getElementById('material-metalness')?.value ?? 0.2);
+            data.roughness = parseFloat(document.getElementById('material-roughness')?.value ?? 0.3);
+            data.clearcoat = parseFloat(document.getElementById('material-clearcoat')?.value ?? 0);
+            data.transmission = parseFloat(document.getElementById('material-transmission')?.value ?? 0);
+            data.sheen = parseFloat(document.getElementById('material-sheen')?.value ?? 0);
+
+            data.preview = this.generateMaterialPreview(
+                data.color, data.metalness, data.roughness, data.alpha
+            );
+
+            const layersContainer = document.getElementById('material-asset-items');
+            if (layersContainer) {
+                data.layers = this.collectMaterialTextureLayers();
+            }
+        } else if (type === 'textures') {
+            const layer = this.readTextureAssetEditor();
+            data.name = document.getElementById('texture-asset-name')?.value.trim() || `${layer.type} Texture`;
+            data.layer = layer;
+            data.preview = document.getElementById('texture-asset-preview')?.toDataURL('image/png') || '';
+        } else if (type === 'colors') {
+            const nameInput = document.getElementById('color-asset-name');
+            const preview = document.getElementById('color-preview-swatch');
+            data.name = nameInput ? nameInput.value.trim() : 'New Color';
+            const colorState = this.getColorEditorState();
+            if (colorState) {
+                data.hex = rgbToHex(hslToRgb({ h: colorState.h, s: colorState.s, l: colorState.l }));
+                data.alpha = colorState.a;
+                data.hsl = { h: colorState.h, s: colorState.s, l: colorState.l };
+            } else {
+                data.hex = preview ? preview.style.backgroundColor || '#808080' : '#808080';
+                data.alpha = 1;
+            }
+        } else if (type === 'images') {
+            const nameInput = document.getElementById('image-asset-name');
+            const preview = document.getElementById('image-preview');
+            const urlInput = document.getElementById('image-asset-url');
+            data.name = nameInput ? nameInput.value.trim() : 'New Image';
+            data.url = urlInput ? urlInput.value.trim() : (preview?.src || '');
+        } else if (type === 'media') {
+            const nameInput = document.getElementById('video-asset-name');
+            const preview = document.getElementById('video-preview');
+            const urlInput = document.getElementById('video-asset-url');
+            data.name = nameInput ? nameInput.value.trim() : 'New Video';
+            data.url = urlInput ? urlInput.value.trim() : (preview?.src || '');
+        } else if (type === 'audio') {
+            const nameInput = document.getElementById('audio-asset-name');
+            const fileName = document.getElementById('audio-file-name');
+            const urlInput = document.getElementById('audio-asset-url');
+            data.name = nameInput ? nameInput.value.trim() : 'New Audio';
+            data.fileName = fileName ? fileName.textContent : '';
+            data.url = urlInput ? urlInput.value.trim() : '';
+        }
+
+        let savedAsset = null;
+        if (editingId) {
+            savedAsset = this.updateAsset(editingType, editingId, data);
+        } else {
+            savedAsset = this.addAsset(type, data);
+        }
+
+        if (type === 'materials' && savedAsset) this.app.materialsManager?.compileAssetMaterial(savedAsset);
+
+        this.closeAssetModal(type);
+    }
+
+    initTextureAssetEditor(asset = null) {
+        const typeSelect = document.getElementById('texture-asset-type');
+        const nameInput = document.getElementById('texture-asset-name');
+        if (!typeSelect) return;
+        typeSelect.innerHTML = this.textureLayerTypes().map(type => `<option value="${type}">${type[0].toUpperCase() + type.slice(1)}</option>`).join('');
+        let layer = asset?.layer ? { ...asset.layer } : this.defaultTextureLayer('gradient');
+        if (nameInput) nameInput.value = asset?.name || '';
+        const render = () => {
+            const panel = document.getElementById('texture-asset-properties');
+            if (!panel) return;
+            panel.innerHTML = this.textureLayerFields(layer);
+            panel.querySelectorAll('input,select').forEach(control => control.addEventListener('input', () => {
+                layer = this.readTextureAssetEditor();
+                this.renderTextureAssetPreview(layer);
+            }));
+            const pattern = panel.querySelector('[data-prop="pattern"]');
+            if (pattern) pattern.value = layer.pattern;
+            this.renderTextureAssetPreview(layer);
+        };
+        typeSelect.value = layer.type;
+        typeSelect.onchange = () => { layer = this.defaultTextureLayer(typeSelect.value); render(); };
+        render();
+    }
+
+    readTextureAssetEditor() {
+        const type = document.getElementById('texture-asset-type')?.value || 'color';
+        const layer = this.defaultTextureLayer(type);
+        document.querySelectorAll('#texture-asset-properties [data-prop]').forEach(control => {
+            layer[control.dataset.prop] = control.type === 'checkbox' ? control.checked : ((control.type === 'number' || control.type === 'range') ? parseFloat(control.value) : control.value);
+        });
+        return layer;
+    }
+
+    renderTextureAssetPreview(layer, canvas = document.getElementById('texture-asset-preview')) {
+        const ctx = canvas?.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = layer.color || layer.colorA || '#888888';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (layer.type === 'gradient' || layer.type === 'rainbow') {
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            const colors = layer.type === 'rainbow' ? ['#f00','#ff0','#0f0','#0ff','#00f','#f0f'] : [layer.colorA, layer.colorB];
+            colors.forEach((color, index) => gradient.addColorStop(index / Math.max(1, colors.length - 1), color));
+            ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else if (layer.type === 'noise') {
+            const size = Math.max(1, layer.scale || 8);
+            for (let y=0;y<canvas.height;y+=size) for (let x=0;x<canvas.width;x+=size) { ctx.fillStyle = Math.random()>.5 ? layer.colorA : layer.colorB; ctx.fillRect(x,y,size,size); }
+        } else if (layer.type === 'pattern' || layer.type === 'duct') {
+            const size = Math.max(2, layer.scale || layer.spacing || 16); ctx.fillStyle = layer.colorB || '#ddd'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle = layer.colorA || '#222';
+            for (let y=0;y<canvas.height;y+=size) for (let x=0;x<canvas.width;x+=size) { if (layer.pattern === 'dots') { ctx.beginPath();ctx.arc(x+size/2,y+size/2,size/4,0,Math.PI*2);ctx.fill(); } else if (layer.pattern === 'stripes' || layer.type === 'duct') { if ((x/size)%2===0) ctx.fillRect(x,0,size,canvas.height); } else if (((x+y)/size)%2===0) ctx.fillRect(x,y,size,size); }
+        } else if ((layer.type === 'image' || layer.type === 'normal' || layer.type === 'displace') && layer.url) {
+            const image = new Image(); image.crossOrigin = 'anonymous'; image.onload = () => ctx.drawImage(image,0,0,canvas.width,canvas.height); image.src = layer.url;
+        } else if (layer.type === 'video') {
+            ctx.fillStyle='#111';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.font='72px sans-serif';ctx.textAlign='center';ctx.fillText('▶',canvas.width/2,canvas.height/2+24);
+        } else if (!['color'].includes(layer.type)) {
+            ctx.fillStyle='#111';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.font='18px sans-serif';ctx.textAlign='center';ctx.fillText(layer.type.toUpperCase(),canvas.width/2,canvas.height/2);
+        }
+    }
+
+    textureLayerTypes() {
+        return ['color', 'lighting', 'depth', 'image', 'video', 'normal', 'gradient', 'noise', 'fresnel', 'cavity', 'duct', 'rainbow', 'toon', 'outline', 'glass', 'reflection', 'displace', 'pattern'];
+    }
+
+    defaultTextureLayer(type) {
+        const defaults = {
+            color: { color: '#888888' }, lighting: { strength: 50 }, depth: { near: 0, far: 10 },
+            image: { url: '', repeatX: 1, repeatY: 1, rotation: 0 }, video: { url: '', autoplay: true, loop: true, playbackRate: 1 },
+            normal: { url: '', strength: 1 }, gradient: { colorA: '#111827', colorB: '#8b5cf6', angle: 0 },
+            noise: { colorA: '#111111', colorB: '#eeeeee', scale: 8, seed: 1 }, fresnel: { color: '#ffffff', power: 3, bias: 0.1 },
+            cavity: { strength: 1, radius: 1 }, duct: { colorA: '#374151', colorB: '#9ca3af', width: 8, spacing: 24 },
+            rainbow: { saturation: 100, brightness: 100, angle: 0 }, toon: { steps: 4 }, outline: { color: '#000000', thickness: 0.02 },
+            glass: { transmission: 0.9, ior: 1.5, thickness: 0.5, roughness: 0.1 }, reflection: { intensity: 1, metalness: 1, roughness: 0.1 },
+            displace: { url: '', scale: 0.1, bias: 0 }, pattern: { pattern: 'checker', colorA: '#111111', colorB: '#eeeeee', scale: 8 }
+        };
+        return { type, enabled: true, opacity: 100, blendMode: 'normal', ...(defaults[type] || {}) };
+    }
+
+    textureLayerFields(layer) {
+        const input = (label, key, type = 'number', attrs = '') => `<label>${label}<input data-prop="${key}" type="${type}" value="${layer[key] ?? ''}" ${attrs}></label>`;
+        const color = (label, key) => input(label, key, 'color');
+        const fields = {
+            color: () => color('Colour', 'color'), lighting: () => input('Strength', 'strength', 'range', 'min="0" max="100"'),
+            depth: () => input('Near', 'near', 'number', 'step="0.1"') + input('Far', 'far', 'number', 'step="0.1"'),
+            image: () => input('Image URL', 'url', 'url') + input('Repeat X', 'repeatX', 'number', 'min="0.1" step="0.1"') + input('Repeat Y', 'repeatY', 'number', 'min="0.1" step="0.1"') + input('Rotation', 'rotation', 'number'),
+            video: () => input('Video URL', 'url', 'url') + input('Speed', 'playbackRate', 'number', 'min="0.1" max="4" step="0.1"') + `<label><input data-prop="autoplay" type="checkbox" ${layer.autoplay ? 'checked' : ''}> Autoplay</label><label><input data-prop="loop" type="checkbox" ${layer.loop ? 'checked' : ''}> Loop</label>`,
+            normal: () => input('Normal URL', 'url', 'url') + input('Strength', 'strength', 'range', 'min="0" max="2" step="0.01"'),
+            gradient: () => color('Start', 'colorA') + color('End', 'colorB') + input('Angle', 'angle'),
+            noise: () => color('Dark', 'colorA') + color('Light', 'colorB') + input('Scale', 'scale', 'number', 'min="1"') + input('Seed', 'seed'),
+            fresnel: () => color('Edge', 'color') + input('Power', 'power', 'range', 'min="0.1" max="10" step="0.1"') + input('Bias', 'bias', 'range', 'min="0" max="1" step="0.01"'),
+            cavity: () => input('Strength', 'strength', 'range', 'min="0" max="2" step="0.01"') + input('Radius', 'radius', 'number', 'min="0.1" step="0.1"'),
+            duct: () => color('Pipe', 'colorA') + color('Gap', 'colorB') + input('Width', 'width', 'number', 'min="1"') + input('Spacing', 'spacing', 'number', 'min="2"'),
+            rainbow: () => input('Saturation', 'saturation', 'range', 'min="0" max="100"') + input('Brightness', 'brightness', 'range', 'min="0" max="100"') + input('Angle', 'angle'),
+            toon: () => input('Steps', 'steps', 'number', 'min="2" max="12"'), outline: () => color('Colour', 'color') + input('Thickness', 'thickness', 'range', 'min="0.005" max="0.2" step="0.005"'),
+            glass: () => input('Transmission', 'transmission', 'range', 'min="0" max="1" step="0.01"') + input('IOR', 'ior', 'range', 'min="1" max="2.5" step="0.01"') + input('Thickness', 'thickness', 'number', 'min="0" step="0.1"') + input('Roughness', 'roughness', 'range', 'min="0" max="1" step="0.01"'),
+            reflection: () => input('Intensity', 'intensity', 'range', 'min="0" max="3" step="0.01"') + input('Metalness', 'metalness', 'range', 'min="0" max="1" step="0.01"') + input('Roughness', 'roughness', 'range', 'min="0" max="1" step="0.01"'),
+            displace: () => input('Height URL', 'url', 'url') + input('Scale', 'scale', 'number', 'step="0.01"') + input('Bias', 'bias', 'number', 'step="0.01"'),
+            pattern: () => `<label>Pattern<select data-prop="pattern"><option value="checker">Checker</option><option value="stripes">Stripes</option><option value="dots">Dots</option></select></label>` + color('Colour A', 'colorA') + color('Colour B', 'colorB') + input('Scale', 'scale', 'number', 'min="1"')
+        };
+        return (fields[layer.type] || (() => ''))();
+    }
+
+    collectMaterialTextureLayers() {
+        return [...document.querySelectorAll('#material-asset-items .material-texture-layer')].map(layerEl => {
+            const layer = { type: layerEl.querySelector('.layer-select')?.value || 'color', enabled: layerEl.querySelector('.layer-enabled')?.checked !== false, opacity: parseFloat(layerEl.querySelector('.layer-opacity')?.value || 100), blendMode: layerEl.querySelector('.layer-blend-mode')?.value || 'normal' };
+            layerEl.querySelectorAll('[data-prop]').forEach(control => { layer[control.dataset.prop] = control.type === 'checkbox' ? control.checked : ((control.type === 'number' || control.type === 'range') ? parseFloat(control.value) : control.value); });
+            return layer;
+        });
+    }
+
+    renderMaterialTextureLayers(layers = []) {
+        const container = document.getElementById('material-asset-items');
+        if (!container) return;
+        container.innerHTML = '';
+        layers.forEach((rawLayer, index) => {
+            const layer = { ...this.defaultTextureLayer(rawLayer.type || 'color'), ...rawLayer };
+            const layerEl = document.createElement('div');
+            layerEl.className = 'material-texture-layer';
+            layerEl.style.cssText = 'display:block;padding:8px;margin-bottom:6px;';
+            const textureOptions = (this.assets.textures || []).map(texture => `<option value="${texture.id}">${texture.name}</option>`).join('');
+            const positionOptions = layers.map((_, position) => `<option value="${position}" ${position === index ? 'selected' : ''}>${position + 1}</option>`).join('');
+            layerEl.innerHTML = `<div style="display:flex;gap:6px;align-items:center"><input class="layer-enabled" type="checkbox" ${layer.enabled ? 'checked' : ''}><select class="layer-select" style="flex:1">${this.textureLayerTypes().map(type => `<option value="${type}" ${type === layer.type ? 'selected' : ''}>${type[0].toUpperCase() + type.slice(1)}</option>`).join('')}</select><select class="layer-blend-mode"><option value="normal">Normal</option><option value="add">Add</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select><input class="layer-opacity" type="range" min="0" max="100" value="${layer.opacity}"><select class="layer-position" title="Layer position">${positionOptions}</select><button class="layer-up" title="Move layer up">↑</button><button class="layer-down" title="Move layer down">↓</button><button class="layer-save-texture" title="Save layer as reusable texture">Save</button><button class="layer-close">&times;</button></div><div style="margin-top:6px"><select class="layer-texture-asset"><option value="">Use reusable texture…</option>${textureOptions}</select></div><div class="layer-properties" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px">${this.textureLayerFields(layer)}</div>`;
+            layerEl.querySelector('.layer-blend-mode').value = layer.blendMode;
+            const pattern = layerEl.querySelector('[data-prop="pattern"]');
+            if (pattern) pattern.value = layer.pattern;
+            layerEl.querySelector('.layer-select').addEventListener('change', event => { const current = this.collectMaterialTextureLayers(); current[index] = this.defaultTextureLayer(event.target.value); this.renderMaterialTextureLayers(current); });
+            layerEl.querySelector('.layer-close').addEventListener('click', () => { const current = this.collectMaterialTextureLayers(); current.splice(index, 1); this.renderMaterialTextureLayers(current); });
+            layerEl.querySelector('.layer-up').disabled = index === 0;
+            layerEl.querySelector('.layer-down').disabled = index === layers.length - 1;
+            layerEl.querySelector('.layer-up').onclick = event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const previous = layerEl.previousElementSibling;
+                if (previous) previous.before(layerEl);
+                this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
+            };
+            layerEl.querySelector('.layer-down').onclick = event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const next = layerEl.nextElementSibling;
+                if (next) next.after(layerEl);
+                this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
+            };
+            layerEl.querySelector('.layer-position').addEventListener('change', event => {
+                const current = this.collectMaterialTextureLayers();
+                const [moved] = current.splice(index, 1);
+                current.splice(parseInt(event.target.value), 0, moved);
+                this.renderMaterialTextureLayers(current);
+            });
+            layerEl.querySelector('.layer-save-texture').addEventListener('click', () => {
+                const current = this.collectMaterialTextureLayers()[index];
+                const preview = document.createElement('canvas'); preview.width = preview.height = 256;
+                this.renderTextureAssetPreview(current, preview); const dataUrl = preview.toDataURL('image/png');
+                this.addAsset('textures', { name: `${current.type[0].toUpperCase()+current.type.slice(1)} Texture`, layer: current, preview: dataUrl });
+                this.showNotification('Texture saved for reuse', 'success');
+                this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
+            });
+            layerEl.querySelector('.layer-texture-asset').addEventListener('change', event => {
+                const texture = this.getAsset('textures', event.target.value); if (!texture?.layer) return;
+                const current = this.collectMaterialTextureLayers(); current[index] = { ...texture.layer, textureAssetId: texture.id }; this.renderMaterialTextureLayers(current);
+            });
+            container.appendChild(layerEl);
         });
     }
 
@@ -656,6 +2300,11 @@ export class UI {
              if (icon) icon.className = 'fas fa-chevron-left';
              if (toggle) toggle.title = 'Show Panel';
          }
+
+         // The flex layout changes the canvas container width. Resize the
+         // renderer after the panel/toggle transition so the scene fills the
+         // newly available area instead of leaving an uncovered black strip.
+         window.setTimeout(() => this.app.onWindowResize?.(), 320);
      }
 
      toggleAnimationPanel() {
@@ -684,27 +2333,23 @@ export class UI {
      }
 
      resetPanelToDefault() {
-        // Show scene objects and properties, hide materials and scene export
-        const sceneSection = document.getElementById('scene-section');
-        const materialsSection = document.getElementById('materials-section');
-        const propsContent = document.getElementById('props-content');
-        const layersList = document.getElementById('layers-list');
-
-        if (sceneSection) sceneSection.style.display = 'none';
-        if (materialsSection) materialsSection.style.display = 'none';
-        if (propsContent) propsContent.style.display = 'block';
-        if (layersList) layersList.style.display = 'block';
-
-        // Show all panel headers
-        document.querySelectorAll('.panel-header').forEach(header => {
-            header.style.display = 'flex';
-        });
-    }
+         const panelScroll = document.querySelector('#right-panel .right-panel-scroll');
+         if (panelScroll) {
+             panelScroll.scrollTo({ top: 0, behavior: 'smooth' });
+         }
+     }
 
     loadSettings() {
         const saved = localStorage.getItem('pixel3d-settings');
         if (saved) {
-            const settings = JSON.parse(saved);
+            let settings;
+            try {
+                settings = JSON.parse(saved);
+            } catch (error) {
+                console.warn('Ignoring invalid saved settings:', error);
+                localStorage.removeItem('pixel3d-settings');
+                return;
+            }
             // Apply settings to app
             if (this.app.setGridVisible) this.app.setGridVisible(settings.grid);
             if (this.app.setAxesVisible) this.app.setAxesVisible(settings.axes);
@@ -904,6 +2549,9 @@ export class UI {
             this.app.layerManager.render();
         }
 
+        // Update hierarchy panel
+        this.renderHierarchyPanel();
+
         // Show/hide the floating selection info box
         const infoBox = document.getElementById('selection-info');
         if (infoBox) {
@@ -954,22 +2602,25 @@ export class UI {
 
         const obj = selectedObject;
         let title = "Object";
-        let isLight = false;
-        let isShape = false;
+        const isLight = obj.userData.type === 'light';
+        const isShape = obj.userData.type === 'shape';
+        const isShape2D = obj.userData.type === 'shape2d';
+        const isText = isShape2D && obj.userData.shapeType === 'text';
         let isFigurePart = false;
-        let isFigure = false;
+        const isFigure = obj.userData.type === 'figure';
 
         // Determine Title based on name override or type
         if (obj.userData.name) {
             title = obj.userData.name;
             if (obj.userData.name.includes('Joint')) isFigurePart = true;
         } else if (obj.userData.type === 'shape') {
-            title = obj.userData.shapeType.toUpperCase(); isShape = true;
+            title = obj.userData.shapeType.toUpperCase();
+        } else if (obj.userData.type === 'shape2d') {
+            title = obj.userData.shapeType.toUpperCase() + ' (2D)';
         } else if (obj.userData.type === 'light') {
-            title = obj.userData.lightType.toUpperCase() + " LIGHT"; isLight = true;
+            title = obj.userData.lightType.toUpperCase() + " LIGHT";
         } else if (obj.userData.type === 'figure') {
             title = obj.userData.gender.toUpperCase() + " FIGURE";
-            isFigure = true;
         }
 
         // Header
@@ -991,7 +2642,9 @@ export class UI {
             const div = document.createElement('div');
             div.className = 'input-group';
             div.innerHTML = `<span>${label}</span><input type="number" id="${id}" value="${value.toFixed(2)}" step="0.1">`;
-            div.querySelector('input').addEventListener('input', (e) => onChange(parseFloat(e.target.value)));
+            const input = div.querySelector('input');
+            input.addEventListener('input', (e) => onChange(parseFloat(e.target.value)));
+            this.enableDragAdjust(input);
             return div;
         };
 
@@ -1051,6 +2704,17 @@ export class UI {
         createVec3('Rotation', 'rot', obj.rotation, () => { });
         createVec3('Scale', 'scl', obj.scale, () => { });
 
+        if (isShape2D) {
+            try {
+                this.add2DProperties(obj);
+                if (isText) this.addTextControls(obj);
+            } catch (error) {
+                console.error('Unable to render 2D properties:', error);
+                this.showNotification(`2D properties error: ${error.message}`, 'error');
+            }
+            return;
+        }
+
         // COLOR (Shapes & Figure Parts)
         let targetMesh = null;
         if (isShape) targetMesh = obj;
@@ -1063,8 +2727,11 @@ export class UI {
         }
 
         if (targetMesh && targetMesh.material) {
+            const materialSlots = this.app.materialsManager?.getMaterialSlots(targetMesh) || [targetMesh.material];
+            const activeSlot = Math.min(targetMesh.userData.activeMaterialSlot || 0, materialSlots.length - 1);
+            const activeMaterial = materialSlots[activeSlot];
             // Add Materials Selector (pass targetMesh to show assigned material)
-            this.addMaterialsSelector(obj, targetMesh, targetMesh.material);
+            this.addMaterialsSelector(obj, targetMesh, activeMaterial);
 
             const colorGroup = document.createElement('div');
             colorGroup.className = 'property-group';
@@ -1084,41 +2751,34 @@ export class UI {
             const colInput = document.createElement('input');
             colInput.type = 'color';
             colInput.id = 'prop-color-picker'; // ID for easier targeting
-            colInput.value = '#' + targetMesh.material.color.getHexString();
+            colInput.value = '#' + activeMaterial.color.getHexString();
             colInput.addEventListener('input', (e) => {
                 const hex = e.target.value;
-                if (obj.userData.type === 'figure') {
-                    // Color whole figure
+                if (isText && this.app.factory && this.app.factory.updateTextLabel) {
+                    activeMaterial.color.set(hex);
+                    this.app.factory.updateTextLabel(obj, obj.userData.text || 'Text', obj.userData.fontFamily);
+                } else if (obj.userData.type === 'figure') {
                     obj.traverse(c => { if (c.isMesh) c.material.color.set(hex); });
                 } else {
-                    targetMesh.material.color.set(hex);
+                    activeMaterial.color.set(hex);
                 }
             });
             colorGroup.appendChild(colInput);
             this.propsContent.appendChild(colorGroup);
 
             // Add PBR Material Properties (Metallic and Roughness)
-            this.addMaterialProperties(obj, targetMesh);
+            this.addMaterialProperties(obj, targetMesh, activeMaterial);
+
+            // Add per-object physics controls
+            this.addPhysicsControls(obj);
         }
 
         // LIGHT PROPERTIES
         if (isLight) {
-            const lightObj = obj.children[0]; // The actual light is inside the container
+            const lightObj = obj.children[0];
+            const lightType = obj.userData.lightType;
 
-            const intGroup = document.createElement('div');
-            intGroup.className = 'property-group';
-            intGroup.innerHTML = `<div class="property-label">Intensity</div>`;
-            const intInput = document.createElement('input');
-            intInput.type = 'range';
-            intInput.min = 0; intInput.max = 100;
-            intInput.value = lightObj.intensity;
-            intInput.style.width = '100%';
-            intInput.addEventListener('input', (e) => {
-                lightObj.intensity = parseFloat(e.target.value);
-            });
-            intGroup.appendChild(intInput);
-            this.propsContent.appendChild(intGroup);
-
+            // Color
             const lColGroup = document.createElement('div');
             lColGroup.className = 'property-group';
             lColGroup.innerHTML = `<div class="property-label">Light Color</div>`;
@@ -1127,19 +2787,369 @@ export class UI {
             lColInput.value = '#' + lightObj.color.getHexString();
             lColInput.addEventListener('input', (e) => {
                 lightObj.color.set(e.target.value);
+                this.syncLightAsset(obj);
             });
             lColGroup.appendChild(lColInput);
             this.propsContent.appendChild(lColGroup);
+
+            // Intensity (number input + slider)
+            const intGroup = document.createElement('div');
+            intGroup.className = 'property-group';
+            intGroup.innerHTML = `<div class="property-label">Intensity</div>`;
+            const intRow = document.createElement('div');
+            intRow.className = 'input-row';
+            intRow.style.gap = '8px';
+
+            const intInput = document.createElement('input');
+            intInput.type = 'number';
+            intInput.min = '0';
+            intInput.max = '100';
+            intInput.value = lightObj.intensity;
+            intInput.style.width = '70px';
+            intInput.style.flex = 'none';
+            intInput.addEventListener('input', (e) => {
+                lightObj.intensity = parseFloat(e.target.value);
+                intSlider.value = e.target.value;
+                this.syncLightAsset(obj);
+            });
+
+            const intSlider = document.createElement('input');
+            intSlider.type = 'range';
+            intSlider.min = '0';
+            intSlider.max = '100';
+            intSlider.value = lightObj.intensity;
+            intSlider.style.flex = '1';
+            intSlider.addEventListener('input', (e) => {
+                intInput.value = e.target.value;
+                lightObj.intensity = parseFloat(e.target.value);
+                this.syncLightAsset(obj);
+            });
+
+            intRow.appendChild(intInput);
+            intRow.appendChild(intSlider);
+            intGroup.appendChild(intRow);
+            this.propsContent.appendChild(intGroup);
+
+            // Shadows toggle
+            const shadowGroup = document.createElement('div');
+            shadowGroup.className = 'property-group';
+            shadowGroup.innerHTML = `<div class="property-label">Shadows</div>`;
+            const shadowRow = document.createElement('div');
+            shadowRow.className = 'input-row';
+            shadowRow.style.gap = '8px';
+
+            const yesRadio = document.createElement('input');
+            yesRadio.type = 'radio';
+            yesRadio.name = 'light-shadows';
+            yesRadio.id = 'light-shadows-yes';
+            yesRadio.checked = lightObj.castShadow === true;
+            yesRadio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    lightObj.castShadow = true;
+                    if (lightObj.shadow) lightObj.shadow.needsUpdate = true;
+                }
+                this.syncLightAsset(obj);
+            });
+
+            const yesLabel = document.createElement('label');
+            yesLabel.htmlFor = 'light-shadows-yes';
+            yesLabel.textContent = 'Yes';
+            yesLabel.style.fontSize = '0.75rem';
+            yesLabel.style.color = 'var(--text-secondary)';
+
+            const noRadio = document.createElement('input');
+            noRadio.type = 'radio';
+            noRadio.name = 'light-shadows';
+            noRadio.id = 'light-shadows-no';
+            noRadio.checked = lightObj.castShadow !== true;
+            noRadio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    lightObj.castShadow = false;
+                }
+                this.syncLightAsset(obj);
+            });
+
+            const noLabel = document.createElement('label');
+            noLabel.htmlFor = 'light-shadows-no';
+            noLabel.textContent = 'No';
+            noLabel.style.fontSize = '0.75rem';
+            noLabel.style.color = 'var(--text-secondary)';
+
+            shadowRow.appendChild(yesRadio);
+            shadowRow.appendChild(yesLabel);
+            shadowRow.appendChild(noRadio);
+            shadowRow.appendChild(noLabel);
+            shadowGroup.appendChild(shadowRow);
+            this.propsContent.appendChild(shadowGroup);
+
+            // Spot/Directional specific properties
+            if (lightType === 'spot' || lightType === 'directional') {
+                // Resolution
+                const resGroup = document.createElement('div');
+                resGroup.className = 'property-group';
+                resGroup.innerHTML = `<div class="property-label">Resolution</div>`;
+                const resSelect = document.createElement('select');
+                resSelect.style.width = '100%';
+                resSelect.style.background = 'var(--bg-light)';
+                resSelect.style.border = '1px solid var(--border-color)';
+                resSelect.style.borderRadius = '4px';
+                resSelect.style.padding = '6px 10px';
+                resSelect.style.fontSize = '0.8rem';
+                resSelect.style.color = 'var(--text-primary)';
+                resSelect.style.fontFamily = 'inherit';
+
+                const resolutions = [
+                    { value: '256', label: 'Low (256)' },
+                    { value: '512', label: 'Medium (512)' },
+                    { value: '1024', label: 'High (1024)' },
+                    { value: '2048', label: 'Ultra (2048)' },
+                ];
+
+                const currentRes = lightObj.shadow?.map?.size?.width || 1024;
+                resolutions.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    if (parseInt(opt.value) === currentRes) option.selected = true;
+                    resSelect.appendChild(option);
+                });
+
+                resSelect.addEventListener('change', (e) => {
+                    const size = parseInt(e.target.value);
+                    if (lightObj.shadow && lightObj.shadow.map) {
+                        lightObj.shadow.mapSize.set(size, size);
+                        lightObj.shadow.needsUpdate = true;
+                    }
+                    this.syncLightAsset(obj);
+                });
+
+                resGroup.appendChild(resSelect);
+                this.propsContent.appendChild(resGroup);
+
+                // Size
+                const sizeGroup = document.createElement('div');
+                sizeGroup.className = 'property-group';
+                sizeGroup.innerHTML = `<div class="property-label">Size</div>`;
+                const sizeRow = document.createElement('div');
+                sizeRow.className = 'input-row';
+                sizeRow.style.gap = '8px';
+
+                const sizeInput = document.createElement('input');
+                sizeInput.type = 'number';
+                sizeInput.min = '100';
+                sizeInput.max = '10000';
+                sizeInput.value = lightObj.shadow?.radius || 1;
+                sizeInput.style.width = '70px';
+                sizeInput.style.flex = 'none';
+                sizeInput.addEventListener('input', (e) => {
+                    if (lightObj.shadow) lightObj.shadow.radius = parseFloat(e.target.value);
+                    sizeSlider.value = e.target.value;
+                    this.syncLightAsset(obj);
+                });
+
+                const sizeSlider = document.createElement('input');
+                sizeSlider.type = 'range';
+                sizeSlider.min = '100';
+                sizeSlider.max = '10000';
+                sizeSlider.value = lightObj.shadow?.radius || 1;
+                sizeSlider.style.flex = '1';
+                sizeSlider.addEventListener('input', (e) => {
+                    sizeInput.value = e.target.value;
+                    if (lightObj.shadow) lightObj.shadow.radius = parseFloat(e.target.value);
+                    this.syncLightAsset(obj);
+                });
+
+                sizeRow.appendChild(sizeInput);
+                sizeRow.appendChild(sizeSlider);
+                sizeGroup.appendChild(sizeRow);
+                this.propsContent.appendChild(sizeGroup);
+
+                // Blur / Shadow Radius
+                const blurGroup = document.createElement('div');
+                blurGroup.className = 'property-group';
+                blurGroup.innerHTML = `<div class="property-label">Blur / Shadow Radius</div>`;
+                const blurRow = document.createElement('div');
+                blurRow.className = 'input-row';
+                blurRow.style.gap = '8px';
+
+                const blurInput = document.createElement('input');
+                blurInput.type = 'number';
+                blurInput.min = '0';
+                blurInput.max = '10';
+                blurInput.step = '0.1';
+                blurInput.value = lightObj.shadow?.blurSamples || 0;
+                blurInput.style.width = '70px';
+                blurInput.style.flex = 'none';
+                blurInput.addEventListener('input', (e) => {
+                    if (lightObj.shadow) lightObj.shadow.blurSamples = parseFloat(e.target.value);
+                    blurSlider.value = e.target.value;
+                    this.syncLightAsset(obj);
+                });
+
+                const blurSlider = document.createElement('input');
+                blurSlider.type = 'range';
+                blurSlider.min = '0';
+                blurSlider.max = '10';
+                blurSlider.step = '0.1';
+                blurSlider.value = lightObj.shadow?.blurSamples || 0;
+                blurSlider.style.flex = '1';
+                blurSlider.addEventListener('input', (e) => {
+                    blurInput.value = e.target.value;
+                    if (lightObj.shadow) lightObj.shadow.blurSamples = parseFloat(e.target.value);
+                    this.syncLightAsset(obj);
+                });
+
+                blurRow.appendChild(blurInput);
+                blurRow.appendChild(blurSlider);
+                blurGroup.appendChild(blurRow);
+                this.propsContent.appendChild(blurGroup);
+
+                // Penumbra
+                const penumbraGroup = document.createElement('div');
+                penumbraGroup.className = 'property-group';
+                penumbraGroup.innerHTML = `<div class="property-label">Penumbra</div>`;
+                const penumbraRow = document.createElement('div');
+                penumbraRow.className = 'input-row';
+                penumbraRow.style.gap = '8px';
+
+                const penumbraInput = document.createElement('input');
+                penumbraInput.type = 'number';
+                penumbraInput.min = '0';
+                penumbraInput.max = '10';
+                penumbraInput.step = '0.1';
+                penumbraInput.value = lightObj.penumbra || 0;
+                penumbraInput.style.width = '70px';
+                penumbraInput.style.flex = 'none';
+                penumbraInput.addEventListener('input', (e) => {
+                    lightObj.penumbra = parseFloat(e.target.value);
+                    penumbraSlider.value = e.target.value;
+                    this.syncLightAsset(obj);
+                });
+
+                const penumbraSlider = document.createElement('input');
+                penumbraSlider.type = 'range';
+                penumbraSlider.min = '0';
+                penumbraSlider.max = '10';
+                penumbraSlider.step = '0.1';
+                penumbraSlider.value = lightObj.penumbra || 0;
+                penumbraSlider.style.flex = '1';
+                penumbraSlider.addEventListener('input', (e) => {
+                    penumbraInput.value = e.target.value;
+                    lightObj.penumbra = parseFloat(e.target.value);
+                    this.syncLightAsset(obj);
+                });
+
+                penumbraRow.appendChild(penumbraInput);
+                penumbraRow.appendChild(penumbraSlider);
+                penumbraGroup.appendChild(penumbraRow);
+                this.propsContent.appendChild(penumbraGroup);
+            }
+
+            // Point/Spot specific: Distance
+            if (lightType === 'point' || lightType === 'spot') {
+                const distGroup = document.createElement('div');
+                distGroup.className = 'property-group';
+                distGroup.innerHTML = `<div class="property-label">Distance</div>`;
+                const distInput = document.createElement('input');
+                distInput.type = 'number';
+                distInput.min = '0';
+                distInput.value = lightObj.distance;
+                distInput.addEventListener('input', (e) => {
+                    lightObj.distance = parseFloat(e.target.value);
+                    this.syncLightAsset(obj);
+                });
+                distGroup.appendChild(distInput);
+                this.propsContent.appendChild(distGroup);
+            }
         }
 
         // A-FRAME PROPERTIES (for shapes)
         if (isShape && obj.userData.aframe) {
             this.addAFrameProperties(obj);
         }
+
+    }
+
+    add2DProperties(obj) {
+        const slots = this.app.materialsManager?.getMaterialSlots(obj) || [obj.material];
+        const activeSlot = Math.min(obj.userData.activeMaterialSlot || 0, slots.length - 1);
+        const material = slots[activeSlot];
+        if (!material) return;
+
+        this.addMaterialsSelector(obj, obj, material);
+
+        const group = document.createElement('div');
+        group.className = 'property-group';
+        group.innerHTML = '<div class="property-label">2D Appearance</div>';
+
+        const materialRow = document.createElement('div');
+        materialRow.className = 'input-row';
+        materialRow.innerHTML = '<span style="width:70px;font-size:.75rem;color:var(--text-secondary)">Material:</span>';
+        const select = document.createElement('select');
+        select.id = 'prop-2d-material';
+        select.style.cssText = 'flex:1;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:5px 8px;color:var(--text-primary)';
+        const ownOption = document.createElement('option');
+        ownOption.value = '';
+        ownOption.textContent = obj.userData.materialName || 'Current material';
+        select.appendChild(ownOption);
+        this.app.materialsManager?.materials.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+            select.appendChild(option);
+        });
+        select.addEventListener('change', e => {
+            const definition = this.app.materialsManager?.materials.find(item => item.id === e.target.value);
+            if (!definition) return;
+            this.app.materialsManager.applyMaterialToSelected(definition);
+            this.renderPropertiesPanel(obj);
+        });
+        materialRow.appendChild(select);
+        group.appendChild(materialRow);
+
+        const colorRow = document.createElement('div');
+        colorRow.className = 'input-row';
+        colorRow.style.marginTop = '8px';
+        colorRow.innerHTML = '<span style="width:70px;font-size:.75rem;color:var(--text-secondary)">Colour:</span>';
+        const color = document.createElement('input');
+        color.type = 'color';
+        color.id = 'prop-color-picker';
+        color.value = '#' + material.color.getHexString();
+        color.addEventListener('input', e => { material.color.set(e.target.value); });
+        colorRow.appendChild(color);
+        group.appendChild(colorRow);
+
+        const opacityRow = document.createElement('div');
+        opacityRow.className = 'input-row';
+        opacityRow.style.marginTop = '8px';
+        opacityRow.innerHTML = '<span style="width:70px;font-size:.75rem;color:var(--text-secondary)">Opacity:</span>';
+        const opacity = document.createElement('input');
+        opacity.type = 'range';
+        opacity.min = '0'; opacity.max = '1'; opacity.step = '0.01';
+        opacity.value = material.opacity ?? 1;
+        opacity.style.flex = '1';
+        const opacityValue = document.createElement('span');
+        opacityValue.style.cssText = 'width:34px;text-align:right;font-size:.7rem';
+        opacityValue.textContent = Number(opacity.value).toFixed(2);
+        opacity.addEventListener('input', e => {
+            const value = parseFloat(e.target.value);
+            material.opacity = value;
+            material.transparent = value < 1 || !!material.map || !!material.alphaMap;
+            material.needsUpdate = true;
+            opacityValue.textContent = value.toFixed(2);
+        });
+        opacityRow.append(opacity, opacityValue);
+        group.appendChild(opacityRow);
+
+        this.propsContent.appendChild(group);
+        this.addPhysicsControls(obj);
     }
 
     // Add PBR Material Properties (Metallic and Roughness)
-    addMaterialProperties(obj, targetMesh) {
+    addMaterialProperties(obj, targetMesh, activeMaterial = null) {
+        const editedMaterial = activeMaterial || (Array.isArray(targetMesh.material)
+            ? targetMesh.material[targetMesh.userData.activeMaterialSlot || 0]
+            : targetMesh.material);
         // Create material properties group
         const materialGroup = document.createElement('div');
         materialGroup.className = 'property-group';
@@ -1172,7 +3182,7 @@ export class UI {
         metallicValue.style.color = 'var(--text-primary)';
         metallicValue.style.width = '30px';
         metallicValue.style.textAlign = 'right';
-        metallicValue.textContent = (targetMesh.material.metalness !== undefined ? targetMesh.material.metalness : 0).toFixed(2);
+        metallicValue.textContent = (editedMaterial.metalness !== undefined ? editedMaterial.metalness : 0).toFixed(2);
         metallicRow.appendChild(metallicValue);
 
         // Add info button for metallic
@@ -1186,8 +3196,8 @@ export class UI {
         metallicRow.appendChild(metallicInfo);
 
         // Initialize metallic value (default to 0 if not set)
-        metallicInput.value = targetMesh.material.metalness !== undefined
-            ? targetMesh.material.metalness
+        metallicInput.value = editedMaterial.metalness !== undefined
+            ? editedMaterial.metalness
             : 0;
 
         metallicInput.addEventListener('input', (e) => {
@@ -1201,7 +3211,7 @@ export class UI {
                     }
                 });
             } else {
-                targetMesh.material.metalness = value;
+                editedMaterial.metalness = value;
             }
         });
 
@@ -1234,7 +3244,7 @@ export class UI {
         roughnessValue.style.color = 'var(--text-primary)';
         roughnessValue.style.width = '30px';
         roughnessValue.style.textAlign = 'right';
-        roughnessValue.textContent = (targetMesh.material.roughness !== undefined ? targetMesh.material.roughness : 0.5).toFixed(2);
+        roughnessValue.textContent = (editedMaterial.roughness !== undefined ? editedMaterial.roughness : 0.5).toFixed(2);
         roughnessRow.appendChild(roughnessValue);
 
         // Add info button for roughness
@@ -1248,8 +3258,8 @@ export class UI {
         roughnessRow.appendChild(roughnessInfo);
 
         // Initialize roughness value (default to 0.5 if not set)
-        roughnessInput.value = targetMesh.material.roughness !== undefined
-            ? targetMesh.material.roughness
+        roughnessInput.value = editedMaterial.roughness !== undefined
+            ? editedMaterial.roughness
             : 0.5;
 
         roughnessInput.addEventListener('input', (e) => {
@@ -1263,7 +3273,7 @@ export class UI {
                     }
                 });
             } else {
-                targetMesh.material.roughness = value;
+                editedMaterial.roughness = value;
             }
         });
 
@@ -1296,12 +3306,12 @@ export class UI {
         opacityValue.style.color = 'var(--text-primary)';
         opacityValue.style.width = '30px';
         opacityValue.style.textAlign = 'right';
-        opacityValue.textContent = (targetMesh.material.opacity !== undefined ? targetMesh.material.opacity : 1).toFixed(2);
+        opacityValue.textContent = (editedMaterial.opacity !== undefined ? editedMaterial.opacity : 1).toFixed(2);
         opacityRow.appendChild(opacityValue);
 
         // Initialize opacity value (default to 1 if not set)
-        opacityInput.value = targetMesh.material.opacity !== undefined
-            ? targetMesh.material.opacity
+        opacityInput.value = editedMaterial.opacity !== undefined
+            ? editedMaterial.opacity
             : 1;
 
         opacityInput.addEventListener('input', (e) => {
@@ -1316,15 +3326,462 @@ export class UI {
                     }
                 });
             } else {
-                targetMesh.material.opacity = value;
-                targetMesh.material.transparent = value < 1;
+                editedMaterial.opacity = value;
+                editedMaterial.transparent = value < 1 || !!editedMaterial.alphaMap;
             }
         });
 
         opacityRow.appendChild(opacityInput);
         materialGroup.appendChild(opacityRow);
 
+        const addPbrSlider = (label, id, value, min, max, step, onChange) => {
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            row.style.marginBottom = '4px';
+
+            const labelSpan = document.createElement('span');
+            labelSpan.style.fontSize = '0.65rem';
+            labelSpan.style.color = 'var(--text-secondary)';
+            labelSpan.style.width = '60px';
+            labelSpan.textContent = label;
+            row.appendChild(labelSpan);
+
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.id = id;
+            input.min = String(min);
+            input.max = String(max);
+            input.step = String(step);
+            input.style.flex = '1';
+
+            const valueSpan = document.createElement('span');
+            valueSpan.id = id + '-value';
+            valueSpan.style.fontSize = '0.65rem';
+            valueSpan.style.color = 'var(--text-primary)';
+            valueSpan.style.width = '30px';
+            valueSpan.style.textAlign = 'right';
+            valueSpan.textContent = Number(value).toFixed(2);
+
+            input.addEventListener('input', (e) => {
+                const v = parseFloat(e.target.value);
+                valueSpan.textContent = v.toFixed(2);
+                onChange(v);
+            });
+
+            input.value = Number(value);
+
+            row.appendChild(valueSpan);
+            row.appendChild(input);
+            materialGroup.appendChild(row);
+        };
+
+        const mat = editedMaterial;
+        addPbrSlider('Clearcoat:', 'prop-clearcoat-slider', mat.clearcoat || 0, 0, 1, 0.01, (v) => {
+            if (obj.userData.type === 'figure') {
+                obj.traverse(c => { if (c.isMesh && c.material) c.material.clearcoat = v; });
+            } else {
+                editedMaterial.clearcoat = v;
+            }
+        });
+        addPbrSlider('Transmission:', 'prop-transmission-slider', mat.transmission || 0, 0, 1, 0.01, (v) => {
+            if (obj.userData.type === 'figure') {
+                obj.traverse(c => { if (c.isMesh && c.material) c.material.transmission = v; });
+            } else {
+                editedMaterial.transmission = v;
+            }
+        });
+        addPbrSlider('Sheen:', 'prop-sheen-slider', mat.sheen || 0, 0, 1, 0.01, (v) => {
+            if (obj.userData.type === 'figure') {
+                obj.traverse(c => { if (c.isMesh && c.material) c.material.sheen = v; });
+            } else {
+                editedMaterial.sheen = v;
+            }
+        });
+
+        const outlineGroup = document.createElement('div');
+        outlineGroup.className = 'property-group';
+        outlineGroup.innerHTML = `<div class="property-label">Outline</div>`;
+        const outlineRow = document.createElement('div');
+        outlineRow.className = 'input-row';
+        outlineRow.style.marginBottom = '4px';
+
+        const outlineToggle = document.createElement('input');
+        outlineToggle.type = 'checkbox';
+        outlineToggle.id = 'prop-outline-toggle';
+        outlineToggle.checked = !!targetMesh.getObjectByName('outline');
+        outlineToggle.style.marginRight = '8px';
+        outlineToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                this.app.addOutlineToObject(targetMesh, 0x000000, 0.02);
+            } else {
+                const existingOutline = targetMesh.getObjectByName('outline');
+                if (existingOutline) {
+                    existingOutline.geometry.dispose();
+                    existingOutline.material.dispose();
+                    targetMesh.remove(existingOutline);
+                }
+            }
+        });
+
+        const outlineLabel = document.createElement('span');
+        outlineLabel.style.fontSize = '0.65rem';
+        outlineLabel.style.color = 'var(--text-secondary)';
+        outlineLabel.textContent = 'Enable Outline';
+
+        const outlineColor = document.createElement('input');
+        outlineColor.type = 'color';
+        outlineColor.id = 'prop-outline-color';
+        outlineColor.value = '#000000';
+        outlineColor.style.marginLeft = '8px';
+        outlineColor.addEventListener('input', (e) => {
+            const existingOutline = targetMesh.getObjectByName('outline');
+            if (existingOutline && existingOutline.material) {
+                existingOutline.material.color.set(e.target.value);
+            }
+        });
+
+        const outlineThickness = document.createElement('input');
+        outlineThickness.type = 'range';
+        outlineThickness.id = 'prop-outline-thickness';
+        outlineThickness.min = '0.005';
+        outlineThickness.max = '0.2';
+        outlineThickness.step = '0.005';
+        outlineThickness.value = '0.02';
+        outlineThickness.style.marginLeft = '8px';
+        outlineThickness.style.flex = '1';
+        outlineThickness.addEventListener('input', (e) => {
+            const existingOutline = targetMesh.getObjectByName('outline');
+            if (existingOutline) {
+                const s = 1 + parseFloat(e.target.value);
+                existingOutline.scale.set(s, s, s);
+            }
+        });
+
+        outlineRow.appendChild(outlineToggle);
+        outlineRow.appendChild(outlineLabel);
+        outlineRow.appendChild(outlineColor);
+        outlineRow.appendChild(outlineThickness);
+        outlineGroup.appendChild(outlineRow);
+        materialGroup.appendChild(outlineGroup);
+
         this.propsContent.appendChild(materialGroup);
+    }
+
+    // Add per-object Physics Controls to Properties Panel
+    addPhysicsControls(obj) {
+        if (!this.app.physicsManager) return;
+
+        const physicsGroup = document.createElement('div');
+        physicsGroup.className = 'property-group';
+        physicsGroup.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas fa-atom" style="margin-right: 6px;"></i>Physics</div>`;
+
+        // Enable/disable physics for this object
+        const enableRow = document.createElement('div');
+        enableRow.className = 'input-row';
+        enableRow.style.marginBottom = '8px';
+
+        const enableToggle = document.createElement('input');
+        enableToggle.type = 'checkbox';
+        enableToggle.id = 'prop-physics-enabled';
+        enableToggle.checked = obj.userData.physicsEnabled || false;
+        enableToggle.style.marginRight = '8px';
+
+        const enableLabel = document.createElement('span');
+        enableLabel.style.fontSize = '0.75rem';
+        enableLabel.style.color = 'var(--text-secondary)';
+        enableLabel.textContent = 'Enable Physics';
+
+        enableToggle.addEventListener('change', (e) => {
+            obj.userData.physicsEnabled = e.target.checked;
+            if (e.target.checked) {
+                this.app.physicsManager.addMesh(obj, {
+                    mass: obj.userData.physicsMass ?? 1,
+                    bodyType: obj.userData.physicsBodyType ?? 2,
+                    friction: obj.userData.physicsFriction ?? 0.3,
+                    restitution: obj.userData.physicsRestitution ?? 0.2,
+                    linearDamping: obj.userData.physicsLinearDamping ?? 0.01,
+                    angularDamping: obj.userData.physicsAngularDamping ?? 0.01
+                });
+            } else {
+                this.app.physicsManager.removeMesh(obj);
+            }
+        });
+
+        enableRow.appendChild(enableToggle);
+        enableRow.appendChild(enableLabel);
+        physicsGroup.appendChild(enableRow);
+
+        // Body type selector
+        const bodyTypeRow = document.createElement('div');
+        bodyTypeRow.className = 'input-row';
+        bodyTypeRow.style.marginBottom = '8px';
+
+        const bodyTypeLabel = document.createElement('span');
+        bodyTypeLabel.style.fontSize = '0.75rem';
+        bodyTypeLabel.style.color = 'var(--text-secondary)';
+        bodyTypeLabel.style.width = '60px';
+        bodyTypeLabel.textContent = 'Body:';
+        bodyTypeRow.appendChild(bodyTypeLabel);
+
+        const bodyTypeSelect = document.createElement('select');
+        bodyTypeSelect.id = 'prop-physics-body-type';
+        bodyTypeSelect.style.flex = '1';
+        bodyTypeSelect.style.background = 'var(--bg-light)';
+        bodyTypeSelect.style.border = '1px solid var(--border-color)';
+        bodyTypeSelect.style.borderRadius = '4px';
+        bodyTypeSelect.style.padding = '4px 8px';
+        bodyTypeSelect.style.fontSize = '0.75rem';
+        bodyTypeSelect.style.color = 'var(--text-primary)';
+
+        const bodyTypes = [
+            { value: '2', label: 'Dynamic' },
+            { value: '1', label: 'Static' },
+            { value: '4', label: 'Kinematic' }
+        ];
+
+        bodyTypes.forEach(bt => {
+            const option = document.createElement('option');
+            option.value = bt.value;
+            option.textContent = bt.label;
+            if ((obj.userData.physicsBodyType || 2) == bt.value) {
+                option.selected = true;
+            }
+            bodyTypeSelect.appendChild(option);
+        });
+
+        bodyTypeSelect.addEventListener('change', (e) => {
+            const bodyType = parseInt(e.target.value);
+            obj.userData.physicsBodyType = bodyType;
+            if (this.app.physicsManager.getBodyForMesh(obj)) {
+                this.app.physicsManager.setBodyType(obj, bodyType);
+            }
+        });
+
+        bodyTypeRow.appendChild(bodyTypeSelect);
+        physicsGroup.appendChild(bodyTypeRow);
+
+        // Mass slider
+        const massRow = document.createElement('div');
+        massRow.className = 'input-row';
+        massRow.style.marginBottom = '4px';
+
+        const massLabel = document.createElement('span');
+        massLabel.style.fontSize = '0.75rem';
+        massLabel.style.color = 'var(--text-secondary)';
+        massLabel.style.width = '60px';
+        massLabel.textContent = 'Mass:';
+        massRow.appendChild(massLabel);
+
+        const massSlider = document.createElement('input');
+        massSlider.type = 'range';
+        massSlider.id = 'prop-physics-mass';
+        massSlider.min = '0.1';
+        massSlider.max = '50';
+        massSlider.step = '0.1';
+        massSlider.value = obj.userData.physicsMass || 1;
+        massSlider.style.flex = '1';
+
+        const massValue = document.createElement('span');
+        massValue.id = 'prop-physics-mass-value';
+        massValue.style.fontSize = '0.7rem';
+        massValue.style.color = 'var(--text-primary)';
+        massValue.style.width = '30px';
+        massValue.style.textAlign = 'right';
+        massValue.textContent = (obj.userData.physicsMass || 1).toFixed(1);
+
+        massSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            massValue.textContent = value.toFixed(1);
+            obj.userData.physicsMass = value;
+            const body = this.app.physicsManager.getBodyForMesh(obj);
+            if (body) {
+                body.userData.originalMass = value;
+                if (body.type !== 1) {
+                    body.mass = value;
+                    body.updateMassProperties();
+                }
+            }
+        });
+
+        massRow.appendChild(massLabel);
+        massRow.appendChild(massSlider);
+        massRow.appendChild(massValue);
+        physicsGroup.appendChild(massRow);
+
+        const addPhysicsSlider = (label, key, min, max, step, fallback, applyValue) => {
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            row.style.marginBottom = '4px';
+
+            const text = document.createElement('span');
+            text.style.fontSize = '0.75rem';
+            text.style.color = 'var(--text-secondary)';
+            text.style.width = '60px';
+            text.textContent = `${label}:`;
+
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = String(min);
+            slider.max = String(max);
+            slider.step = String(step);
+            slider.value = String(obj.userData[key] ?? fallback);
+            slider.style.flex = '1';
+
+            const valueText = document.createElement('span');
+            valueText.style.fontSize = '0.7rem';
+            valueText.style.color = 'var(--text-primary)';
+            valueText.style.width = '34px';
+            valueText.style.textAlign = 'right';
+            valueText.textContent = Number(slider.value).toFixed(2);
+
+            slider.addEventListener('input', (event) => {
+                const value = parseFloat(event.target.value);
+                obj.userData[key] = value;
+                valueText.textContent = value.toFixed(2);
+                const body = this.app.physicsManager.getBodyForMesh(obj);
+                if (body) applyValue(body, value);
+            });
+
+            row.appendChild(text);
+            row.appendChild(slider);
+            row.appendChild(valueText);
+            physicsGroup.appendChild(row);
+        };
+
+        addPhysicsSlider('Friction', 'physicsFriction', 0, 1, 0.01, 0.3, (body, value) => {
+            if (!body.material) body.material = {};
+            body.material.friction = value;
+        });
+        addPhysicsSlider('Bounce', 'physicsRestitution', 0, 1, 0.01, 0.2, (body, value) => {
+            if (!body.material) body.material = {};
+            body.material.restitution = value;
+        });
+        addPhysicsSlider('Move drag', 'physicsLinearDamping', 0, 1, 0.01, 0.01, (body, value) => {
+            body.linearDamping = value;
+        });
+        addPhysicsSlider('Spin drag', 'physicsAngularDamping', 0, 1, 0.01, 0.01, (body, value) => {
+            body.angularDamping = value;
+        });
+
+        this.propsContent.appendChild(physicsGroup);
+    }
+
+    // Add 2D Text Controls to Properties Panel
+    addTextControls(obj) {
+        if (!obj || obj.userData.type !== 'shape2d' || obj.userData.shapeType !== 'text') return;
+
+        const textGroup = document.createElement('div');
+        textGroup.className = 'property-group';
+        textGroup.innerHTML = `<div class="property-label" style="color: var(--accent-secondary);"><i class="fas fa-font" style="margin-right: 6px;"></i>Text Properties</div>`;
+
+        // Text content
+        const textRow = document.createElement('div');
+        textRow.className = 'input-row';
+        textRow.style.marginBottom = '8px';
+
+        const textLabel = document.createElement('span');
+        textLabel.style.fontSize = '0.75rem';
+        textLabel.style.color = 'var(--text-secondary)';
+        textLabel.style.width = '60px';
+        textLabel.textContent = 'Text:';
+        textRow.appendChild(textLabel);
+
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.value = obj.userData.text || 'Text';
+        textInput.style.flex = '1';
+        textInput.style.background = 'var(--bg-light)';
+        textInput.style.border = '1px solid var(--border-color)';
+        textInput.style.borderRadius = '4px';
+        textInput.style.padding = '4px 8px';
+        textInput.style.fontSize = '0.75rem';
+        textInput.style.color = 'var(--text-primary)';
+        textInput.addEventListener('input', (e) => {
+            obj.userData.text = e.target.value;
+            if (this.app.factory && this.app.factory.updateTextLabel) {
+                this.app.factory.updateTextLabel(obj, e.target.value, obj.userData.fontFamily);
+            }
+        });
+        textRow.appendChild(textInput);
+        textGroup.appendChild(textRow);
+
+        // Font family
+        const fontRow = document.createElement('div');
+        fontRow.className = 'input-row';
+        fontRow.style.marginBottom = '4px';
+
+        const fontLabel = document.createElement('span');
+        fontLabel.style.fontSize = '0.75rem';
+        fontLabel.style.color = 'var(--text-secondary)';
+        fontLabel.style.width = '60px';
+        fontLabel.textContent = 'Font:';
+        fontRow.appendChild(fontLabel);
+
+        const fontSelect = document.createElement('select');
+        fontSelect.style.flex = '1';
+        fontSelect.style.background = 'var(--bg-light)';
+        fontSelect.style.border = '1px solid var(--border-color)';
+        fontSelect.style.borderRadius = '4px';
+        fontSelect.style.padding = '4px 8px';
+        fontSelect.style.fontSize = '0.75rem';
+        fontSelect.style.color = 'var(--text-primary)';
+
+        const fonts = [
+            'Inter, sans-serif',
+            'Roboto, sans-serif',
+            'Open Sans, sans-serif',
+            'Montserrat, sans-serif',
+            'Poppins, sans-serif',
+            'Lato, sans-serif',
+            'Oswald, sans-serif',
+            'Raleway, sans-serif',
+            'Noto Sans, sans-serif',
+            'Ubuntu, sans-serif',
+            'Merriweather, serif',
+            'Playfair Display, serif',
+            'Fira Code, monospace',
+            'Bebas Neue, sans-serif',
+            'Pacifico, cursive',
+            'Press Start 2P, cursive'
+        ];
+
+        fonts.forEach(font => {
+            const option = document.createElement('option');
+            option.value = font;
+            option.textContent = font.split(',')[0];
+            if (obj.userData.fontFamily === font || (!obj.userData.fontFamily && font === 'Inter, sans-serif')) {
+                option.selected = true;
+            }
+            fontSelect.appendChild(option);
+        });
+
+        fontSelect.addEventListener('change', async (e) => {
+            obj.userData.fontFamily = e.target.value;
+            await this.loadGoogleFont(e.target.value);
+            if (this.app.factory && this.app.factory.updateTextLabel) {
+                this.app.factory.updateTextLabel(obj, obj.userData.text || 'Text', e.target.value);
+            }
+        });
+        fontRow.appendChild(fontSelect);
+        textGroup.appendChild(fontRow);
+
+        this.propsContent.appendChild(textGroup);
+    }
+
+    async loadGoogleFont(fontFamily) {
+        const family = fontFamily.split(',')[0].trim();
+        if (!family || family === 'Inter') return;
+        const id = `google-font-${family.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        if (!document.getElementById(id)) {
+            const link = document.createElement('link');
+            link.id = id;
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, '+')}:wght@400;700&display=swap`;
+            document.head.appendChild(link);
+        }
+        if (document.fonts?.load) {
+            try { await document.fonts.load(`700 80px "${family}"`); } catch (_) { /* use browser fallback */ }
+        }
     }
 
     // Add A-Frame Properties to Properties Panel
@@ -1470,6 +3927,49 @@ export class UI {
 
         materialsGroup.appendChild(selectorHeader);
 
+        const slots = this.app.materialsManager.getMaterialSlots(targetMesh);
+        const activeSlot = Math.min(targetMesh.userData.activeMaterialSlot || 0, slots.length - 1);
+        const slotRow = document.createElement('div');
+        slotRow.className = 'input-row';
+        slotRow.style.cssText = 'gap:6px;margin-bottom:8px;';
+
+        const slotSelect = document.createElement('select');
+        slotSelect.title = 'Material slot';
+        slotSelect.style.cssText = 'flex:1;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:5px;color:var(--text-primary);';
+        slots.forEach((slot, index) => {
+            const option = document.createElement('option');
+            option.value = String(index);
+            option.textContent = `Slot ${index + 1}: ${slot.name || 'Material'}`;
+            option.selected = index === activeSlot;
+            slotSelect.appendChild(option);
+        });
+        slotSelect.addEventListener('change', event => {
+            targetMesh.userData.activeMaterialSlot = parseInt(event.target.value);
+            this.renderPropertiesPanel(obj);
+        });
+
+        const addSlotBtn = document.createElement('button');
+        addSlotBtn.className = 'btn';
+        addSlotBtn.textContent = '+';
+        addSlotBtn.title = 'Add material slot';
+        addSlotBtn.addEventListener('click', () => {
+            this.app.materialsManager.addMaterialSlot(targetMesh);
+            this.renderPropertiesPanel(obj);
+        });
+
+        const removeSlotBtn = document.createElement('button');
+        removeSlotBtn.className = 'btn';
+        removeSlotBtn.textContent = '−';
+        removeSlotBtn.title = 'Remove active material slot';
+        removeSlotBtn.disabled = slots.length <= 1;
+        removeSlotBtn.addEventListener('click', () => {
+            this.app.materialsManager.removeMaterialSlot(targetMesh, targetMesh.userData.activeMaterialSlot || 0);
+            this.renderPropertiesPanel(obj);
+        });
+
+        slotRow.append(slotSelect, addSlotBtn, removeSlotBtn);
+        materialsGroup.appendChild(slotRow);
+
         // Create custom materials dropdown wrapper
         const dropdownWrapper = document.createElement('div');
         dropdownWrapper.className = 'material-dropdown-wrapper';
@@ -1585,8 +4085,10 @@ export class UI {
     }
 
     // Method to update material properties UI when a material is selected
-    updateMaterialPropertiesUI(material, targetMesh) {
+    updateMaterialPropertiesUI(material, targetMesh, slotIndex = null) {
         if (!material || !targetMesh) return;
+        const materialSlots = this.app.materialsManager?.getMaterialSlots(targetMesh) || [targetMesh.material];
+        const editedMaterial = materialSlots[slotIndex ?? targetMesh.userData.activeMaterialSlot ?? 0] || materialSlots[0];
 
         // Update color picker
         const colorPicker = document.getElementById('prop-color-picker');
@@ -1612,12 +4114,78 @@ export class UI {
             opacityInput.value = material.opacity !== undefined ? material.opacity : 1;
         }
 
+        // Update clearcoat slider using specific ID
+        const clearcoatInput = document.getElementById('prop-clearcoat-slider');
+        if (clearcoatInput) {
+            clearcoatInput.value = material.clearcoat || 0;
+        }
+
+        // Update transmission slider using specific ID
+        const transmissionInput = document.getElementById('prop-transmission-slider');
+        if (transmissionInput) {
+            transmissionInput.value = material.transmission || 0;
+        }
+
+        // Update sheen slider using specific ID
+        const sheenInput = document.getElementById('prop-sheen-slider');
+        if (sheenInput) {
+            sheenInput.value = material.sheen || 0;
+        }
+
+        // Update outline toggle
+        const outlineToggle = document.getElementById('prop-outline-toggle');
+        if (outlineToggle) {
+            outlineToggle.checked = material.outlineEnabled || false;
+        }
+
+        // Update outline color
+        const outlineColorInput = document.getElementById('prop-outline-color');
+        if (outlineColorInput) {
+            outlineColorInput.value = '#' + (material.outlineColor || 0x000000).toString(16).padStart(6, '0');
+        }
+
+        // Update outline thickness
+        const outlineThicknessInput = document.getElementById('prop-outline-thickness');
+        if (outlineThicknessInput) {
+            outlineThicknessInput.value = material.outlineThickness || 0.02;
+        }
+
         // Update the actual material properties on the mesh
-        targetMesh.material.color.setHex(material.color);
-        targetMesh.material.metalness = material.metalness;
-        targetMesh.material.roughness = material.roughness;
-        targetMesh.material.opacity = material.opacity !== undefined ? material.opacity : 1;
-        targetMesh.material.transparent = targetMesh.material.opacity < 1;
+        editedMaterial.color.setHex(material.color);
+        editedMaterial.metalness = material.metalness;
+        editedMaterial.roughness = material.roughness;
+        editedMaterial.opacity = material.opacity !== undefined ? material.opacity : 1;
+        editedMaterial.transparent = editedMaterial.opacity < 1 || !!editedMaterial.alphaMap;
+        editedMaterial.clearcoat = material.clearcoat || 0;
+        editedMaterial.transmission = material.transmission || 0;
+        editedMaterial.sheen = material.sheen || 0;
+        editedMaterial.sheenRoughness = material.sheenRoughness || 0.5;
+        
+        // Apply texture maps if available
+        if (material.maps) {
+            editedMaterial.map = material.maps.albedo || null;
+            editedMaterial.normalMap = material.maps.normal || null;
+            editedMaterial.roughnessMap = material.maps.roughnessMap || null;
+            editedMaterial.metalnessMap = material.maps.metalnessMap || null;
+            editedMaterial.aoMap = material.maps.aoMap || null;
+            editedMaterial.displacementMap = material.maps.displacementMap || null;
+            editedMaterial.alphaMap = material.maps.alphaMap || null;
+            editedMaterial.emissiveMap = material.maps.emissiveMap || null;
+            editedMaterial.displacementScale = material.displacementScale || 0;
+            editedMaterial.needsUpdate = true;
+        }
+
+        // Outline
+        if (material.outlineEnabled) {
+            this.app.addOutlineToObject(targetMesh, material.outlineColor, material.outlineThickness);
+        } else {
+            const existingOutline = targetMesh.getObjectByName('outline');
+            if (existingOutline) {
+                existingOutline.geometry.dispose();
+                existingOutline.material.dispose();
+                targetMesh.remove(existingOutline);
+            }
+        }
     }
 
     showNotification(message, type = 'info') {
@@ -1660,84 +4228,35 @@ export class UI {
         }, 3000);
     }
 
-    // --- SCENE PANEL VIEW ---
-    toggleSceneView() {
-        const sceneSection = document.getElementById('scene-section');
-        const materialsSection = document.getElementById('materials-section');
-        const aframeSection = document.getElementById('aframe-section');
-        const propsContent = document.getElementById('props-content');
-        const layersList = document.getElementById('layers-list');
-
-        if (sceneSection && materialsSection && propsContent && layersList) {
-            const isSceneVisible = sceneSection.style.display !== 'none';
-
-            if (isSceneVisible) {
-                // Switch to normal view
-                sceneSection.style.display = 'none';
-                materialsSection.style.display = 'none';
-                if (aframeSection) aframeSection.style.display = 'none';
-                propsContent.style.display = 'block';
-                layersList.style.display = 'block';
-                document.querySelectorAll('.panel-header').forEach(header => {
-                    header.style.display = 'flex';
-                });
-            } else {
-                // Switch to scene view
-                sceneSection.style.display = 'flex';
-                materialsSection.style.display = 'none';
-                if (aframeSection) aframeSection.style.display = 'none';
-                propsContent.style.display = 'none';
-                layersList.style.display = 'none';
-                document.querySelectorAll('.panel-header').forEach((header, index) => {
-                    if (index === 2) { // Scene header
-                        header.style.display = 'flex';
-                    } else {
-                        header.style.display = 'none';
-                    }
-                });
-            }
-
-            // Initialize scene export functionality
-            this.initSceneExport();
+    // --- SCENE PANEL FUNCTIONALITY ---
+    initSceneExport() {
+        // Initialize export button
+        const exportBtn = document.getElementById('btn-export-png');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportSceneAsPNG();
+            });
         }
-    }
 
-    // --- A-FRAME PANEL VIEW ---
-    toggleAFrameView() {
-        const sceneSection = document.getElementById('scene-section');
-        const materialsSection = document.getElementById('materials-section');
-        const aframeSection = document.getElementById('aframe-section');
-        const propsContent = document.getElementById('props-content');
-        const layersList = document.getElementById('layers-list');
-
-        if (aframeSection && propsContent && layersList) {
-            const isAFrameVisible = aframeSection.style.display !== 'none';
-
-            if (isAFrameVisible) {
-                // Switch to normal view
-                aframeSection.style.display = 'none';
-                if (sceneSection) sceneSection.style.display = 'none';
-                if (materialsSection) materialsSection.style.display = 'none';
-                propsContent.style.display = 'block';
-                layersList.style.display = 'block';
-                document.querySelectorAll('.panel-header').forEach(header => {
-                    header.style.display = 'flex';
-                });
-            } else {
-                // Switch to A-Frame view
-                aframeSection.style.display = 'flex';
-                if (sceneSection) sceneSection.style.display = 'none';
-                if (materialsSection) materialsSection.style.display = 'none';
-                propsContent.style.display = 'none';
-                layersList.style.display = 'none';
-                document.querySelectorAll('.panel-header').forEach((header, index) => {
-                    header.style.display = 'none';
-                });
-            }
-
-            // Initialize A-Frame export functionality
-            this.initAFrameExport();
+        // Initialize camera border toggle
+        const borderToggle = document.getElementById('show-camera-border');
+        if (borderToggle) {
+            borderToggle.addEventListener('change', (e) => {
+                this.toggleCameraBorder(e.target.checked);
+            });
         }
+
+        // Initialize canvas size controls
+        const resolutionDropdown = document.getElementById('export-resolution');
+        if (resolutionDropdown) {
+            resolutionDropdown.addEventListener('change', () => this.updateCameraBorderFromDropdown());
+        }
+
+        // Initialize camera border visualization
+        this.updateCameraBorder();
+
+        // Make camera border preview draggable
+        this.makeCameraBorderDraggable();
     }
 
     // --- A-FRAME EXPORT FUNCTIONALITY ---
@@ -2358,6 +4877,23 @@ export class UI {
             });
         }
 
+        // Fog slider value displays
+        const fogNearSlider = document.getElementById('setting-fog-near');
+        const fogNearValue = document.getElementById('fog-near-value');
+        if (fogNearSlider && fogNearValue) {
+            fogNearSlider.addEventListener('input', () => {
+                fogNearValue.textContent = fogNearSlider.value;
+            });
+        }
+
+        const fogFarSlider = document.getElementById('setting-fog-far');
+        const fogFarValue = document.getElementById('fog-far-value');
+        if (fogFarSlider && fogFarValue) {
+            fogFarSlider.addEventListener('input', () => {
+                fogFarValue.textContent = fogFarSlider.value;
+            });
+        }
+
         // Close on overlay click
         this.unifiedSettingsModal.addEventListener('click', (e) => {
             if (e.target.id === 'unified-settings-modal') this.closeUnifiedSettingsModal();
@@ -2379,5 +4915,168 @@ export class UI {
 
         if (activeTab) activeTab.classList.add('active');
         if (activeContent) activeContent.classList.add('active');
+    }
+
+    // --- PARTICLE SYSTEMS FUNCTIONALITY ---
+    initParticleSystems() {
+        const addBtn = document.getElementById('btn-add-particle');
+        if (addBtn && !addBtn.hasAttribute('data-initialized')) {
+            addBtn.setAttribute('data-initialized', 'true');
+            addBtn.addEventListener('click', () => {
+                this.addParticleToObject();
+            });
+        }
+        this.refreshParticleEmittersList();
+    }
+
+    addParticleToObject() {
+        if (!this.app.particleManager) return;
+        if (!this.app.selectedObject) {
+            this.showNotification('Please select an object first', 'warning');
+            return;
+        }
+
+        const presetSelect = document.getElementById('particle-preset-select');
+        const preset = presetSelect?.value ?? 'fire';
+
+        const component = this.app.particleManager.addParticleToObject(this.app.selectedObject, preset);
+        this.refreshParticleEmittersList();
+        this.showNotification(`${preset} particles added to selected object!`, 'success');
+    }
+
+    refreshParticleEmittersList() {
+        const list = document.getElementById('particle-emitters-list');
+        if (!list || !this.app.particleManager) return;
+
+        const components = this.app.particleManager.getComponents();
+
+        if (components.length === 0) {
+            list.innerHTML = '<div class="empty-state">No particle systems</div>';
+            return;
+        }
+
+        list.innerHTML = components.map((comp, i) => `
+            <div class="emitter-item" data-uuid="${comp.uuid}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; margin-bottom: 4px; background: var(--bg-light); border-radius: 4px;">
+                <span style="font-size: 0.75rem; color: var(--text-primary);">${i + 1}. ${comp.name}</span>
+                <div style="display: flex; gap: 4px;">
+                    <button class="btn icon-only btn-play-particle" data-uuid="${comp.uuid}" style="padding: 4px 8px;" title="Play">
+                        <i class="fas fa-play" style="font-size: 0.6rem;"></i>
+                    </button>
+                    <button class="btn icon-only btn-stop-particle" data-uuid="${comp.uuid}" style="padding: 4px 8px;" title="Stop">
+                        <i class="fas fa-stop" style="font-size: 0.6rem;"></i>
+                    </button>
+                    <button class="btn icon-only btn-remove-particle" data-uuid="${comp.uuid}" style="padding: 4px 8px;" title="Remove">
+                        <i class="fas fa-trash" style="font-size: 0.6rem;"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        list.querySelectorAll('.btn-play-particle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const uuid = btn.dataset.uuid;
+                this.app.particleManager.play(uuid);
+            });
+        });
+
+        list.querySelectorAll('.btn-stop-particle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const uuid = btn.dataset.uuid;
+                this.app.particleManager.stop(uuid);
+            });
+        });
+
+        list.querySelectorAll('.btn-remove-particle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const uuid = btn.dataset.uuid;
+                const comp = this.app.particleManager._getParticleComponent(uuid);
+                if (comp) {
+                    comp.dispose();
+                    this.app.particleManager.removeComponent(comp);
+                }
+                this.refreshParticleEmittersList();
+                this.showNotification('Particle system removed', 'info');
+            });
+        });
+    }
+
+    // --- PHYSICS FUNCTIONALITY ---
+    initPhysicsControls() {
+        const enabledToggle = document.getElementById('physics-enabled');
+        if (enabledToggle && !enabledToggle.hasAttribute('data-initialized')) {
+            enabledToggle.setAttribute('data-initialized', 'true');
+            enabledToggle.addEventListener('change', (e) => {
+                this.app.physicsManager.setEnabled(e.target.checked);
+                this.showNotification(e.target.checked ? 'Physics enabled' : 'Physics disabled', 'info');
+            });
+        }
+
+        const gravityX = document.getElementById('physics-gravity-x');
+        const gravityY = document.getElementById('physics-gravity-y');
+        const gravityZ = document.getElementById('physics-gravity-z');
+
+        [gravityX, gravityY, gravityZ].forEach(input => {
+            if (input && !input.hasAttribute('data-initialized')) {
+                input.setAttribute('data-initialized', 'true');
+                input.addEventListener('change', () => {
+                    const x = parseFloat(gravityX?.value ?? 0);
+                    const y = parseFloat(gravityY?.value ?? -9.81);
+                    const z = parseFloat(gravityZ?.value ?? 0);
+                    this.app.physicsManager.setGravity(x, y, z);
+                });
+            }
+        });
+
+        const massSlider = document.getElementById('physics-mass');
+        const massValue = document.getElementById('physics-mass-value');
+        if (massSlider && !massSlider.hasAttribute('data-initialized')) {
+            massSlider.setAttribute('data-initialized', 'true');
+            massSlider.addEventListener('input', (e) => {
+                if (massValue) massValue.textContent = parseFloat(e.target.value).toFixed(1);
+            });
+        }
+
+        const applyBtn = document.getElementById('btn-apply-physics');
+        if (applyBtn && !applyBtn.hasAttribute('data-initialized')) {
+            applyBtn.setAttribute('data-initialized', 'true');
+            applyBtn.addEventListener('click', () => {
+                this.applyPhysicsToObject();
+            });
+        }
+
+        const resetBtn = document.getElementById('btn-reset-physics');
+        if (resetBtn && !resetBtn.hasAttribute('data-initialized')) {
+            resetBtn.setAttribute('data-initialized', 'true');
+            resetBtn.addEventListener('click', () => {
+                this.app.physicsManager.reset();
+                this.showNotification('Physics simulation reset', 'info');
+            });
+        }
+    }
+
+    applyPhysicsToObject() {
+        if (!this.app.selectedObject || !this.app.physicsManager) {
+            this.showNotification('Please select an object first', 'warning');
+            return;
+        }
+
+        const mesh = this.app.selectedObject;
+        const bodyTypeSelect = document.getElementById('physics-body-type');
+        const massSlider = document.getElementById('physics-mass');
+
+        const bodyType = parseInt(bodyTypeSelect?.value ?? 2);
+        const mass = parseFloat(massSlider?.value ?? 1);
+
+        this.app.physicsManager.removeMesh(mesh);
+
+        this.app.physicsManager.addMesh(mesh, {
+            mass: mass,
+            bodyType: bodyType
+        });
+
+        this.showNotification(`Physics applied: ${bodyType === 2 ? 'Dynamic' : 'Static'}, Mass: ${mass}kg`, 'success');
     }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Icons } from './icons.js';
 
 export class CameraManager {
     constructor(app) {
@@ -189,7 +190,7 @@ export class CameraManager {
         const cameraToggleBtn = document.createElement('div');
         cameraToggleBtn.className = 'tool-btn camera-toggle-btn';
         cameraToggleBtn.id = 'tool-toggle-camera';
-        cameraToggleBtn.innerHTML = '<i class="fas fa-camera"></i>';
+        cameraToggleBtn.innerHTML = `<span class="icon-svg">${Icons.camera}</span>`;
         cameraToggleBtn.title = 'Toggle Camera Type';
         cameraToggleBtn.dataset.tooltip = '**Camera Toggle**\nClick to switch between Perspective and Isometric cameras';
 
@@ -209,9 +210,9 @@ export class CameraManager {
         perspectiveOption.className = 'camera-option perspective-option';
         perspectiveOption.dataset.cameraType = 'perspective';
         perspectiveOption.innerHTML = `
-            <i class="fas fa-eye"></i>
+            <span class="icon-svg">${Icons.perspective}</span>
             <span class="camera-option-label">Perspective</span>
-            <i class="fas fa-check camera-option-check" style="display: none;"></i>
+            <span class="icon-svg camera-option-check" style="display: none;">${Icons.check}</span>
         `;
         perspectiveOption.title = 'Perspective Camera - Realistic 3D view with depth';
         perspectiveOption.dataset.tooltip = '**Perspective Camera**\nRealistic 3D view with depth perception\nObjects appear smaller with distance';
@@ -221,9 +222,9 @@ export class CameraManager {
         isometricOption.className = 'camera-option isometric-option';
         isometricOption.dataset.cameraType = 'isometric';
         isometricOption.innerHTML = `
-            <i class="fas fa-cube"></i>
+            <span class="icon-svg">${Icons.box}</span>
             <span class="camera-option-label">Isometric</span>
-            <i class="fas fa-check camera-option-check" style="display: none;"></i>
+            <span class="icon-svg camera-option-check" style="display: none;">${Icons.check}</span>
         `;
         isometricOption.title = 'Isometric Camera - 2D-like view without perspective';
         isometricOption.dataset.tooltip = '**Isometric Camera**\n2D-like view without perspective distortion\nEqual scaling on all axes';
@@ -422,9 +423,16 @@ export class CameraManager {
                 border-color: var(--accent-tertiary);
             }
 
-            .camera-option i {
+            .camera-option .icon-svg {
+                width: 18px;
+                height: 18px;
+                flex-shrink: 0;
                 color: var(--text-secondary);
-                font-size: 0.9rem;
+            }
+
+            .camera-option .icon-svg svg {
+                width: 100%;
+                height: 100%;
             }
 
             .camera-option-label {
@@ -434,8 +442,9 @@ export class CameraManager {
             }
 
             .camera-option-check {
+                width: 16px !important;
+                height: 16px !important;
                 color: var(--accent-primary);
-                font-size: 0.8rem;
                 margin-left: auto;
             }
 

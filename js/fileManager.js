@@ -9,6 +9,84 @@ export class FileManager {
         this.exportFormat = localStorage.getItem('pixel3d-export-format') || 'json'; // Load saved format or default
     }
 
+    _textureSource(texture) {
+        const image = texture?.image;
+        if (!image) return null;
+        if (image.currentSrc || image.src) return image.currentSrc || image.src;
+        try {
+            return typeof image.toDataURL === 'function' ? image.toDataURL('image/png') : null;
+        } catch {
+            return null;
+        }
+    }
+
+    _serializeMaterialSlots(obj) {
+        const slots = Array.isArray(obj.material) ? obj.material : [obj.material];
+        return slots.filter(Boolean).map(material => ({
+            name: material.name || 'Material',
+            color: `#${material.color?.getHexString?.() || 'ffffff'}`,
+            emissive: `#${material.emissive?.getHexString?.() || '000000'}`,
+            metalness: material.metalness ?? 0,
+            roughness: material.roughness ?? 1,
+            opacity: material.opacity ?? 1,
+            transparent: !!material.transparent,
+            clearcoat: material.clearcoat ?? 0,
+            transmission: material.transmission ?? 0,
+            sheen: material.sheen ?? 0,
+            sheenRoughness: material.sheenRoughness ?? 0.5,
+            displacementScale: material.displacementScale ?? 0,
+            side: material.side,
+            assetId: material.userData?.materialAssetId || null,
+            maps: {
+                map: this._textureSource(material.map),
+                normalMap: this._textureSource(material.normalMap),
+                roughnessMap: this._textureSource(material.roughnessMap),
+                metalnessMap: this._textureSource(material.metalnessMap),
+                aoMap: this._textureSource(material.aoMap),
+                displacementMap: this._textureSource(material.displacementMap),
+                alphaMap: this._textureSource(material.alphaMap),
+                emissiveMap: this._textureSource(material.emissiveMap)
+            }
+        }));
+    }
+
+    _restoreMaterialSlots(obj, slotData) {
+        if (!obj?.isMesh || !Array.isArray(slotData) || !slotData.length) return;
+        const loader = new THREE.TextureLoader();
+        const slots = slotData.map(data => {
+            const material = new THREE.MeshPhysicalMaterial({
+                name: data.name || 'Material',
+                color: data.color || '#ffffff',
+                emissive: data.emissive || '#000000',
+                metalness: data.metalness ?? 0,
+                roughness: data.roughness ?? 1,
+                opacity: data.opacity ?? 1,
+                transparent: data.transparent || (data.opacity ?? 1) < 1,
+                clearcoat: data.clearcoat ?? 0,
+                transmission: data.transmission ?? 0,
+                sheen: data.sheen ?? 0,
+                sheenRoughness: data.sheenRoughness ?? 0.5,
+                displacementScale: data.displacementScale ?? 0,
+                side: data.side ?? THREE.FrontSide
+            });
+            material.userData.materialAssetId = data.assetId || null;
+            for (const [key, source] of Object.entries(data.maps || {})) {
+                if (!source) continue;
+                const texture = loader.load(source, () => { material.needsUpdate = true; });
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                material[key] = texture;
+            }
+            if (material.alphaMap) material.transparent = true;
+            return material;
+        });
+        const oldSlots = Array.isArray(obj.material) ? obj.material : [obj.material];
+        oldSlots.forEach(material => material?.dispose?.());
+        obj.material = slots.length === 1 ? slots[0] : slots;
+        this.app.materialsManager?.rebuildGeometryGroups(obj, slots.length);
+        obj.userData.activeMaterialSlot = Math.min(obj.userData.activeMaterialSlot || 0, slots.length - 1);
+    }
+
     setExportFormat(format) {
         this.exportFormat = format;
     }
@@ -64,9 +142,11 @@ export class FileManager {
                     userData: obj.userData
                 };
 
-                if (obj.userData.type === 'shape') {
+                if (obj.userData.type === 'shape' || obj.userData.type === 'shape2d') {
                     item.shapeType = obj.userData.shapeType;
-                    item.color = '#' + obj.material.color.getHexString();
+                    const firstMaterial = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+                    item.color = '#' + firstMaterial.color.getHexString();
+                    item.materialSlots = this._serializeMaterialSlots(obj);
                 } else if (obj.userData.type === 'light') {
                     const l = obj.children[0];
                     item.lightType = obj.userData.lightType;
@@ -503,9 +583,11 @@ export class FileManager {
                     userData: obj.userData
                 };
 
-                if (obj.userData.type === 'shape') {
+                if (obj.userData.type === 'shape' || obj.userData.type === 'shape2d') {
                     item.shapeType = obj.userData.shapeType;
-                    item.color = '#' + obj.material.color.getHexString();
+                    const firstMaterial = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+                    item.color = '#' + firstMaterial.color.getHexString();
+                    item.materialSlots = this._serializeMaterialSlots(obj);
                 } else if (obj.userData.type === 'light') {
                     const l = obj.children[0];
                     item.lightType = obj.userData.lightType;
@@ -535,7 +617,11 @@ export class FileManager {
         });
 
         // Save to localStorage
-        localStorage.setItem('pixel3d-scene', JSON.stringify(data));
+        localStorage.setItem('pixel3d-scene', JSON.stringify({
+            version: 1,
+            objects: data,
+            animations: this.app.animationManager.toJSON()
+        }));
         this.saveFolderStructure();
     }
 
@@ -629,7 +715,9 @@ export class FileManager {
 
     // New helper that accepts raw data (used by File Input AND Gemini AI)
     loadData(data) {
-        this.app.clearScene();
+        // Loading replaces the document and should not create undo entries for
+        // either the previous scene or each reconstructed object.
+        this.app._clearSceneNow();
 
         // Handle both old format (array of objects) and new format (object with objects and animations)
         let objectsData = [];
@@ -656,6 +744,16 @@ export class FileManager {
                 newObj = this.app.selectedObject;
                 if (newObj && item.color) newObj.material.color.set(item.color);
             }
+            else if (item.type === 'shape2d') {
+                this.app.addShape2D(item.shapeType);
+                newObj = this.app.selectedObject;
+                if (newObj && item.color) newObj.material.color.set(item.color);
+                if (newObj && item.shapeType === 'text') {
+                    const text = item.userData?.text || 'Text';
+                    const font = item.userData?.fontFamily || 'Inter, sans-serif';
+                    this.app.factory.updateTextLabel(newObj, text, font);
+                }
+            }
             else if (item.type === 'light') {
                 this.app.addLight(item.lightType);
                 newObj = this.app.selectedObject;
@@ -680,9 +778,21 @@ export class FileManager {
             }
 
             if (newObj) {
+                if (item.userData) newObj.userData = { ...newObj.userData, ...item.userData };
                 if (item.position) newObj.position.set(item.position.x, item.position.y, item.position.z);
                 if (item.rotation) newObj.rotation.set(item.rotation.x, item.rotation.y, item.rotation.z);
                 if (item.scale) newObj.scale.set(item.scale.x, item.scale.y, item.scale.z);
+                if (item.materialSlots) this._restoreMaterialSlots(newObj, item.materialSlots);
+                if (newObj.userData.physicsEnabled && newObj.geometry) {
+                    this.app.physicsManager?.addMesh(newObj, {
+                        mass: newObj.userData.physicsMass ?? 1,
+                        bodyType: newObj.userData.physicsBodyType ?? 2,
+                        friction: newObj.userData.physicsFriction ?? 0.3,
+                        restitution: newObj.userData.physicsRestitution ?? 0.2,
+                        linearDamping: newObj.userData.physicsLinearDamping ?? 0.01,
+                        angularDamping: newObj.userData.physicsAngularDamping ?? 0.01
+                    });
+                }
                 loadedCount++;
             }
         });
@@ -691,6 +801,7 @@ export class FileManager {
         if (animationData) {
             this.app.animationManager.fromJSON(animationData);
         }
+        this.app.animationUI?.refresh();
 
         this.app.deselect(); // Clear selection after loading
 
@@ -702,6 +813,7 @@ export class FileManager {
         // Load folder structure and restore object organization
         this.loadFolderStructure();
         this.restoreObjectsToFolders();
+        this.app.historyManager?.clearHistory();
     }
 
     // Restore objects to their folders after loading

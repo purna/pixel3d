@@ -71,6 +71,7 @@ export class AnimationUI {
             stopBtn:    document.getElementById('anim-stop'),
             loopBtn:    document.getElementById('anim-loop'),
             speedSel:   document.getElementById('anim-speed'),
+            addObjBtn:  document.getElementById('anim-add-object'),
             addKfBtn:   document.getElementById('anim-add-kf'),
             durationIn: document.getElementById('anim-duration'),
             timeDisp:   document.getElementById('anim-time'),
@@ -159,6 +160,7 @@ export class AnimationUI {
         });
 
         // Add keyframe
+        this.el.addObjBtn?.addEventListener('click', () => this._addObjectToTimeline());
         this.el.addKfBtn?.addEventListener('click', () => this._recordKeyframe());
 
         // Scrubber
@@ -250,17 +252,34 @@ export class AnimationUI {
     _syncDuration() {
         const clip = this._activeId ? this.anim.getClip(this._activeId) : null;
         if (this.el.durationIn) {
-            this.el.durationIn.value = (clip?.duration ?? this.anim.totalDuration).toFixed(1);
+            this.el.durationIn.value = (clip?.duration ?? 3).toFixed(1);
+            this.el.durationIn.disabled = !clip;
         }
+        if (this.el.addObjBtn) this.el.addObjBtn.hidden = !!clip;
+        if (this.el.addKfBtn) this.el.addKfBtn.disabled = !clip;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Record keyframe
     // ─────────────────────────────────────────────────────────────────────────
 
+    _addObjectToTimeline() {
+        const id = this._activeId;
+        if (!id) { this._notify('Select an object first', 'warning'); return; }
+        const clip = this.anim.createClip(id, { duration: 3 });
+        this.anim.recordKeyframe(id, 0, ['position','rotation','scale','color']);
+        this.anim.recordKeyframe(id, 3, ['position','rotation','scale','color']);
+        clip.duration = 3;
+        this.anim.seek(0);
+        this._syncDuration();
+        this._renderAll();
+        this._notify(`${this._label(this._activeObj)} added as a 3 second clip`, 'success');
+    }
+
     _recordKeyframe() {
         const id = this._activeId;
         if (!id) { this._notify('Select an object first', 'warning'); return; }
+        if (!this.anim.hasClip(id)) { this._notify('Add the object to the timeline first', 'warning'); return; }
 
         this.anim.recordKeyframe(id, this.anim.currentTime, ['position','rotation','scale','color']);
 
@@ -289,7 +308,7 @@ export class AnimationUI {
             area.innerHTML = `
                 <div class="anim-empty">
                     <i class="fas fa-film"></i>
-                    <span>No keyframes — move the object then press <kbd>K</kbd> or click <strong>+ Keyframe</strong></span>
+                    <span>${clip ? 'No keyframes — move the object then press <kbd>K</kbd> or click <strong>+ Keyframe</strong>' : 'Click <strong>+ Add Object</strong> to create a 3 second clip'}</span>
                 </div>`;
             return;
         }
@@ -498,6 +517,7 @@ export class AnimationUI {
         }
 
         d.title = this._kfTooltip(def.prop, kf);
+        d.addEventListener('pointerdown', e => this._startKeyframeDrag(e, d, kf, def, dur, clip));
 
         // Left-click → seek to this keyframe
         d.addEventListener('click', e => {
@@ -512,6 +532,36 @@ export class AnimationUI {
         });
 
         return d;
+    }
+
+    _startKeyframeDrag(e, diamond, kf, def, dur, clip) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const lane = diamond.parentElement;
+        const startTime = kf.time;
+        let moved = false;
+        diamond.classList.add('is-dragging');
+        const move = ev => {
+            const rect = lane.getBoundingClientRect();
+            const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+            const next = clip.moveKeyframe(def.prop, kf.time, ratio * dur);
+            if (next === null) return;
+            moved = moved || Math.abs(next - startTime) >= 0.005;
+            diamond.style.left = `${(next / dur) * 100}%`;
+            diamond.title = this._kfTooltip(def.prop, kf);
+            this.anim.seek(next);
+        };
+        const up = () => {
+            document.removeEventListener('pointermove', move);
+            diamond.classList.remove('is-dragging');
+            if (moved) {
+                this._renderAll();
+                this._notify(`${def.label} keyframe moved to ${kf.time.toFixed(2)}s`, 'success');
+            }
+        };
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', up, { once: true });
     }
 
     _kfTooltip(prop, kf) {

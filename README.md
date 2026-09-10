@@ -64,8 +64,18 @@
 
 ### Installation
 1. Clone or download the repository
-2. Open `index.html` in a modern web browser
-3. No additional installation required - runs entirely in the browser!
+2. On macOS, double-click `start.command`
+3. Pixel3D opens at `http://localhost:4173`
+
+Pixel3D uses JavaScript modules, so `index.html` cannot be opened directly with
+a `file://` URL. If the launcher is unavailable, run this from the project
+folder and then visit `http://localhost:4173`:
+
+```sh
+python3 -m http.server 4173
+```
+
+No package installation is required.
 
 ### First Scene
 1. **Add Objects**: Click the shapes menu to add basic 3D shapes

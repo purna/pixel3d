@@ -254,7 +254,8 @@ export class ExportManager {
 
                 if (obj.userData.type === 'shape') {
                     item.shapeType = obj.userData.shapeType;
-                    item.color = '#' + obj.material.color.getHexString();
+                    const firstMaterial = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+                    item.color = '#' + firstMaterial.color.getHexString();
                 } else if (obj.userData.type === 'light') {
                     const l = obj.children[0];
                     item.lightType = obj.userData.lightType;
@@ -403,7 +404,8 @@ ${elements.join('\n')}
             const pos = obj.position;
             const rot = obj.rotation;
             const scl = obj.scale;
-            const col = obj.material ? '#' + obj.material.color.getHexString() : '#ffffff';
+            const firstMaterial = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+            const col = firstMaterial ? '#' + firstMaterial.color.getHexString() : '#ffffff';
             const rotX = (rot.x * 180 / Math.PI).toFixed(2);
             const rotY = (rot.y * 180 / Math.PI).toFixed(2);
             const rotZ = (rot.z * 180 / Math.PI).toFixed(2);

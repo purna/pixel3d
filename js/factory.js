@@ -69,9 +69,9 @@ export class ObjectFactory {
             mesh.castShadow = false;
         }
 
-        mesh.userData = { 
-            type: 'shape', 
-            shapeType: type, 
+mesh.userData = {
+            type: 'shape',
+            shapeType: type,
             id: objectId,
             materialName: material.name || ('Mat_' + material.color.getHexString()),
             aframe: {
@@ -82,6 +82,155 @@ export class ObjectFactory {
             }
         };
         return mesh;
+    }
+
+    create2DShape(type) {
+        let geometry, mesh;
+        const material = new THREE.MeshBasicMaterial({
+            color: 0x00ff41,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 1
+        });
+
+        switch (type) {
+            case 'rectangle':
+                geometry = new THREE.PlaneGeometry(2, 1.5);
+                break;
+            case 'circle':
+                geometry = new THREE.CircleGeometry(1, 32);
+                break;
+            case 'triangle':
+                geometry = new THREE.CircleGeometry(1, 3);
+                break;
+            case 'star':
+                geometry = this._createStarGeometry(1, 0.5, 5);
+                break;
+            case 'heart':
+                geometry = this._createHeartGeometry(1);
+                break;
+            case 'text':
+            case 'label':
+                return this._createTextLabel('Text');
+            default:
+                geometry = new THREE.PlaneGeometry(2, 1.5);
+                type = 'rectangle';
+        }
+
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.position.y = 1;
+        const objectId = ObjectFactory.generateId();
+
+        mesh.userData = {
+            type: 'shape2d',
+            shapeType: type,
+            id: objectId,
+            name: type.charAt(0).toUpperCase() + type.slice(1),
+            materialName: material.name || ('Mat_' + material.color.getHexString()),
+            aframe: {
+                src: '',
+                shadow: { cast: false, receive: false },
+                animation: '',
+                customAttrs: {}
+            }
+        };
+        return mesh;
+    }
+
+    _createStarGeometry(outerRadius, innerRadius, points) {
+        const shape = new THREE.Shape();
+        for (let i = 0; i < points * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (i * Math.PI) / points - Math.PI / 2;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            if (i === 0) shape.moveTo(x, y);
+            else shape.lineTo(x, y);
+        }
+        shape.closePath();
+        return new THREE.ShapeGeometry(shape);
+    }
+
+    _createHeartGeometry(scale) {
+        const shape = new THREE.Shape();
+        const x = 0, y = 0;
+        shape.moveTo(x + 0.5 * scale, y + 0.5 * scale);
+        shape.bezierCurveTo(x + 0.5 * scale, y + 0.5 * scale, x + 0.4 * scale, y, x, y);
+        shape.bezierCurveTo(x - 0.6 * scale, y, x - 0.6 * scale, y + 0.7 * scale, x - 0.6 * scale, y + 0.7 * scale);
+        shape.bezierCurveTo(x - 0.6 * scale, y + 1.1 * scale, x - 0.3 * scale, y + 1.54 * scale, x + 0.5 * scale, y + 1.9 * scale);
+        shape.bezierCurveTo(x + 1.2 * scale, y + 1.54 * scale, x + 1.6 * scale, y + 1.1 * scale, x + 1.6 * scale, y + 0.7 * scale);
+        shape.bezierCurveTo(x + 1.6 * scale, y + 0.7 * scale, x + 1.6 * scale, y, x + 1.0 * scale, y);
+        shape.bezierCurveTo(x + 0.7 * scale, y, x + 0.5 * scale, y + 0.5 * scale, x + 0.5 * scale, y + 0.5 * scale);
+        return new THREE.ShapeGeometry(shape);
+    }
+
+    _createTextLabel(text, fontFamily = 'Inter, sans-serif') {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold 80px ${fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 512, 128);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            color: 0x00ff41,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+
+        const geometry = new THREE.PlaneGeometry(6, 1.5);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.y = 1;
+
+        const objectId = ObjectFactory.generateId();
+        mesh.userData = {
+            type: 'shape2d',
+            shapeType: 'text',
+            id: objectId,
+            name: 'Text: ' + text,
+            text: text,
+            fontFamily: fontFamily,
+            materialName: 'Mat_Text',
+            aframe: {
+                src: '',
+                shadow: { cast: false, receive: false },
+                animation: '',
+                customAttrs: {}
+            }
+        };
+        return mesh;
+    }
+
+    updateTextLabel(mesh, newText, newFontFamily) {
+        if (mesh.userData.type !== 'shape2d' || mesh.userData.shapeType !== 'text') return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold 80px ${newFontFamily || mesh.userData.fontFamily || 'Inter, sans-serif'}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(newText, 512, 128);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        mesh.material.map = texture;
+        mesh.material.needsUpdate = true;
+        mesh.userData.text = newText;
+        mesh.userData.name = 'Text: ' + newText;
+        mesh.userData.fontFamily = newFontFamily || mesh.userData.fontFamily;
     }
 createFigure(gender) {
         const group = new THREE.Group();

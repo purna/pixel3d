@@ -38,13 +38,13 @@ class TutorialConfig {
                     },
                     {
                         id: 'layers',
-                        elementId: 'layers-list',
+                        elementId: 'hierarchy-list',
                         position: 'right',
-                        arrowPosition: 'left', // Arrow is on the left side of the tutorial panel, points left (away from tutorial panel)
-                        arrowPositionOverride: 'top-third', // Arrow positioned in the top third of the right side
-                        marginOverride: '60px', // Additional margin for better spacing
-                        heading: 'Scene Objects',
-                        content: 'Here you can see all the objects in your scene. Select objects to edit their properties or organize them into layers.',
+                        arrowPosition: 'left',
+                        arrowPositionOverride: 'top-third',
+                        marginOverride: '60px',
+                        heading: 'Hierarchy',
+                        content: 'Here you can see all the objects in your scene. Select objects to edit their properties or organize them into groups.',
                         showNext: true,
                         showSkip: true
                     },
