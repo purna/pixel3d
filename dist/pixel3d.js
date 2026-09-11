@@ -29586,6 +29586,9 @@
     return material;
   }
 
+  // js/ui.js
+  init_three_module();
+
   // js/colorUtils.js
   function hexToRgb(hex) {
     const n = parseInt(hex.replace("#", ""), 16);
@@ -30368,7 +30371,7 @@
       this.app.layerManager.render();
       this.app.layerManager.container = originalContainer;
     }
-    generateMaterialPreview(colorHex, metalness = 0.2, roughness = 0.3, opacity = 1, clearcoat = 0, transmission = 0, sheen = 0, alpha = 1, size = 96) {
+    generateMaterialPreview(colorHex, metalness = 0.2, roughness = 0.3, opacity = 1, clearcoat = 0, transmission = 0, sheen = 0, alpha = 1, size = 96, layers = null) {
       const canvas = document.createElement("canvas");
       canvas.width = canvas.height = size;
       const ctx = canvas.getContext("2d");
@@ -30419,23 +30422,120 @@
       const sphere = document.createElement("canvas");
       sphere.width = sphere.height = size;
       const sctx = sphere.getContext("2d");
-      const baseGrad = sctx.createRadialGradient(
-        cx - radius * 0.45,
-        cy - radius * 0.45,
-        radius * 0.08,
-        cx,
-        cy,
-        radius
-      );
-      const lightBoost = 1 + (1 - rough) * 0.35;
-      const darkFactor = 0.25 + rough * 0.35;
-      baseGrad.addColorStop(0, `rgb(${clamp2(r * lightBoost)}, ${clamp2(g * lightBoost)}, ${clamp2(b2 * lightBoost)})`);
-      baseGrad.addColorStop(0.55, `rgb(${r}, ${g}, ${b2})`);
-      baseGrad.addColorStop(1, `rgb(${clamp2(r * darkFactor)}, ${clamp2(g * darkFactor)}, ${clamp2(b2 * darkFactor)})`);
-      sctx.beginPath();
-      sctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      sctx.fillStyle = baseGrad;
-      sctx.fill();
+      let baseColor = `rgb(${r}, ${g}, ${b2})`;
+      if (layers && layers.length > 0) {
+        const layerCanvas = document.createElement("canvas");
+        layerCanvas.width = layerCanvas.height = 256;
+        const lctx = layerCanvas.getContext("2d");
+        lctx.fillStyle = `#${(r << 16 | g << 8 | b2).toString(16).padStart(6, "0")}`;
+        lctx.fillRect(0, 0, 256, 256);
+        const composite = { normal: "source-over", add: "lighter", multiply: "multiply", screen: "screen", overlay: "overlay" };
+        const drawLayer = (layer) => {
+          if (layer.enabled === false) return;
+          lctx.save();
+          lctx.globalAlpha = (layer.opacity ?? 100) / 100;
+          lctx.globalCompositeOperation = composite[layer.blendMode] || "source-over";
+          const lsize = Math.max(1, Number(layer.scale) || 8);
+          if (layer.type === "color") {
+            lctx.fillStyle = layer.color || "#888888";
+            lctx.fillRect(0, 0, 256, 256);
+          } else if (layer.type === "gradient" || layer.type === "rainbow") {
+            const angle = (Number(layer.angle) || 0) * Math.PI / 180;
+            const dx = Math.cos(angle) * 128, dy = Math.sin(angle) * 128;
+            const gradient = lctx.createLinearGradient(128 - dx, 128 - dy, 128 + dx, 128 + dy);
+            if (layer.type === "rainbow") {
+              ["#ff0000", "#ffff00", "#00ff00", "#00ffff", "#0000ff", "#ff00ff", "#ff0000"].forEach((color, index, all) => gradient.addColorStop(index / (all.length - 1), color));
+            } else {
+              gradient.addColorStop(0, layer.colorA || "#111827");
+              gradient.addColorStop(1, layer.colorB || "#8b5cf6");
+            }
+            lctx.fillStyle = gradient;
+            lctx.fillRect(0, 0, 256, 256);
+          } else if (layer.type === "noise") {
+            const noiseCanvas = document.createElement("canvas");
+            noiseCanvas.width = noiseCanvas.height = 256;
+            const noiseContext = noiseCanvas.getContext("2d");
+            const image = noiseContext.createImageData(256, 256);
+            const a2 = new Color(layer.colorA || "#111111"), b3 = new Color(layer.colorB || "#eeeeee");
+            let seed = Number(layer.seed) || 1;
+            for (let i = 0; i < image.data.length; i += 4) {
+              seed = (seed * 1664525 + 1013904223) % 4294967296;
+              const t = seed / 4294967296;
+              image.data[i] = 255 * (a2.r + (b3.r - a2.r) * t);
+              image.data[i + 1] = 255 * (a2.g + (b3.g - a2.g) * t);
+              image.data[i + 2] = 255 * (a2.b + (b3.b - a2.b) * t);
+              image.data[i + 3] = 255;
+            }
+            noiseContext.putImageData(image, 0, 0);
+            lctx.drawImage(noiseCanvas, 0, 0);
+          } else if (layer.type === "pattern" || layer.type === "duct") {
+            lctx.fillStyle = layer.colorB || "#eeeeee";
+            lctx.fillRect(0, 0, 256, 256);
+            lctx.fillStyle = layer.colorA || "#111111";
+            const pattern2 = layer.type === "duct" ? "stripes" : layer.pattern || "checker";
+            for (let y = 0; y < 256; y += lsize) for (let x = 0; x < 256; x += lsize) {
+              if (pattern2 === "dots") {
+                lctx.beginPath();
+                lctx.arc(x + lsize / 2, y + lsize / 2, lsize / 4, 0, Math.PI * 2);
+                lctx.fill();
+              } else if (pattern2 === "stripes") {
+                if (x / lsize % 2 === 0) lctx.fillRect(x, 0, lsize, 256);
+              } else if ((x + y) / lsize % 2 === 0) lctx.fillRect(x, y, lsize, lsize);
+            }
+          } else if (layer.type === "image" && layer.url) {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = layer.url;
+          }
+          lctx.restore();
+        };
+        for (const layer of layers) {
+          if (layer.enabled !== false) {
+            drawLayer(layer);
+          }
+        }
+        const pattern = sctx.createPattern(layerCanvas, "no-repeat");
+        if (pattern) {
+          sctx.fillStyle = pattern;
+          sctx.fillRect(0, 0, size, size);
+        } else {
+          const baseGrad = sctx.createRadialGradient(
+            cx - radius * 0.45,
+            cy - radius * 0.45,
+            radius * 0.08,
+            cx,
+            cy,
+            radius
+          );
+          const lightBoost = 1 + (1 - rough) * 0.35;
+          const darkFactor = 0.25 + rough * 0.35;
+          baseGrad.addColorStop(0, `rgb(${clamp2(r * lightBoost)}, ${clamp2(g * lightBoost)}, ${clamp2(b2 * lightBoost)})`);
+          baseGrad.addColorStop(0.55, `rgb(${r}, ${g}, ${b2})`);
+          baseGrad.addColorStop(1, `rgb(${clamp2(r * darkFactor)}, ${clamp2(g * darkFactor)}, ${clamp2(b2 * darkFactor)})`);
+          sctx.beginPath();
+          sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          sctx.fillStyle = baseGrad;
+          sctx.fill();
+        }
+      } else {
+        const baseGrad = sctx.createRadialGradient(
+          cx - radius * 0.45,
+          cy - radius * 0.45,
+          radius * 0.08,
+          cx,
+          cy,
+          radius
+        );
+        const lightBoost = 1 + (1 - rough) * 0.35;
+        const darkFactor = 0.25 + rough * 0.35;
+        baseGrad.addColorStop(0, `rgb(${clamp2(r * lightBoost)}, ${clamp2(g * lightBoost)}, ${clamp2(b2 * lightBoost)})`);
+        baseGrad.addColorStop(0.55, `rgb(${r}, ${g}, ${b2})`);
+        baseGrad.addColorStop(1, `rgb(${clamp2(r * darkFactor)}, ${clamp2(g * darkFactor)}, ${clamp2(b2 * darkFactor)})`);
+        sctx.beginPath();
+        sctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        sctx.fillStyle = baseGrad;
+        sctx.fill();
+      }
       const specStrength = Math.min(1, (1 - rough * 0.85) * (0.3 + metal * 0.7) + coat * 0.25);
       const specRadius = radius * (0.16 + rough * 0.42 - coat * 0.04);
       const specX = cx - radius * 0.38;
@@ -30544,6 +30644,12 @@
         } else if (tab === "materials") {
           iconHtml = item.preview ? `<div class="asset-item-icon material-asset-preview-icon" style="background-image:url('${item.preview}');background-size:cover"></div>` : `<div class="asset-item-icon" style="background-color: ${item.color || "#888888"};"></div>`;
         } else if (tab === "textures") {
+          if (!item.preview && item.layer) {
+            const previewCanvas = document.createElement("canvas");
+            previewCanvas.width = previewCanvas.height = 96;
+            this.renderTextureAssetPreview(item.layer, previewCanvas);
+            item.preview = previewCanvas.toDataURL("image/png");
+          }
           iconHtml = item.preview ? `<div class="asset-item-icon" style="background-image:url('${item.preview}');background-size:cover"></div>` : `<div class="asset-item-icon"><i class="fas fa-border-all"></i></div>`;
         } else if (tab === "images") {
           iconHtml = `<div class="asset-item-icon"><i class="fas fa-image"></i></div>`;
@@ -30637,7 +30743,7 @@
           transmission: material.transmission || 0,
           sheen: material.sheen || 0,
           layers: (material.textureLayers || []).map((layer) => ({ ...layer })),
-          preview: this.generateMaterialPreview(color, material.metalness, material.roughness, material.opacity ?? 1, material.clearcoat || 0, material.transmission || 0, material.sheen || 0, 1)
+          preview: this.generateMaterialPreview(color, material.metalness, material.roughness, material.opacity ?? 1, material.clearcoat || 0, material.transmission || 0, material.sheen || 0, 1, 96, (material.textureLayers || []).map((layer) => ({ ...layer })))
         });
       }
       for (const asset of this.assets.materials) this.app.materialsManager?.compileAssetMaterial(asset);
@@ -30722,7 +30828,7 @@
       if (type === "materials") {
         const colorPicker = document.getElementById("material-color-picker");
         const preview = document.getElementById("material-preview-color");
-        const updatePreview = () => {
+        const updateMaterialPreview = () => {
           if (!preview) return;
           const color = colorPicker?.value || "#888888";
           const metalness = parseFloat(document.getElementById("material-metalness")?.value ?? 0.2);
@@ -30732,9 +30838,11 @@
           const clearcoat = parseFloat(document.getElementById("material-clearcoat")?.value ?? 0);
           const transmission = parseFloat(document.getElementById("material-transmission")?.value ?? 0);
           const sheen = parseFloat(document.getElementById("material-sheen")?.value ?? 0);
-          preview.style.backgroundImage = `url('${this.generateMaterialPreview(color, metalness, roughness, opacity, clearcoat, transmission, sheen, alpha)}')`;
+          const layers = this.collectMaterialTextureLayers();
+          preview.style.backgroundImage = `url('${this.generateMaterialPreview(color, metalness, roughness, opacity, clearcoat, transmission, sheen, alpha, 96, layers)}')`;
           preview.style.backgroundColor = color;
         };
+        this.updateMaterialPreview = updateMaterialPreview;
         if (colorPicker && preview) {
           const rgbToHex2 = (rgb) => {
             const match = rgb.match(/\d+/g);
@@ -30744,7 +30852,7 @@
           const currentColor = preview.style.backgroundColor || "rgb(136, 136, 136)";
           colorPicker.value = rgbToHex2(currentColor);
           colorPicker.addEventListener("input", () => {
-            updatePreview();
+            updateMaterialPreview();
           });
         }
         const lightingSlider = document.getElementById("material-lighting");
@@ -30763,13 +30871,13 @@
           opacityValue.textContent = asset?.opacity || 100;
           opacitySlider.addEventListener("input", (e) => {
             opacityValue.textContent = e.target.value;
-            updatePreview();
+            updateMaterialPreview();
           });
         }
         const alphaInput = document.getElementById("material-alpha");
         if (alphaInput) {
           alphaInput.addEventListener("input", () => {
-            updatePreview();
+            updateMaterialPreview();
           });
         }
         const depthSelect = document.getElementById("material-depth");
@@ -30780,10 +30888,12 @@
             const layers = this.collectMaterialTextureLayers();
             layers.push(this.defaultTextureLayer(depthSelect.value));
             this.renderMaterialTextureLayers(layers);
+            updateMaterialPreview();
             depthSelect.value = "none";
           };
         }
         this.renderMaterialTextureLayers(asset?.layers || []);
+        updateMaterialPreview();
         const materialValues = {
           metalness: asset?.metalness ?? 0.2,
           roughness: asset?.roughness ?? 0.3,
@@ -30798,7 +30908,7 @@
           if (output) output.textContent = Number(value).toFixed(2);
           if (input) input.oninput = () => {
             if (output) output.textContent = Number(input.value).toFixed(2);
-            updatePreview();
+            updateMaterialPreview();
           };
         });
       }
@@ -30814,6 +30924,12 @@
             layers.push(this.defaultTextureLayer("color"));
             this.renderMaterialTextureLayers(layers);
           };
+        }
+        const presetButtons = modal.querySelectorAll(".preset-btn");
+        if (presetButtons.length) {
+          presetButtons.forEach((btn) => {
+            btn.onclick = () => this.applyMaterialPreset(btn.dataset.preset);
+          });
         }
       }
       modal.classList.add("open");
@@ -31313,7 +31429,9 @@
               asset.clearcoat ?? 0,
               asset.transmission ?? 0,
               asset.sheen ?? 0,
-              asset.alpha ?? 1
+              asset.alpha ?? 1,
+              96,
+              asset.layers || []
             )}')`;
             preview.style.backgroundColor = asset.color;
           }
@@ -31331,6 +31449,7 @@
           }
           const depthSelect = document.getElementById("material-depth");
           if (depthSelect) depthSelect.value = asset.depth || "none";
+          this.renderMaterialTextureLayers(asset.layers || []);
         } else if (type === "colors") {
           const nameInput = document.getElementById("color-asset-name");
           if (nameInput) nameInput.value = asset.name || "";
@@ -31372,6 +31491,7 @@
     saveAsset(type) {
       const modalMap = {
         materials: "material-asset-modal",
+        textures: "texture-asset-modal",
         colors: "color-asset-modal",
         images: "image-asset-modal",
         media: "video-asset-modal",
@@ -31401,16 +31521,24 @@
         data.clearcoat = parseFloat(document.getElementById("material-clearcoat")?.value ?? 0);
         data.transmission = parseFloat(document.getElementById("material-transmission")?.value ?? 0);
         data.sheen = parseFloat(document.getElementById("material-sheen")?.value ?? 0);
+        const layersContainer = document.getElementById("material-asset-items");
+        let layers = [];
+        if (layersContainer) {
+          layers = this.collectMaterialTextureLayers();
+          data.layers = layers;
+        }
         data.preview = this.generateMaterialPreview(
           data.color,
           data.metalness,
           data.roughness,
-          data.alpha
+          data.opacity / 100,
+          data.clearcoat,
+          data.transmission,
+          data.sheen,
+          data.alpha,
+          96,
+          layers
         );
-        const layersContainer = document.getElementById("material-asset-items");
-        if (layersContainer) {
-          data.layers = this.collectMaterialTextureLayers();
-        }
       } else if (type === "textures") {
         const layer = this.readTextureAssetEditor();
         data.name = document.getElementById("texture-asset-name")?.value.trim() || `${layer.type} Texture`;
@@ -31495,55 +31623,216 @@
     renderTextureAssetPreview(layer, canvas = document.getElementById("texture-asset-preview")) {
       const ctx = canvas?.getContext("2d");
       if (!ctx) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = layer.color || layer.colorA || "#888888";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (layer.type === "gradient" || layer.type === "rainbow") {
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        const colors = layer.type === "rainbow" ? ["#f00", "#ff0", "#0f0", "#0ff", "#00f", "#f0f"] : [layer.colorA, layer.colorB];
-        colors.forEach((color, index) => gradient.addColorStop(index / Math.max(1, colors.length - 1), color));
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else if (layer.type === "noise") {
-        const size = Math.max(1, layer.scale || 8);
-        for (let y = 0; y < canvas.height; y += size) for (let x = 0; x < canvas.width; x += size) {
-          ctx.fillStyle = Math.random() > 0.5 ? layer.colorA : layer.colorB;
+      const width = canvas.width;
+      const height = canvas.height;
+      const type = layer.type || "color";
+      const fill = (color) => {
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, width, height);
+      };
+      const checkerboard = () => {
+        const size = Math.max(8, Math.round(width / 8));
+        for (let y = 0; y < height; y += size) for (let x = 0; x < width; x += size) {
+          ctx.fillStyle = (x / size + y / size) % 2 ? "#1f2430" : "#303746";
           ctx.fillRect(x, y, size, size);
         }
-      } else if (layer.type === "pattern" || layer.type === "duct") {
-        const size = Math.max(2, layer.scale || layer.spacing || 16);
-        ctx.fillStyle = layer.colorB || "#ddd";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = layer.colorA || "#222";
-        for (let y = 0; y < canvas.height; y += size) for (let x = 0; x < canvas.width; x += size) {
+      };
+      const angledGradient = (colors, angle = 0) => {
+        const radians = Number(angle || 0) * Math.PI / 180;
+        const cx = width / 2, cy = height / 2;
+        const radius = Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians));
+        const dx = Math.cos(radians) * radius / 2, dy = Math.sin(radians) * radius / 2;
+        const gradient = ctx.createLinearGradient(cx - dx, cy - dy, cx + dx, cy + dy);
+        colors.forEach((color, index) => gradient.addColorStop(index / Math.max(1, colors.length - 1), color));
+        fill(gradient);
+      };
+      const drawSourcePlaceholder = (label, base = "#252b38") => {
+        checkerboard();
+        ctx.fillStyle = base;
+        ctx.globalAlpha = 0.82;
+        ctx.fillRect(width * 0.14, height * 0.26, width * 0.72, height * 0.48);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#e5e7eb";
+        ctx.font = `600 ${Math.max(10, width / 13)}px Inter, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, width / 2, height / 2);
+      };
+      ctx.save();
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalAlpha = Math.max(0, Math.min(1, Number(layer.opacity ?? 100) / 100));
+      if (type === "color") {
+        fill(layer.color || "#888888");
+      } else if (type === "lighting") {
+        const strength = Math.max(0, Math.min(1, Number(layer.strength ?? 50) / 100));
+        const gradient = ctx.createRadialGradient(width * 0.35, height * 0.3, 0, width * 0.5, height * 0.5, width * 0.72);
+        gradient.addColorStop(0, `rgba(255,255,255,${0.65 + strength * 0.35})`);
+        gradient.addColorStop(0.45, "#758099");
+        gradient.addColorStop(1, `rgb(${18 - strength * 10},${21 - strength * 10},${29 - strength * 10})`);
+        fill(gradient);
+      } else if (type === "depth") {
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, "#ffffff");
+        gradient.addColorStop(1, "#050505");
+        fill(gradient);
+        ctx.strokeStyle = "rgba(110,231,255,.55)";
+        ctx.lineWidth = Math.max(1, width / 96);
+        for (let i = 1; i < 5; i++) ctx.strokeRect(width * i / 12, height * i / 12, width * (1 - i / 6), height * (1 - i / 6));
+      } else if (type === "gradient") {
+        angledGradient([layer.colorA || "#111827", layer.colorB || "#8b5cf6"], layer.angle);
+      } else if (type === "rainbow") {
+        const saturation = Number(layer.saturation ?? 100);
+        const lightness = Math.max(10, Number(layer.brightness ?? 100) / 2);
+        angledGradient([0, 60, 120, 180, 240, 300, 360].map((h) => `hsl(${h} ${saturation}% ${lightness}%)`), layer.angle);
+      } else if (type === "noise") {
+        fill(layer.colorB || "#eeeeee");
+        const size = Math.max(1, Number(layer.scale || 8));
+        let seed = (Number(layer.seed) || 1) >>> 0;
+        const random = () => (seed = seed * 1664525 + 1013904223 >>> 0) / 4294967296;
+        for (let y = 0; y < height; y += size) for (let x = 0; x < width; x += size) {
+          const mix = random();
+          ctx.globalAlpha = 0.35 + mix * 0.65;
+          ctx.fillStyle = mix > 0.5 ? layer.colorA || "#111" : layer.colorB || "#eee";
+          ctx.fillRect(x, y, size, size);
+        }
+        ctx.globalAlpha = 1;
+      } else if (type === "pattern") {
+        const size = Math.max(3, Number(layer.scale || 8));
+        fill(layer.colorB || "#eee");
+        ctx.fillStyle = layer.colorA || "#111";
+        for (let y = 0; y < height; y += size) for (let x = 0; x < width; x += size) {
           if (layer.pattern === "dots") {
             ctx.beginPath();
-            ctx.arc(x + size / 2, y + size / 2, size / 4, 0, Math.PI * 2);
+            ctx.arc(x + size / 2, y + size / 2, size * 0.28, 0, Math.PI * 2);
             ctx.fill();
-          } else if (layer.pattern === "stripes" || layer.type === "duct") {
-            if (x / size % 2 === 0) ctx.fillRect(x, 0, size, canvas.height);
-          } else if ((x + y) / size % 2 === 0) ctx.fillRect(x, y, size, size);
+          } else if (layer.pattern === "stripes") {
+            if (x / size % 2 === 0) ctx.fillRect(x, 0, size, height);
+          } else if ((x / size + y / size) % 2 === 0) ctx.fillRect(x, y, size, size);
         }
-      } else if ((layer.type === "image" || layer.type === "normal" || layer.type === "displace") && layer.url) {
+      } else if (type === "duct") {
+        fill(layer.colorB || "#9ca3af");
+        const spacing = Math.max(8, Number(layer.spacing || 24));
+        const pipe = Math.max(2, Number(layer.width || 8));
+        ctx.strokeStyle = layer.colorA || "#374151";
+        ctx.lineWidth = pipe;
+        ctx.lineCap = "round";
+        for (let y = spacing / 2; y < height; y += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(-pipe, y);
+          ctx.lineTo(width * 0.32, y);
+          ctx.arc(width * 0.32, y + spacing * 0.3, spacing * 0.3, -Math.PI / 2, 0);
+          ctx.lineTo(width + pipe, y + spacing * 0.3);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = "rgba(255,255,255,.22)";
+        ctx.lineWidth = Math.max(1, pipe * 0.2);
+        for (let y = spacing / 2; y < height; y += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(0, y - pipe * 0.2);
+          ctx.lineTo(width, y - pipe * 0.2);
+          ctx.stroke();
+        }
+      } else if (type === "fresnel") {
+        fill("#111827");
+        const power = Math.max(0.1, Number(layer.power || 3));
+        const gradient = ctx.createRadialGradient(width / 2, height / 2, width * 0.1, width / 2, height / 2, width * 0.52);
+        gradient.addColorStop(0, "#111827");
+        gradient.addColorStop(Math.max(0.2, 1 - 1 / power), "#1f2937");
+        gradient.addColorStop(1, layer.color || "#fff");
+        fill(gradient);
+      } else if (type === "cavity") {
+        fill("#777f8c");
+        const radius = Math.max(3, Number(layer.radius || 1) * width / 12);
+        const strength = Math.max(0, Number(layer.strength || 1));
+        ctx.lineWidth = Math.max(1, width / 64);
+        for (let y = radius; y < height; y += radius * 2) for (let x = radius; x < width; x += radius * 2) {
+          const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+          g.addColorStop(0, `rgba(0,0,0,${Math.min(0.85, 0.35 * strength)})`);
+          g.addColorStop(0.65, "rgba(0,0,0,.08)");
+          g.addColorStop(1, "rgba(255,255,255,.3)");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (type === "toon") {
+        const steps = Math.max(2, Number(layer.steps || 4));
+        for (let i = 0; i < steps; i++) {
+          ctx.fillStyle = `hsl(265 70% ${18 + i * 64 / Math.max(1, steps - 1)}%)`;
+          ctx.fillRect(i * width / steps, 0, width / steps + 1, height);
+        }
+      } else if (type === "outline") {
+        fill("#d7dce5");
+        const thickness = Math.max(2, Number(layer.thickness || 0.02) * width * 5);
+        ctx.strokeStyle = layer.color || "#000";
+        ctx.lineWidth = thickness;
+        ctx.fillStyle = "#8b5cf6";
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2, width * 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (type === "glass") {
+        checkerboard();
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, "rgba(255,255,255,.65)");
+        gradient.addColorStop(0.38, "rgba(125,211,252,.12)");
+        gradient.addColorStop(0.72, "rgba(255,255,255,.38)");
+        gradient.addColorStop(1, "rgba(56,189,248,.12)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(width * 0.12, height * 0.12, width * 0.76, height * 0.76);
+        ctx.strokeStyle = "rgba(224,242,254,.9)";
+        ctx.lineWidth = Math.max(2, width / 64);
+        ctx.strokeRect(width * 0.12, height * 0.12, width * 0.76, height * 0.76);
+      } else if (type === "reflection") {
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, "#080b12");
+        gradient.addColorStop(0.25, "#dbeafe");
+        gradient.addColorStop(0.38, "#334155");
+        gradient.addColorStop(0.62, "#f8fafc");
+        gradient.addColorStop(0.72, "#475569");
+        gradient.addColorStop(1, "#05070b");
+        fill(gradient);
+        ctx.fillStyle = `rgba(96,165,250,${Math.min(0.4, Number(layer.intensity || 1) * 0.15)})`;
+        ctx.fillRect(0, 0, width, height);
+      } else if (type === "normal" && !layer.url) {
+        fill("#8080ff");
+        const gradient = ctx.createRadialGradient(width * 0.4, height * 0.35, 0, width / 2, height / 2, width * 0.55);
+        gradient.addColorStop(0, "#b7b7ff");
+        gradient.addColorStop(0.5, "#8080ff");
+        gradient.addColorStop(1, "#4747c7");
+        fill(gradient);
+      } else if (type === "displace" && !layer.url) {
+        const gradient = ctx.createRadialGradient(width * 0.42, height * 0.38, 0, width / 2, height / 2, width * 0.65);
+        gradient.addColorStop(0, "#fff");
+        gradient.addColorStop(0.35, "#aab0ba");
+        gradient.addColorStop(0.7, "#4b5563");
+        gradient.addColorStop(1, "#050505");
+        fill(gradient);
+      } else if ((type === "image" || type === "normal" || type === "displace") && layer.url) {
+        drawSourcePlaceholder("Loading\u2026");
         const image = new Image();
         image.crossOrigin = "anonymous";
-        image.onload = () => ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        image.onload = () => {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, Number(layer.opacity ?? 100) / 100));
+          ctx.drawImage(image, 0, 0, width, height);
+          ctx.restore();
+        };
+        image.onerror = () => drawSourcePlaceholder("Image unavailable");
         image.src = layer.url;
-      } else if (layer.type === "video") {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (type === "video") {
+        drawSourcePlaceholder(layer.url ? "Video preview" : "Add video URL", "#111827");
         ctx.fillStyle = "#fff";
-        ctx.font = "72px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("\u25B6", canvas.width / 2, canvas.height / 2 + 24);
-      } else if (!["color"].includes(layer.type)) {
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#fff";
-        ctx.font = "18px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(layer.type.toUpperCase(), canvas.width / 2, canvas.height / 2);
+        ctx.beginPath();
+        ctx.moveTo(width * 0.44, height * 0.38);
+        ctx.lineTo(width * 0.44, height * 0.62);
+        ctx.lineTo(width * 0.63, height * 0.5);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        drawSourcePlaceholder(type === "image" ? "Add image URL" : type.toUpperCase());
       }
+      ctx.restore();
     }
     textureLayerTypes() {
       return ["color", "lighting", "depth", "image", "video", "normal", "gradient", "noise", "fresnel", "cavity", "duct", "rainbow", "toon", "outline", "glass", "reflection", "displace", "pattern"];
@@ -31607,6 +31896,116 @@
         return layer;
       });
     }
+    materialPresets() {
+      return {
+        glass: {
+          color: "#88ccff",
+          metalness: 0.05,
+          roughness: 0.05,
+          clearcoat: 0,
+          transmission: 0.9,
+          sheen: 0,
+          opacity: 100,
+          layers: [
+            { type: "color", color: "#88ccff", opacity: 100 },
+            { type: "glass", opacity: 100, transmission: 0.9, ior: 1.5, thickness: 0.5, roughness: 0.05 }
+          ]
+        },
+        metal: {
+          color: "#c0c0c0",
+          metalness: 1,
+          roughness: 0.2,
+          clearcoat: 0,
+          transmission: 0,
+          sheen: 0,
+          opacity: 100,
+          layers: [
+            { type: "color", color: "#c0c0c0", opacity: 100 },
+            { type: "reflection", opacity: 100, intensity: 1, metalness: 1, roughness: 0.2 }
+          ]
+        },
+        plastic: {
+          color: "#ff5555",
+          metalness: 0,
+          roughness: 0.4,
+          clearcoat: 0.5,
+          transmission: 0,
+          sheen: 0,
+          opacity: 100,
+          layers: [
+            { type: "color", color: "#ff5555", opacity: 100 },
+            { type: "noise", opacity: 25, blendMode: "overlay", colorA: "#ff5555", colorB: "#cc4444", scale: 16, seed: 42 }
+          ]
+        },
+        fabric: {
+          color: "#8b5a2b",
+          metalness: 0,
+          roughness: 0.8,
+          clearcoat: 0,
+          transmission: 0,
+          sheen: 0.6,
+          opacity: 100,
+          layers: [
+            { type: "color", color: "#8b5a2b", opacity: 100 },
+            { type: "noise", opacity: 35, blendMode: "multiply", colorA: "#654321", colorB: "#8b5a2b", scale: 12, seed: 7 }
+          ]
+        },
+        outline: {
+          color: "#000000",
+          metalness: 0,
+          roughness: 0.5,
+          clearcoat: 0,
+          transmission: 0,
+          sheen: 0,
+          opacity: 100,
+          layers: [
+            { type: "color", color: "#000000", opacity: 100 },
+            { type: "outline", opacity: 100, color: "#000000", thickness: 0.02 }
+          ]
+        },
+        default: {
+          color: "#888888",
+          metalness: 0.2,
+          roughness: 0.3,
+          clearcoat: 0,
+          transmission: 0,
+          sheen: 0,
+          opacity: 100,
+          layers: []
+        }
+      };
+    }
+    applyMaterialPreset(presetName) {
+      const preset = this.materialPresets()[presetName];
+      if (!preset) return;
+      const colorPicker = document.getElementById("material-color-picker");
+      if (colorPicker) colorPicker.value = preset.color;
+      const setSlider = (id, value) => {
+        const input = document.getElementById(id);
+        const output = document.getElementById(id + "-value");
+        if (input) input.value = value;
+        if (output) output.textContent = Number(value).toFixed(2);
+      };
+      setSlider("material-metalness", preset.metalness);
+      setSlider("material-roughness", preset.roughness);
+      setSlider("material-clearcoat", preset.clearcoat);
+      setSlider("material-transmission", preset.transmission);
+      setSlider("material-sheen", preset.sheen);
+      const opacityInput = document.getElementById("material-opacity");
+      const opacityValue = document.getElementById("material-opacity-value");
+      if (opacityInput) opacityInput.value = preset.opacity;
+      if (opacityValue) opacityValue.textContent = preset.opacity;
+      const lightingSlider = document.getElementById("material-lighting");
+      const lightingValue = document.getElementById("material-lighting-value");
+      if (lightingSlider) lightingSlider.value = 0;
+      if (lightingValue) lightingValue.textContent = 0;
+      this.renderMaterialTextureLayers((preset.layers || []).map((l) => ({
+        ...this.defaultTextureLayer(l.type || "color"),
+        ...l,
+        enabled: l.enabled !== false
+      })));
+      this.updateMaterialPreview?.();
+    }
     renderMaterialTextureLayers(layers = []) {
       const container = document.getElementById("material-asset-items");
       if (!container) return;
@@ -31667,11 +32066,13 @@
           const current = this.collectMaterialTextureLayers();
           current[index] = this.defaultTextureLayer(event.target.value);
           this.renderMaterialTextureLayers(current);
+          this.updateMaterialPreview?.();
         });
         layerEl.querySelector(".layer-close").addEventListener("click", () => {
           const current = this.collectMaterialTextureLayers();
           current.splice(index, 1);
           this.renderMaterialTextureLayers(current);
+          this.updateMaterialPreview?.();
         });
         layerEl.querySelector(".layer-up").disabled = index === 0;
         layerEl.querySelector(".layer-down").disabled = index === layers.length - 1;
@@ -31681,6 +32082,7 @@
           const previous = layerEl.previousElementSibling;
           if (previous) previous.before(layerEl);
           this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
+          this.updateMaterialPreview?.();
         };
         layerEl.querySelector(".layer-down").onclick = (event) => {
           event.preventDefault();
@@ -31688,12 +32090,14 @@
           const next = layerEl.nextElementSibling;
           if (next) next.after(layerEl);
           this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
+          this.updateMaterialPreview?.();
         };
         layerEl.querySelector(".layer-position").addEventListener("change", (event) => {
           const current = this.collectMaterialTextureLayers();
           const [moved] = current.splice(index, 1);
           current.splice(parseInt(event.target.value), 0, moved);
           this.renderMaterialTextureLayers(current);
+          this.updateMaterialPreview?.();
         });
         layerEl.querySelector(".layer-save-texture").addEventListener("click", () => {
           const current = this.collectMaterialTextureLayers()[index];
@@ -31704,6 +32108,7 @@
           this.addAsset("textures", { name: `${current.type[0].toUpperCase() + current.type.slice(1)} Texture`, layer: current, preview: dataUrl });
           this.showNotification("Texture saved for reuse", "success");
           this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
+          this.updateMaterialPreview?.();
         });
         layerEl.querySelector(".layer-texture-asset").addEventListener("change", (event) => {
           const texture = this.getAsset("textures", event.target.value);
@@ -31711,6 +32116,7 @@
           const current = this.collectMaterialTextureLayers();
           current[index] = { ...texture.layer, textureAssetId: texture.id };
           this.renderMaterialTextureLayers(current);
+          this.updateMaterialPreview?.();
         });
         container.appendChild(layerEl);
         this.renderTextureAssetPreview(layer, layerEl.querySelector(".layer-preview-canvas"));
@@ -31725,12 +32131,12 @@
     toggleSubmenu(btn) {
       const submenu = btn.querySelector(".tool-submenu");
       if (!submenu) return;
-      const isOpen = submenu.style.display === "flex";
+      const isOpen = submenu.style.display === "grid";
       this.closeAllSubmenus();
       if (!isOpen) {
         const btnRect = btn.getBoundingClientRect();
         const topOffset = btnRect.top + btnRect.height / 2 - 24;
-        submenu.style.display = "flex";
+        submenu.style.display = "grid";
         submenu.style.top = `${topOffset}px`;
         submenu.style.setProperty("--submenu-top", `${topOffset}px`);
         this.activeSubmenu = submenu;

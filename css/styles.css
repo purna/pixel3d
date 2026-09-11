@@ -1847,11 +1847,14 @@ input[type="color"] {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 8px;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     z-index: 1000;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-    min-width: 48px;
+    min-width: 110px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
     backdrop-filter: blur(10px);
 }
 
@@ -1870,7 +1873,7 @@ input[type="color"] {
 
 /* Make submenu buttons slightly larger and nicer */
 .tool-submenu .tool-btn {
-    width: 44px;
+    width: 100%;
     height: 44px;
     font-size: 1.2rem;
     background: rgba(30, 41, 59, 0.6);
@@ -2300,6 +2303,37 @@ input[type="color"] {
     border-color: var(--accent-primary);
     color: var(--accent-primary);
     background: rgba(0, 255, 65, 0.05);
+}
+
+.material-presets-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.preset-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.preset-btn {
+    flex: 0 0 auto;
+    height: 24px;
+    padding: 0 8px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-light);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.preset-btn:hover {
+    background: var(--accent-primary);
+    color: var(--button-text);
 }
 
 .material-texture-controls {
