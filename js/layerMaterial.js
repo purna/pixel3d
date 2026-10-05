@@ -218,26 +218,48 @@ export class LayerMaterial {
 }
 
 export const LAYER_PRESETS = {
-    'glass': [
-        { type: 'color', properties: { color: 0x88ccff }, opacity: 1 },
-        { type: 'glass', properties: { transmission: 0.9, ior: 1.5, thickness: 0.5 }, opacity: 1, blendMode: 'normal' }
-    ],
-    'metal': [
-        { type: 'color', properties: { color: 0xcccccc }, opacity: 1 },
-        { type: 'metalness', properties: { metalness: 1 }, opacity: 1 },
-        { type: 'roughness', properties: { roughness: 0.3 }, opacity: 1 }
-    ],
-    'plastic': [
-        { type: 'color', properties: { color: 0xff4444 }, opacity: 1 },
-        { type: 'clearcoat', properties: { clearcoat: 0.5 }, opacity: 1 }
-    ],
-    'fabric': [
-        { type: 'color', properties: { color: 0x443333 }, opacity: 1 },
-        { type: 'sheen', properties: { sheen: 0.5 }, opacity: 1 },
-        { type: 'roughness', properties: { roughness: 0.8 }, opacity: 1 }
-    ],
-    'outline': [
-        { type: 'color', properties: { color: 0x000000 }, opacity: 1 },
-        { type: 'outline', properties: { outlineEnabled: true, outlineColor: 0x000000, outlineThickness: 0.02 }, opacity: 1 }
-    ]
+    'glass': {
+        color: 0x88ccff, metalness: 0.05, roughness: 0.05, clearcoat: 0,
+        transmission: 0.9, sheen: 0, opacity: 1,
+        layers: [
+            { type: 'color', properties: { color: 0x88ccff }, opacity: 1, blendMode: 'normal' },
+            { type: 'glass', properties: { transmission: 0.9, ior: 1.5, thickness: 0.5, roughness: 0.05 }, opacity: 1, blendMode: 'normal' }
+        ]
+    },
+    'metal': {
+        color: 0xc0c0c0, metalness: 1, roughness: 0.2, clearcoat: 0,
+        transmission: 0, sheen: 0, opacity: 1,
+        layers: [
+            { type: 'color', properties: { color: 0xc0c0c0 }, opacity: 1, blendMode: 'normal' },
+            { type: 'metalness', properties: { metalness: 1, roughness: 0.2 }, opacity: 1, blendMode: 'normal' }
+        ]
+    },
+    'plastic': {
+        color: 0xff5555, metalness: 0, roughness: 0.4, clearcoat: 0.5,
+        transmission: 0, sheen: 0, opacity: 1,
+        layers: [
+            { type: 'color', properties: { color: 0xff5555 }, opacity: 1, blendMode: 'normal' },
+            { type: 'noise', properties: { colorA: '#ff5555', colorB: '#cc4444', scale: 16, seed: 42 }, opacity: 0.25, blendMode: 'overlay' }
+        ]
+    },
+    'fabric': {
+        color: 0x8b5a2b, metalness: 0, roughness: 0.8, clearcoat: 0,
+        transmission: 0, sheen: 0.6, opacity: 1,
+        layers: [
+            { type: 'color', properties: { color: 0x8b5a2b }, opacity: 1, blendMode: 'normal' },
+            { type: 'noise', properties: { colorA: '#654321', colorB: '#8b5a2b', scale: 12, seed: 7 }, opacity: 0.35, blendMode: 'multiply' }
+        ]
+    },
+    'outline': {
+        color: 0x000000, metalness: 0, roughness: 0.5, clearcoat: 0,
+        transmission: 0, sheen: 0, opacity: 1,
+        layers: [
+            { type: 'color', properties: { color: 0x000000 }, opacity: 1, blendMode: 'normal' },
+            { type: 'outline', properties: { outlineEnabled: true, outlineColor: 0x000000, outlineThickness: 0.02 }, opacity: 1, blendMode: 'normal' }
+        ]
+    },
+    'default': {
+        color: 0x888888, metalness: 0.2, roughness: 0.3, clearcoat: 0,
+        transmission: 0, sheen: 0, opacity: 1, layers: []
+    }
 };

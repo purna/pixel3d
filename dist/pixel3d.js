@@ -29589,6 +29589,227 @@
   // js/ui.js
   init_three_module();
 
+  // js/layerMaterial.js
+  init_three_module();
+  var LayerMaterial = class {
+    constructor(baseMaterial = null) {
+      this.layers = [];
+      this.baseMaterial = baseMaterial;
+      this.mesh = null;
+      this.threeMaterial = baseMaterial || new MeshPhysicalMaterial();
+      this._dirty = true;
+    }
+    addLayer(type, properties = {}) {
+      const id = "layer-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+      const layer = {
+        id,
+        type,
+        visible: true,
+        opacity: 1,
+        blendMode: "normal",
+        properties: { ...properties }
+      };
+      this.layers.push(layer);
+      this._dirty = true;
+      return layer;
+    }
+    removeLayer(id) {
+      this.layers = this.layers.filter((l) => l.id !== id);
+      this._dirty = true;
+      this._applyLayers();
+    }
+    updateLayer(id, updates) {
+      const layer = this.layers.find((l) => l.id === id);
+      if (!layer) return;
+      Object.assign(layer, updates);
+      this._dirty = true;
+      this._applyLayers();
+    }
+    reorderLayers(newOrder) {
+      this.layers = newOrder;
+      this._dirty = true;
+      this._applyLayers();
+    }
+    getMaterial() {
+      if (this._dirty) {
+        this._applyLayers();
+      }
+      return this.threeMaterial;
+    }
+    _applyLayers() {
+      if (!this.threeMaterial) return;
+      const visibleLayers = this.layers.filter((l) => l.visible);
+      if (visibleLayers.length === 0) return;
+      const baseLayer = visibleLayers.find((l) => l.type === "color") || visibleLayers[0];
+      const otherLayers = visibleLayers.filter((l) => l !== baseLayer);
+      if (baseLayer && baseLayer.type === "color") {
+        const props = baseLayer.properties;
+        this.threeMaterial.color.set(props.color || 16777215);
+        this.threeMaterial.opacity = baseLayer.opacity;
+        this.threeMaterial.transparent = baseLayer.opacity < 1;
+      }
+      otherLayers.forEach((layer) => {
+        const props = layer.properties;
+        const factor = layer.opacity;
+        switch (layer.type) {
+          case "color":
+            if (props.color !== void 0) {
+              this._blendColor(this.threeMaterial.color, new Color(props.color), factor, layer.blendMode);
+            }
+            break;
+          case "roughness":
+            if (props.roughness !== void 0) {
+              this.threeMaterial.roughness = this._blendValue(
+                this.threeMaterial.roughness,
+                props.roughness,
+                factor,
+                layer.blendMode
+              );
+            }
+            break;
+          case "metalness":
+            if (props.metalness !== void 0) {
+              this.threeMaterial.metalness = this._blendValue(
+                this.threeMaterial.metalness,
+                props.metalness,
+                factor,
+                layer.blendMode
+              );
+            }
+            break;
+          case "clearcoat":
+            if (props.clearcoat !== void 0) {
+              this.threeMaterial.clearcoat = this._blendValue(
+                this.threeMaterial.clearcoat || 0,
+                props.clearcoat,
+                factor,
+                layer.blendMode
+              );
+            }
+            break;
+          case "transmission":
+            if (props.transmission !== void 0) {
+              this.threeMaterial.transmission = this._blendValue(
+                this.threeMaterial.transmission || 0,
+                props.transmission,
+                factor,
+                layer.blendMode
+              );
+            }
+            break;
+          case "sheen":
+            if (props.sheen !== void 0) {
+              this.threeMaterial.sheen = this._blendValue(
+                this.threeMaterial.sheen || 0,
+                props.sheen,
+                factor,
+                layer.blendMode
+              );
+            }
+            break;
+          case "displacement":
+            if (props.displacementMap) {
+              this.threeMaterial.displacementMap = props.displacementMap;
+              this.threeMaterial.displacementScale = this._blendValue(
+                this.threeMaterial.displacementScale || 0,
+                props.displacementScale || 0,
+                factor,
+                layer.blendMode
+              );
+            }
+            break;
+          case "outline":
+            if (props.outlineEnabled && this.mesh) {
+              const outlineColor = props.outlineColor || 0;
+              const outlineThickness = props.outlineThickness || 0.02;
+              this._applyOutline(outlineColor, outlineThickness);
+            } else if (this.mesh) {
+              this._removeOutline();
+            }
+            break;
+          case "glass":
+            if (props.transmission !== void 0) {
+              this.threeMaterial.transmission = this._blendValue(
+                this.threeMaterial.transmission || 0,
+                props.transmission,
+                factor,
+                layer.blendMode
+              );
+              this.threeMaterial.ior = props.ior || 1.5;
+              this.threeMaterial.thickness = props.thickness || 0.5;
+            }
+            break;
+        }
+      });
+      this.threeMaterial.needsUpdate = true;
+      this._dirty = false;
+    }
+    _blendValue(base, target, factor, blendMode) {
+      if (blendMode === "add") return base + target * factor;
+      if (blendMode === "multiply") return base * (1 - factor) + base * target * factor;
+      if (blendMode === "screen") return base * (1 - factor) + (1 - (1 - base) * (1 - target)) * factor;
+      if (blendMode === "overlay") {
+        const value = base < 0.5 ? 2 * base * target : 1 - 2 * (1 - base) * (1 - target);
+        return base * (1 - factor) + value * factor;
+      }
+      return base * (1 - factor) + target * factor;
+    }
+    _blendColor(base, target, factor, blendMode) {
+      base.setRGB(
+        this._blendValue(base.r, target.r, factor, blendMode),
+        this._blendValue(base.g, target.g, factor, blendMode),
+        this._blendValue(base.b, target.b, factor, blendMode)
+      );
+    }
+    _applyOutline(color, thickness) {
+      if (!this.mesh) return;
+      const existing = this.mesh.getObjectByName("outline");
+      if (existing) {
+        existing.geometry.dispose();
+        existing.material.dispose();
+        this.mesh.remove(existing);
+      }
+      const outlineMaterial = new MeshBasicMaterial({
+        color,
+        side: BackSide,
+        transparent: true,
+        opacity: 0.6,
+        depthTest: true,
+        depthWrite: true
+      });
+      const outlineMesh = new Mesh(this.mesh.geometry, outlineMaterial);
+      outlineMesh.name = "outline";
+      outlineMesh.renderOrder = 0;
+      const s = 1 + thickness;
+      outlineMesh.scale.set(s, s, s);
+      outlineMesh.visible = true;
+      this.mesh.add(outlineMesh);
+    }
+    _removeOutline() {
+      if (!this.mesh) return;
+      const existing = this.mesh.getObjectByName("outline");
+      if (existing) {
+        existing.geometry.dispose();
+        existing.material.dispose();
+        this.mesh.remove(existing);
+      }
+    }
+    setMesh(mesh) {
+      this.mesh = mesh;
+      this._applyLayers();
+    }
+    getLayers() {
+      return this.layers;
+    }
+    dispose() {
+      this._removeOutline();
+      if (this.threeMaterial) {
+        this.threeMaterial.dispose();
+      }
+      this.layers = [];
+    }
+  };
+
   // js/colorUtils.js
   function hexToRgb(hex) {
     const n = parseInt(hex.replace("#", ""), 16);
@@ -29872,9 +30093,6 @@
       document.getElementById("tool-scene-settings")?.addEventListener("click", () => {
         this.scrollToSection("section-scene");
       });
-      document.getElementById("tool-aframe-export")?.addEventListener("click", () => {
-        this.scrollToSection("section-scene");
-      });
       document.getElementById("tool-particles")?.addEventListener("click", () => {
         this.scrollToSection("section-scene");
       });
@@ -29960,10 +30178,48 @@
         header.addEventListener("click", () => {
           const targetId = header.dataset.target;
           const content = document.getElementById(targetId);
-          if (content) {
+          if (!content) return;
+          const isScenePanel = header.closest("#section-scene");
+          const isOpen = !content.classList.contains("hidden");
+          if (isScenePanel && isOpen) {
+            header.classList.add("collapsed");
+            content.classList.add("hidden");
+          } else if (isScenePanel && !isOpen) {
+            const section = header.closest("#section-scene");
+            if (section) {
+              section.querySelectorAll(".collapsible-header").forEach((otherHeader) => {
+                if (otherHeader !== header) {
+                  otherHeader.classList.add("collapsed");
+                  const otherId = otherHeader.dataset.target;
+                  const otherContent = document.getElementById(otherId);
+                  if (otherContent) otherContent.classList.add("hidden");
+                }
+              });
+            }
+            header.classList.remove("collapsed");
+            content.classList.remove("hidden");
+          } else {
             header.classList.toggle("collapsed");
             content.classList.toggle("hidden");
           }
+        });
+      });
+      document.getElementById("scene-expand-all")?.addEventListener("click", () => {
+        const section = document.getElementById("section-scene");
+        if (!section) return;
+        section.querySelectorAll(".collapsible-header").forEach((header) => {
+          header.classList.remove("collapsed");
+          const content = document.getElementById(header.dataset.target);
+          if (content) content.classList.remove("hidden");
+        });
+      });
+      document.getElementById("scene-collapse-all")?.addEventListener("click", () => {
+        const section = document.getElementById("section-scene");
+        if (!section) return;
+        section.querySelectorAll(".collapsible-header").forEach((header) => {
+          header.classList.add("collapsed");
+          const content = document.getElementById(header.dataset.target);
+          if (content) content.classList.add("hidden");
         });
       });
       document.querySelectorAll(".right-tab").forEach((tab) => {
@@ -30039,6 +30295,20 @@
           btn.addEventListener("click", () => this.saveAsset(type));
         }
       });
+      const applyBtn = document.getElementById("material-asset-apply");
+      if (applyBtn) {
+        applyBtn.addEventListener("click", () => {
+          this.saveAsset("materials");
+          if (this.app.materialsManager) {
+            const modal = document.getElementById("material-asset-modal");
+            const editingId = modal.dataset.editingAssetId;
+            const asset = editingId ? this.getAsset("materials", editingId) : null;
+            if (asset) {
+              this.app.materialsManager.applyMaterialToSelected(asset);
+            }
+          }
+        });
+      }
       document.querySelectorAll(".modal-overlay").forEach((overlay) => {
         overlay.addEventListener("click", (e) => {
           if (e.target === overlay) {
@@ -30181,7 +30451,7 @@
       });
     }
     resetSceneSettings() {
-      const defaults = typeof APP_DEFAULTS !== "undefined" && APP_DEFAULTS.scene ? APP_DEFAULTS.scene : {
+      const defaults = typeof APP_DEFAULTS !== "undefined" && APP_DEFAULTS.sceneDefaults ? APP_DEFAULTS.sceneDefaults : {
         backgroundEnabled: true,
         backgroundColor: "#1a1a2e",
         backgroundGradient: false,
@@ -30855,6 +31125,7 @@
             updateMaterialPreview();
           });
         }
+        this.initMaterialColorPicker(asset);
         const lightingSlider = document.getElementById("material-lighting");
         const lightingValue = document.getElementById("material-lighting-value");
         if (lightingSlider && lightingValue) {
@@ -30862,6 +31133,7 @@
           lightingValue.textContent = asset?.lighting || 0;
           lightingSlider.addEventListener("input", (e) => {
             lightingValue.textContent = e.target.value;
+          updateMaterialPreview();
           });
         }
         const opacitySlider = document.getElementById("material-opacity");
@@ -30892,7 +31164,8 @@
             depthSelect.value = "none";
           };
         }
-        this.renderMaterialTextureLayers(asset?.layers || []);
+        const materialLayers = asset?.layers?.length > 0 ? asset.layers : [{ type: "color", color: this._materialColorState ? "#" + rgbToHex(hslToRgb({ h: this._materialColorState.h, s: this._materialColorState.s, l: this._materialColorState.l })) : "#888888", opacity: 100, enabled: true, blendMode: "normal" }];
+        this.renderMaterialTextureLayers(materialLayers);
         updateMaterialPreview();
         const materialValues = {
           metalness: asset?.metalness ?? 0.2,
@@ -30969,6 +31242,175 @@
       this._colorEditorState = { ...hsl, a: a2 };
       this.updateColorEditorUI();
       this.setupColorFormatSelector();
+    }
+    initMaterialColorPicker(asset) {
+      let hsl = { h: 0, s: 0, l: 50 };
+      let a2 = 1;
+      if (asset) {
+        const color = asset.color || "#888888";
+        const rgb = hexToRgb(color);
+        hsl = rgbToHsl(rgb);
+        a2 = asset.alpha ?? 1;
+      }
+      this._materialColorState = { ...hsl, a: a2 };
+      this.updateMaterialColorPickerUI();
+      this.setupMaterialColorPicker();
+    }
+    setupMaterialColorPicker() {
+      this.setupMaterialSLPicker();
+      this.setupMaterialColorSlider("material-hue-slider", 0, 360, (v) => {
+        this._materialColorState.h = v;
+        this.updateMaterialColorPickerUI();
+      });
+      this.setupMaterialColorSlider("material-saturation-slider", 0, 100, (v) => {
+        this._materialColorState.s = v;
+        this.updateMaterialColorPickerUI();
+      });
+      this.setupMaterialColorSlider("material-lightness-slider", 0, 100, (v) => {
+        this._materialColorState.l = v;
+        this.updateMaterialColorPickerUI();
+      });
+    }
+    updateMaterialColorPickerUI() {
+      const state = this._materialColorState;
+      if (!state) return;
+      const rgb = hslToRgb({ h: state.h, s: state.s, l: state.l });
+      const hex = rgbToHex(rgb);
+      const slPicker = document.getElementById("material-color-sl-picker");
+      if (slPicker) {
+        const hueColor = `hsl(${state.h}, 100%, 50%)`;
+        slPicker.style.background = `
+                linear-gradient(to top, #000, transparent),
+                linear-gradient(to right, #fff, transparent),
+                linear-gradient(to right, ${hueColor}, #888)
+            `;
+      }
+      const slThumb = slPicker?.querySelector(".color-sl-thumb");
+      if (slThumb) {
+        slThumb.style.left = `${state.s}%`;
+        slThumb.style.top = `${100 - state.l}%`;
+      }
+      const preview = document.getElementById("material-color-preview-swatch");
+      if (preview) {
+        preview.style.backgroundColor = `rgba(${Math.round(rgb.r * 255)}, ${Math.round(rgb.g * 255)}, ${Math.round(rgb.b * 255)}, ${state.a})`;
+      }
+      const hueSlider = document.getElementById("material-hue-slider");
+      const hueThumb = hueSlider?.querySelector(".slider-thumb");
+      if (hueThumb) {
+        hueThumb.style.left = `${state.h / 360 * 100}%`;
+      }
+      const hueValue = document.getElementById("material-hue-value");
+      if (hueValue) hueValue.value = Math.round(state.h);
+      const satSlider = document.getElementById("material-saturation-slider");
+      const satThumb = satSlider?.querySelector(".slider-thumb");
+      if (satThumb) {
+        satThumb.style.left = `${state.s}%`;
+      }
+      const satValue = document.getElementById("material-saturation-value");
+      if (satValue) satValue.value = Math.round(state.s);
+      const lightSlider = document.getElementById("material-lightness-slider");
+      const lightThumb = lightSlider?.querySelector(".slider-thumb");
+      if (lightThumb) {
+        lightThumb.style.left = `${state.l}%`;
+      }
+      const lightValue = document.getElementById("material-lightness-value");
+      if (lightValue) lightValue.value = Math.round(state.l);
+      const colorPicker = document.getElementById("material-color-picker");
+      if (colorPicker) {
+        colorPicker.value = "#" + hex;
+      }
+      // Keep the base colour layer in step with the sliders (otherwise it paints over the preview)
+      const baseLayer = [...document.querySelectorAll('#material-asset-items .material-texture-layer')].find(el => el.querySelector('.layer-select')?.value === 'color');
+      const layerColor = baseLayer?.querySelector('[data-prop="color"]');
+      if (layerColor && layerColor.value !== '#' + hex) {
+          layerColor.value = '#' + hex;
+          layerColor.dispatchEvent(new Event('input', { bubbles: true }));
+      } else {
+          this.updateMaterialPreview?.();
+      }
+    }
+    setupMaterialSLPicker() {
+      const picker = document.getElementById("material-color-sl-picker");
+      if (!picker || picker._slPickerSetup) return;
+      picker._slPickerSetup = true;
+      let isDragging = false;
+      const updateFromEvent = (e) => {
+        const rect = picker.getBoundingClientRect();
+        const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+        this._materialColorState.s = x * 100;
+        this._materialColorState.l = (1 - y) * 100;
+        this.updateMaterialColorPickerUI();
+      };
+      picker.style.touchAction = "none";
+      picker.addEventListener("pointerdown", (e) => {
+        isDragging = true;
+        e.preventDefault();
+        try {
+          picker.setPointerCapture(e.pointerId);
+        } catch (_) {
+        }
+        updateFromEvent(e);
+      });
+      picker.addEventListener("pointermove", (e) => {
+        if (isDragging) updateFromEvent(e);
+      });
+      const endDrag = () => {
+        isDragging = false;
+      };
+      picker.addEventListener("pointerup", endDrag);
+      picker.addEventListener("pointercancel", endDrag);
+    }
+    setupMaterialColorSlider(id, min, max, onChange) {
+
+      const slider = document.getElementById(id);
+      if (!slider || slider._materialSliderSetup) return;
+      slider._materialSliderSetup = true;
+      const track = slider.querySelector(".slider-track");
+      const thumb = slider.querySelector(".slider-thumb");
+      if (!track || !thumb) return;
+      const setValue = (value) => {
+        value = Math.max(min, Math.min(max, value));
+        const percent = (value - min) / (max - min) * 100;
+        thumb.style.left = `${percent}%`;
+        onChange(value);
+      };
+      const updateFromEvent = (e) => {
+        const rect = slider.getBoundingClientRect();
+        const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const value = min + x * (max - min);
+        setValue(value);
+      };
+      let isDragging = false;
+      const startDrag = (e) => {
+        isDragging = true;
+        e.preventDefault();
+        updateFromEvent(e);
+      };
+      const onMouseMove = (e) => {
+        if (isDragging) updateFromEvent(e);
+      };
+      const onMouseUp = () => {
+        isDragging = false;
+      };
+      slider.style.touchAction = "none";
+      slider.addEventListener("pointerdown", (e) => {
+        startDrag(e);
+        try {
+          slider.setPointerCapture(e.pointerId);
+        } catch (_) {
+        }
+      });
+      slider.addEventListener("pointermove", onMouseMove);
+      slider.addEventListener("pointerup", onMouseUp);
+      slider.addEventListener("pointercancel", onMouseUp);
+      const valueInput = document.getElementById(id.replace("-slider", "-value"));
+      if (valueInput) {
+        valueInput.addEventListener("input", () => {
+          const value = parseFloat(valueInput.value);
+          if (!isNaN(value)) setValue(value);
+        });
+      }
     }
     setupColorEditor() {
       this.setupSLPicker();
@@ -31356,7 +31798,11 @@
         if (transmissionValue) transmissionValue.textContent = "0.00";
         if (sheenInput) sheenInput.value = "0";
         if (sheenValue) sheenValue.textContent = "0.00";
-        if (itemsContainer) itemsContainer.innerHTML = "";
+        if (itemsContainer) {
+          itemsContainer.innerHTML = "";
+          const color = colorPicker?.value || "#888888";
+          this.renderMaterialTextureLayers([{ type: "color", color, opacity: 100, enabled: true, blendMode: "normal" }]);
+        }
         if (lightingSlider) {
           lightingSlider.value = "0";
           if (lightingValue) lightingValue.textContent = "0";
@@ -31396,14 +31842,32 @@
         const preview = document.getElementById("image-preview");
         const urlInput = document.getElementById("image-asset-url");
         if (nameInput) nameInput.value = "";
-        if (preview) preview.src = "";
+        if (preview) {
+          preview.classList.add("broken");
+          preview.src = "";
+          preview.onerror = () => {
+            preview.classList.add("broken");
+          };
+          preview.onload = () => {
+            preview.classList.remove("broken");
+          };
+        }
         if (urlInput) urlInput.value = "";
       } else if (type === "media") {
         const nameInput = document.getElementById("video-asset-name");
         const preview = document.getElementById("video-preview");
         const urlInput = document.getElementById("video-asset-url");
         if (nameInput) nameInput.value = "";
-        if (preview) preview.src = "";
+        if (preview) {
+          preview.classList.add("broken");
+          preview.src = "";
+          preview.onerror = () => {
+            preview.classList.add("broken");
+          };
+          preview.onload = () => {
+            preview.classList.remove("broken");
+          };
+        }
         if (urlInput) urlInput.value = "";
       } else if (type === "audio") {
         const nameInput = document.getElementById("audio-asset-name");
@@ -31469,14 +31933,40 @@
           const preview = document.getElementById("image-preview");
           const urlInput = document.getElementById("image-asset-url");
           if (nameInput) nameInput.value = asset.name || "";
-          if (preview && asset.url) preview.src = asset.url;
+          if (preview) {
+            preview.onerror = () => {
+              preview.classList.add("broken");
+            };
+            preview.onload = () => {
+              preview.classList.remove("broken");
+            };
+            if (asset.url) {
+              preview.src = asset.url;
+            } else {
+              preview.classList.add("broken");
+              preview.src = "";
+            }
+          }
           if (urlInput) urlInput.value = asset.url || "";
         } else if (type === "media") {
           const nameInput = document.getElementById("video-asset-name");
           const preview = document.getElementById("video-preview");
           const urlInput = document.getElementById("video-asset-url");
           if (nameInput) nameInput.value = asset.name || "";
-          if (preview && asset.url) preview.src = asset.url;
+          if (preview) {
+            preview.onerror = () => {
+              preview.classList.add("broken");
+            };
+            preview.onload = () => {
+              preview.classList.remove("broken");
+            };
+            if (asset.url) {
+              preview.src = asset.url;
+            } else {
+              preview.classList.add("broken");
+              preview.src = "";
+            }
+          }
           if (urlInput) urlInput.value = asset.url || "";
         } else if (type === "audio") {
           const nameInput = document.getElementById("audio-asset-name");
@@ -31591,16 +32081,19 @@
       const nameInput = document.getElementById("texture-asset-name");
       if (!typeSelect) return;
       typeSelect.innerHTML = this.textureLayerTypes().map((type) => `<option value="${type}">${type[0].toUpperCase() + type.slice(1)}</option>`).join("");
-      let layer = asset?.layer ? { ...asset.layer } : this.defaultTextureLayer("gradient");
+      let layer = asset?.layer ? { ...this.defaultTextureLayer(asset.layer.type || "gradient"), ...asset.layer } : this.defaultTextureLayer("gradient");
       if (nameInput) nameInput.value = asset?.name || "";
       const render = () => {
         const panel = document.getElementById("texture-asset-properties");
         if (!panel) return;
         panel.innerHTML = this.textureLayerFields(layer);
-        panel.querySelectorAll("input,select").forEach((control) => control.addEventListener("input", () => {
-          layer = this.readTextureAssetEditor();
-          this.renderTextureAssetPreview(layer);
-        }));
+        panel.querySelectorAll("input,select").forEach((control) => {
+          const eventType = control.tagName === "SELECT" ? "change" : "input";
+          control.addEventListener(eventType, () => {
+            layer = this.readTextureAssetEditor();
+            this.renderTextureAssetPreview(layer);
+          });
+        });
         const pattern = panel.querySelector('[data-prop="pattern"]');
         if (pattern) pattern.value = layer.pattern;
         this.renderTextureAssetPreview(layer);
@@ -31616,7 +32109,16 @@
       const type = document.getElementById("texture-asset-type")?.value || "color";
       const layer = this.defaultTextureLayer(type);
       document.querySelectorAll("#texture-asset-properties [data-prop]").forEach((control) => {
-        layer[control.dataset.prop] = control.type === "checkbox" ? control.checked : control.type === "number" || control.type === "range" ? parseFloat(control.value) : control.value;
+        let val;
+        if (control.type === "checkbox") {
+          val = control.checked;
+        } else if (control.type === "number" || control.type === "range") {
+          val = parseFloat(control.value);
+          if (isNaN(val)) val = layer[control.dataset.prop];
+        } else {
+          val = control.value;
+        }
+        layer[control.dataset.prop] = val;
       });
       return layer;
     }
@@ -31889,14 +32391,27 @@
     }
     collectMaterialTextureLayers() {
       return [...document.querySelectorAll("#material-asset-items .material-texture-layer")].map((layerEl) => {
-        const layer = { type: layerEl.querySelector(".layer-select")?.value || "color", enabled: layerEl.querySelector(".layer-enabled")?.checked !== false, opacity: parseFloat(layerEl.querySelector(".layer-opacity")?.value || 100), blendMode: layerEl.querySelector(".layer-blend-mode")?.value || "normal" };
+        const layer = { type: layerEl.querySelector(".layer-select")?.value || "color", enabled: layerEl.querySelector(".layer-enabled")?.checked !== false, opacity: parseFloat(layerEl.querySelector(".layer-opacity")?.value || 100), blendMode: layerEl.querySelector(".layer-blend-mode")?.value || "normal", _expanded: !layerEl.classList.contains("collapsed") };
+        const textureAssetSelect = layerEl.querySelector(".layer-texture-asset");
+        if (textureAssetSelect && textureAssetSelect.value) layer.textureAssetId = textureAssetSelect.value;
+        const defaults = this.defaultTextureLayer(layer.type);
         layerEl.querySelectorAll("[data-prop]").forEach((control) => {
-          layer[control.dataset.prop] = control.type === "checkbox" ? control.checked : control.type === "number" || control.type === "range" ? parseFloat(control.value) : control.value;
+          let val;
+          if (control.type === "checkbox") {
+            val = control.checked;
+          } else if (control.type === "number" || control.type === "range") {
+            val = parseFloat(control.value);
+            if (isNaN(val)) val = defaults[control.dataset.prop];
+          } else {
+            val = control.value;
+          }
+          layer[control.dataset.prop] = val;
         });
         return layer;
       });
     }
     materialPresets() {
+      const toHexStr = (color) => typeof color === "string" && color.startsWith("#") ? color : "#" + String(color ?? 16777215).toString(16).padStart(6, "0");
       return {
         glass: {
           color: "#88ccff",
@@ -32014,14 +32529,19 @@
         const layer = { ...this.defaultTextureLayer(rawLayer.type || "color"), ...rawLayer };
         const layerEl = document.createElement("div");
         layerEl.className = "material-texture-layer";
-        const textureOptions = (this.assets.textures || []).map((texture) => `<option value="${texture.id}">${texture.name}</option>`).join("");
-        const positionOptions = layers.map((_, position) => `<option value="${position}" ${position === index ? "selected" : ""}>${position + 1}</option>`).join("");
+        layerEl.draggable = true;
+        layerEl.dataset.layerIndex = index;
+        if (layer._expanded === false) layerEl.classList.add("collapsed");
+        const textureOptions = (this.assets.textures || []).map((texture) => `<option value="${texture.id}" ${layer.textureAssetId === texture.id ? "selected" : ""}>${texture.name}</option>`).join("");
+        const isExpanded = layer._expanded !== false;
         layerEl.innerHTML = `
-                <div class="material-layer-header">
+                <div class="material-layer-header" data-layer-index="${index}">
+                    <div class="layer-drag-handle" title="Drag to reorder"><i class="fas fa-grip-lines"></i></div>
                     <label class="layer-toggle">
                         <input class="layer-enabled" type="checkbox" ${layer.enabled ? "checked" : ""}>
                         <span>Enabled</span>
                     </label>
+                    <span class="layer-index-badge">${index + 1}</span>
                     <select class="layer-select" aria-label="Layer type">${this.textureLayerTypes().map((type) => `<option value="${type}" ${type === layer.type ? "selected" : ""}>${type[0].toUpperCase() + type.slice(1)}</option>`).join("")}</select>
                     <select class="layer-blend-mode" aria-label="Blend mode"><option value="normal">Normal</option><option value="add">Add</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select>
                     <label class="layer-opacity-control">
@@ -32029,15 +32549,15 @@
                         <input class="layer-opacity" type="range" min="0" max="100" value="${layer.opacity}">
                         <output>${Number(layer.opacity ?? 100).toFixed(0)}%</output>
                     </label>
-                    <select class="layer-position" aria-label="Layer position">${positionOptions}</select>
+                    <button class="layer-toggle-expand" aria-label="${isExpanded ? "Collapse" : "Expand"} layer" title="${isExpanded ? "Collapse" : "Expand"} layer">
+                        <i class="fas fa-chevron-${isExpanded ? "down" : "right"}"></i>
+                    </button>
                     <div class="layer-actions">
-                        <button class="layer-up" title="Move layer up" aria-label="Move layer up"><i class="fas fa-chevron-up"></i></button>
-                        <button class="layer-down" title="Move layer down" aria-label="Move layer down"><i class="fas fa-chevron-down"></i></button>
                         <button class="layer-save-texture" title="Save layer as reusable texture"><i class="fas fa-save"></i> Save</button>
-                        <button class="layer-close" title="Remove layer" aria-label="Remove layer"><i class="fas fa-times"></i></button>
+                        <button class="layer-close" title="Remove layer" aria-label="Remove layer" ${layers.length <= 1 ? "disabled" : ""}><i class="fas fa-times"></i></button>
                     </div>
                 </div>
-                <div class="material-layer-body">
+                <div class="material-layer-body ${isExpanded ? "expanded" : "collapsed"}" style="${isExpanded ? "" : "display:none;"}">
                     <div class="layer-preview-frame">
                         <canvas class="layer-preview-canvas" width="64" height="64" aria-label="Layer preview"></canvas>
                     </div>
@@ -32058,6 +32578,7 @@
         const updateLayerPreview = () => {
           const current = this.collectMaterialTextureLayers()[index];
           this.renderTextureAssetPreview(current, layerEl.querySelector(".layer-preview-canvas"));
+          this.updateMaterialPreview?.();
         };
         layerEl.querySelectorAll("[data-prop], .layer-opacity").forEach((control) => {
           control.addEventListener("input", updateLayerPreview);
@@ -32070,32 +32591,72 @@
         });
         layerEl.querySelector(".layer-close").addEventListener("click", () => {
           const current = this.collectMaterialTextureLayers();
+          if (current.length <= 1) {
+            this.showNotification("Cannot remove the last layer", "warning");
+            return;
+          }
           current.splice(index, 1);
           this.renderMaterialTextureLayers(current);
           this.updateMaterialPreview?.();
         });
-        layerEl.querySelector(".layer-up").disabled = index === 0;
-        layerEl.querySelector(".layer-down").disabled = index === layers.length - 1;
-        layerEl.querySelector(".layer-up").onclick = (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const previous = layerEl.previousElementSibling;
-          if (previous) previous.before(layerEl);
-          this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
-          this.updateMaterialPreview?.();
-        };
-        layerEl.querySelector(".layer-down").onclick = (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const next = layerEl.nextElementSibling;
-          if (next) next.after(layerEl);
-          this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
-          this.updateMaterialPreview?.();
-        };
-        layerEl.querySelector(".layer-position").addEventListener("change", (event) => {
+        layerEl.addEventListener("dragstart", (e) => {
+          if (!e.target.closest(".layer-drag-handle")) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", index);
+          layerEl.classList.add("dragging");
+        });
+        layerEl.addEventListener("dragend", () => {
+          layerEl.classList.remove("dragging");
+          document.querySelectorAll(".material-texture-layer").forEach((el) => el.classList.remove("drag-over"));
+        });
+        layerEl.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          layerEl.classList.add("drag-over");
+        });
+        layerEl.addEventListener("dragleave", () => {
+          layerEl.classList.remove("drag-over");
+        });
+        layerEl.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+          const toIndex = index;
+          if (fromIndex !== toIndex) {
+            const current = this.collectMaterialTextureLayers();
+            const [moved] = current.splice(fromIndex, 1);
+            current.splice(toIndex, 0, moved);
+            this.renderMaterialTextureLayers(current);
+            this.updateMaterialPreview?.();
+          }
+        });
+        layerEl.querySelector(".layer-toggle-expand").addEventListener("click", (e) => {
+          e.stopPropagation();
           const current = this.collectMaterialTextureLayers();
-          const [moved] = current.splice(index, 1);
-          current.splice(parseInt(event.target.value), 0, moved);
+          const wasExpanded = current[index]._expanded !== false;
+          if (wasExpanded) {
+            current[index]._expanded = false;
+          } else {
+            current.forEach((layer2, i) => {
+              if (i !== index) layer2._expanded = false;
+            });
+            current[index]._expanded = true;
+          }
+          this.renderMaterialTextureLayers(current);
+          this.updateMaterialPreview?.();
+        });
+        layerEl.querySelector(".layer-enabled").addEventListener("change", (e) => {
+          const current = this.collectMaterialTextureLayers();
+          current[index].enabled = e.target.checked;
+          this.renderMaterialTextureLayers(current);
+          this.updateMaterialPreview?.();
+        });
+        layerEl.querySelector(".layer-blend-mode").addEventListener("change", (e) => {
+          const current = this.collectMaterialTextureLayers();
+          current[index].blendMode = e.target.value;
           this.renderMaterialTextureLayers(current);
           this.updateMaterialPreview?.();
         });
@@ -32361,18 +32922,20 @@
         if (this.currentAIMode === "scene") {
           const sceneData = await this.app.gemini.generateScene(text);
           this.app.fileManager.loadData(sceneData);
-          this.showNotification("Scene generated by AI!", "success");
+          const usedFallback = this.app.gemini.activeProvider === "openrouter" && this.app.gemini.lastUsedModel !== this.app.gemini.settings.openrouter.model.trim();
+          this.showNotification(usedFallback ? `Selected model unavailable; generated with ${this.app.gemini.lastUsedModel}.` : "Scene generated by AI!", "success");
         } else if (this.currentAIMode === "material") {
           const colorHex = await this.app.gemini.generateMaterialColor(text);
           if (this.app.selectedObject) {
             this.app.applyColorToSelected(colorHex);
-            this.showNotification("Material color applied!", "success");
+            const usedFallback = this.app.gemini.activeProvider === "openrouter" && this.app.gemini.lastUsedModel !== this.app.gemini.settings.openrouter.model.trim();
+            this.showNotification(usedFallback ? `Material applied using ${this.app.gemini.lastUsedModel}.` : "Material color applied!", "success");
           }
         }
         this.closeAIModal();
       } catch (err) {
         console.error(err);
-        this.showNotification("AI Generation failed. See console for details.", "error");
+        this.showNotification(err?.message || "AI generation failed.", "error");
         this.spinner.classList.remove("active");
         this.btnGenerate.disabled = false;
         this.btnCancel.disabled = false;
@@ -32458,12 +33021,16 @@
         this.enableDragAdjust(input);
         return div;
       };
-      const createVec3 = (label, prefix, vec, onChangeObj) => {
-        const group = document.createElement("div");
-        group.className = "property-group";
-        group.innerHTML = `<div class="property-label">${label}</div>`;
+      const createVec3Row = (label, prefix, vec, onChangeObj) => {
         const row = document.createElement("div");
         row.className = "input-row";
+        row.style.gap = "4px";
+        const labelSpan = document.createElement("span");
+        labelSpan.style.fontSize = "0.65rem";
+        labelSpan.style.color = "var(--text-secondary)";
+        labelSpan.style.width = "50px";
+        labelSpan.textContent = label;
+        row.appendChild(labelSpan);
         row.appendChild(createInput("X", `${prefix}-x`, vec.x, (v) => {
           vec.x = v;
           onChangeObj();
@@ -32476,8 +33043,7 @@
           vec.z = v;
           onChangeObj();
         }));
-        group.appendChild(row);
-        this.propsContent.appendChild(group);
+        return row;
       };
       if (isFigure) {
         const figureGroup = document.createElement("div");
@@ -32507,12 +33073,16 @@
         figureGroup.appendChild(figureControls);
         this.propsContent.appendChild(figureGroup);
       }
-      createVec3("Position", "pos", obj.position, () => {
-      });
-      createVec3("Rotation", "rot", obj.rotation, () => {
-      });
-      createVec3("Scale", "scl", obj.scale, () => {
-      });
+      const transformGroup = document.createElement("div");
+      transformGroup.className = "property-group";
+      transformGroup.innerHTML = `<div class="property-label">Transform</div>`;
+      transformGroup.appendChild(createVec3Row("Position", "pos", obj.position, () => {
+      }));
+      transformGroup.appendChild(createVec3Row("Rotation", "rot", obj.rotation, () => {
+      }));
+      transformGroup.appendChild(createVec3Row("Scale", "scl", obj.scale, () => {
+      }));
+      this.propsContent.appendChild(transformGroup);
       if (isShape2D) {
         try {
           this.add2DProperties(obj);
@@ -32899,6 +33469,36 @@
       const materialGroup = document.createElement("div");
       materialGroup.className = "property-group";
       materialGroup.innerHTML = `<div class="property-label">Material Properties (PBR)</div>`;
+      const editBtnRow = document.createElement("div");
+      editBtnRow.className = "input-row";
+      editBtnRow.style.marginBottom = "8px";
+      const editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "btn primary";
+      editBtn.style.width = "100%";
+      editBtn.style.fontSize = "0.75rem";
+      editBtn.innerHTML = '<i class="fas fa-palette" style="margin-right: 6px;"></i> Edit in Material Editor';
+      editBtn.addEventListener("click", () => {
+        const assetData = {
+          name: editedMaterial.name || "Material",
+          color: "#" + editedMaterial.color.getHexString(),
+          metalness: editedMaterial.metalness ?? 0.2,
+          roughness: editedMaterial.roughness ?? 0.3,
+          opacity: editedMaterial.opacity !== void 0 ? editedMaterial.opacity * 100 : 100,
+          clearcoat: editedMaterial.clearcoat ?? 0,
+          transmission: editedMaterial.transmission ?? 0,
+          sheen: editedMaterial.sheen ?? 0,
+          alpha: editedMaterial.opacity ?? 1,
+          layers: (editedMaterial.textureLayers || []).map((l) => ({ ...l }))
+        };
+        const savedAsset = this.addAsset("materials", assetData);
+        if (this.app.materialsManager) {
+          this.app.materialsManager.compileAssetMaterial(savedAsset);
+        }
+        this.openAssetModal("materials", savedAsset.id);
+      });
+      editBtnRow.appendChild(editBtn);
+      materialGroup.appendChild(editBtnRow);
       const metallicRow = document.createElement("div");
       metallicRow.className = "input-row";
       metallicRow.style.marginBottom = "4px";
@@ -33875,26 +34475,6 @@
         this.showNotification("Failed to copy to clipboard", "error");
       }
     }
-    initSceneExport() {
-      const exportBtn = document.getElementById("btn-export-png");
-      if (exportBtn) {
-        exportBtn.addEventListener("click", () => {
-          this.exportSceneAsPNG();
-        });
-      }
-      const borderToggle = document.getElementById("show-camera-border");
-      if (borderToggle) {
-        borderToggle.addEventListener("change", (e) => {
-          this.toggleCameraBorder(e.target.checked);
-        });
-      }
-      const resolutionDropdown = document.getElementById("export-resolution");
-      if (resolutionDropdown) {
-        resolutionDropdown.addEventListener("change", () => this.updateCameraBorderFromDropdown());
-      }
-      this.updateCameraBorder();
-      this.makeCameraBorderDraggable();
-    }
     makeCameraBorderDraggable() {
       const preview = document.getElementById("camera-border-preview");
       if (!preview) return;
@@ -34081,28 +34661,6 @@
     }
     updateZoomDisplay(zoomLevel) {
     }
-    // Camera zoom methods
-    zoomCamera(factor) {
-      if (this.app.camera) {
-        const slider = document.getElementById("zoom-slider");
-        let currentZoom = slider ? parseFloat(slider.value) : 50;
-        currentZoom *= factor;
-        currentZoom = Math.max(1, Math.min(100, currentZoom));
-        if (slider) {
-          slider.value = currentZoom;
-        }
-        this.setCameraZoom(currentZoom);
-      }
-    }
-    setCameraZoom(zoomLevel) {
-      if (this.app.camera && this.app.cameraManager) {
-        const zoomFactor = zoomLevel / 50;
-        this.app.cameraManager.setCameraZoom(zoomFactor);
-        this.updateZoomDisplay(zoomLevel);
-      }
-    }
-    updateZoomDisplay(zoomLevel) {
-    }
     toggleCameraBorder(show) {
       const preview = document.getElementById("camera-border-preview");
       if (preview) {
@@ -34197,6 +34755,7 @@
         this.initUnifiedSettingsModal();
         this.unifiedSettingsInitialized = true;
       }
+      this.loadAISettingsToUI();
       this.switchSettingsTab(initialTab);
       this.unifiedSettingsModal.classList.add("open");
     }
@@ -34219,6 +34778,7 @@
       if (saveBtn) {
         saveBtn.addEventListener("click", () => {
           this.saveSettings();
+          this.saveAISettingsFromUI();
           this.closeUnifiedSettingsModal();
         });
       }
@@ -34226,6 +34786,16 @@
         tab.addEventListener("click", () => {
           this.switchSettingsTab(tab.dataset.tab);
         });
+      });
+      const aiProvider = document.getElementById("ai-provider");
+      if (aiProvider) {
+        aiProvider.addEventListener("change", () => this.updateAIProviderFields(aiProvider.value));
+      }
+      document.getElementById("ai-openrouter-load-free-models")?.addEventListener("click", () => {
+        this.loadOpenRouterFreeModels();
+      });
+      document.getElementById("ai-openrouter-free-models")?.addEventListener("change", (event) => {
+        if (event.target.value) document.getElementById("ai-openrouter-model").value = event.target.value;
       });
       const resolutionDropdown = document.getElementById("setting-export-resolution");
       if (resolutionDropdown) {
@@ -34276,6 +34846,69 @@
       const activeContent = document.querySelector(`.settings-tab-content[data-tab-content="${tabName}"]`);
       if (activeTab) activeTab.classList.add("active");
       if (activeContent) activeContent.classList.add("active");
+    }
+    loadAISettingsToUI() {
+      const settings = this.app.gemini?.settings;
+      if (!settings) return;
+      const providerEl = document.getElementById("ai-provider");
+      if (providerEl) providerEl.value = settings.provider;
+      for (const provider of ["gemini", "openai", "claude", "openrouter"]) {
+        const keyEl = document.getElementById(`ai-${provider}-key`);
+        const modelEl = document.getElementById(`ai-${provider}-model`);
+        if (keyEl) keyEl.value = settings[provider]?.apiKey || "";
+        if (modelEl) modelEl.value = settings[provider]?.model || "";
+      }
+      const fallbackEnabledEl = document.getElementById("ai-openrouter-fallback-enabled");
+      if (fallbackEnabledEl) fallbackEnabledEl.checked = settings.openrouterFallbackEnabled === true;
+      this.updateAIProviderFields(settings.provider);
+    }
+    updateAIProviderFields(provider) {
+      document.querySelectorAll(".ai-provider-fields").forEach((fields) => {
+        fields.hidden = fields.dataset.providerFields !== provider;
+      });
+    }
+    async loadOpenRouterFreeModels() {
+      const button = document.getElementById("ai-openrouter-load-free-models");
+      const select = document.getElementById("ai-openrouter-free-models");
+      const status = document.getElementById("ai-openrouter-model-status");
+      if (!button || !select || !status) return;
+      button.disabled = true;
+      status.textContent = "Loading the public OpenRouter model list\u2026";
+      try {
+        const freeModels = await this.app.gemini.getOpenRouterFreeModels();
+        select.replaceChildren(new Option("Choose a free model\u2026", ""));
+        freeModels.forEach((model) => {
+          const label = model.name ? `${model.id} \u2014 ${model.name}` : model.id;
+          select.add(new Option(label, model.id));
+        });
+        select.hidden = freeModels.length === 0;
+        status.textContent = freeModels.length ? `${freeModels.length} free models found. Select one to fill the model field.` : "No models with zero prompt and completion prices were returned.";
+      } catch (error) {
+        select.hidden = true;
+        status.textContent = `Could not load OpenRouter models: ${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+    }
+    saveAISettingsFromUI() {
+      if (!this.app.gemini) return;
+      const settings = {
+        provider: document.getElementById("ai-provider")?.value || "gemini",
+        openrouterFallbackEnabled: document.getElementById("ai-openrouter-fallback-enabled")?.checked === true
+      };
+      for (const provider of ["gemini", "openai", "claude", "openrouter"]) {
+        settings[provider] = {
+          apiKey: document.getElementById(`ai-${provider}-key`)?.value.trim() || "",
+          model: document.getElementById(`ai-${provider}-model`)?.value.trim() || ""
+        };
+      }
+      try {
+        this.app.gemini.saveSettings(settings);
+        this.showNotification("AI provider settings saved in this browser.", "success");
+      } catch (error) {
+        console.error("Could not save AI settings:", error);
+        this.showNotification("Could not save AI settings. Browser storage may be unavailable.", "error");
+      }
     }
     // --- PARTICLE SYSTEMS FUNCTIONALITY ---
     initParticleSystems() {
@@ -35601,85 +36234,175 @@
   };
 
   // js/gemini.js
+  var AI_SETTINGS_KEY = "pixel3d-ai-settings";
+  var SCENE_SYSTEM_PROMPT = `You create scene layouts for Pixel3D. Return only a JSON array. Each item must be one of:
+{"type":"shape","shapeType":"box"|"sphere"|"cone"|"cylinder"|"pyramid"|"plane"|"torus","position":{"x":0,"y":0,"z":0},"rotation":{"x":0,"y":0,"z":0},"scale":{"x":1,"y":1,"z":1},"color":"#hex"}
+{"type":"figure","gender":"male"|"female","position":{"x":0,"y":0,"z":0},"rotation":{"x":0,"y":0,"z":0},"scale":{"x":1,"y":1,"z":1}}
+{"type":"light","lightType":"point"|"spot"|"directional","position":{"x":0,"y":0,"z":0},"color":"#hex","intensity":1}
+Use sensible positions and scales; place objects on or above the floor. Do not include markdown or explanation.`;
+  var DEFAULTS = {
+    provider: "gemini",
+    openrouterFallbackEnabled: false,
+    gemini: { apiKey: "", model: "gemini-3.8-flash" },
+    openai: { apiKey: "", model: "gpt-4.1-mini" },
+    claude: { apiKey: "", model: "claude-sonnet-5" },
+    openrouter: { apiKey: "", model: "openrouter/auto" }
+  };
   var GeminiManager = class {
     constructor(app) {
       this.app = app;
-      this.apiKey = "";
+      this.settings = this.loadSettings();
+    }
+    loadSettings() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(AI_SETTINGS_KEY) || "{}");
+        const settings = { ...DEFAULTS, ...stored };
+        for (const provider of ["gemini", "openai", "claude", "openrouter"]) {
+          settings[provider] = { ...DEFAULTS[provider], ...stored[provider] || {} };
+        }
+        if (!DEFAULTS[settings.provider]) settings.provider = DEFAULTS.provider;
+        settings.openrouterFallbackEnabled = stored.openrouterFallbackEnabled === true;
+        return settings;
+      } catch {
+        return JSON.parse(JSON.stringify(DEFAULTS));
+      }
+    }
+    saveSettings(settings) {
+      const provider = DEFAULTS[settings.provider] ? settings.provider : DEFAULTS.provider;
+      this.settings = { ...DEFAULTS, ...settings, provider };
+      for (const name of ["gemini", "openai", "claude", "openrouter"]) {
+        this.settings[name] = { ...DEFAULTS[name], ...settings[name] || {} };
+      }
+      this.settings.openrouterFallbackEnabled = settings.openrouterFallbackEnabled === true;
+      localStorage.setItem(AI_SETTINGS_KEY, JSON.stringify(this.settings));
+    }
+    get activeProvider() {
+      return this.settings.provider;
     }
     async generateScene(description) {
-      const systemPrompt = `
-        You are a 3D scene generator. 
-        You MUST output ONLY valid JSON.
-        The JSON should be an Array of objects representing a 3D scene.
-        
-        Available types and properties:
-        1. Shapes: { "type": "shape", "shapeType": "box"|"sphere"|"cone"|"cylinder"|"pyramid"|"plane"|"torus", "position": {x,y,z}, "rotation": {x,y,z}, "scale": {x,y,z}, "color": "#hex" }
-        2. Figures: { "type": "figure", "gender": "male"|"female", "position": {x,y,z}, "rotation": {x,y,z}, "scale": {x,y,z} }
-        3. Lights: { "type": "light", "lightType": "point"|"spot"|"directional", "position": {x,y,z}, "color": "#hex", "intensity": number }
-
-        Rules:
-        - Place objects logically based on the description.
-        - Default "y" position for shapes/figures should be 0 or 1 to sit on the floor.
-        - "plane" is usually the floor, rotate x: -1.57 (approx -90 deg).
-        - Do not wrap in markdown code blocks. Return raw JSON string.
-        `;
-      const userPrompt = `Generate a 3D scene layout for: "${description}"`;
-      try {
-        const response = await this.callGemini(userPrompt, systemPrompt);
-        let cleanJson = response.replace(/```json/g, "").replace(/```/g, "").trim();
-        const data = JSON.parse(cleanJson);
-        return data;
-      } catch (e) {
-        console.error("Gemini Scene Generation Error:", e);
-        throw e;
-      }
+      const text = await this.request(`Generate a 3D scene layout for: ${description}`, SCENE_SYSTEM_PROMPT);
+      const parsed = this.parseJSON(text);
+      const items = Array.isArray(parsed) ? parsed : parsed?.objects;
+      if (!Array.isArray(items) || items.length > 300) throw new Error("The AI response was not a valid scene array.");
+      return items.map((item, index) => this.validateSceneItem(item, index));
     }
     async generateMaterialColor(description) {
-      const systemPrompt = `
-        You are a color theory expert for 3D materials.
-        User will describe a material or mood.
-        You MUST output ONLY a hex color code (e.g., #FF0000).
-        No text, no json, just the hex code.
-        `;
+      const text = await this.request(`Return one hex color for this material or mood: ${description}`, "Return only a six-digit hex color such as #FF0000.");
+      const color = text.trim().match(/#[0-9a-fA-F]{6}\b/)?.[0];
+      if (!color) throw new Error("The AI did not return a valid hex color.");
+      return color;
+    }
+    async request(userText, systemText) {
+      const primaryProvider = this.settings.provider;
+      const primaryConfig = this.settings[primaryProvider];
+      if (!primaryConfig?.apiKey?.trim()) throw new Error(`Add your ${this.providerLabel(primaryProvider)} API key in Settings \u2192 AI first.`);
+      if (!primaryConfig?.model?.trim()) throw new Error("Enter a model name in Settings \u2192 AI.");
       try {
-        const color = await this.callGemini(description, systemPrompt);
-        return color.trim();
-      } catch (e) {
-        console.error("Gemini Color Generation Error:", e);
-        return "#ffffff";
+        const text = await this.requestWithProvider(primaryProvider, userText, systemText);
+        this.lastUsedProvider = primaryProvider;
+        this.lastUsedModel = primaryConfig.model.trim();
+        return text;
+      } catch (primaryError) {
+        if (primaryProvider !== "openrouter" || !this.settings.openrouterFallbackEnabled || !this.isRetryableProviderError(primaryError)) {
+          throw primaryError;
+        }
+        const freeModels = await this.getOpenRouterFreeModels();
+        if (freeModels.length < 2) throw primaryError;
+        const currentModel = primaryConfig.model.trim();
+        const currentIndex = freeModels.findIndex((model) => model.id === currentModel);
+        const nextModels = currentIndex < 0 ? freeModels : [...freeModels.slice(currentIndex + 1), ...freeModels.slice(0, currentIndex)];
+        const fallbackErrors = [primaryError];
+        for (const model of nextModels) {
+          try {
+            const text = await this.requestWithProvider("openrouter", userText, systemText, model.id);
+            this.lastUsedProvider = "openrouter";
+            this.lastUsedModel = model.id;
+            return text;
+          } catch (error) {
+            fallbackErrors.push(error);
+            if (!this.isRetryableProviderError(error)) throw error;
+          }
+        }
+        const failures = fallbackErrors.map((error) => error.message).join(" | ");
+        throw new Error(`OpenRouter and its remaining free models are unavailable. ${failures}`);
       }
     }
-    async callGemini(userText, systemText) {
-      let retries = 0;
-      const maxRetries = 3;
-      const baseDelay = 1e3;
-      while (retries <= maxRetries) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${this.apiKey}`;
-          const payload = {
-            contents: [{ parts: [{ text: userText }] }],
-            systemInstruction: { parts: [{ text: systemText }] }
-          };
-          const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-          if (!response.ok) {
-            throw new Error(`API Error: ${response.status}`);
-          }
-          const data = await response.json();
-          if (data.candidates && data.candidates.length > 0) {
-            return data.candidates[0].content.parts[0].text;
-          } else {
-            throw new Error("No candidates returned");
-          }
-        } catch (error) {
-          retries++;
-          if (retries > maxRetries) throw error;
-          await new Promise((resolve) => setTimeout(resolve, baseDelay * Math.pow(2, retries)));
+    isRetryableProviderError(error) {
+      return error instanceof TypeError || [402, 408, 425, 429].includes(error.status) || error.status >= 500;
+    }
+    async requestWithProvider(provider, userText, systemText, modelOverride = "") {
+      const config = this.settings[provider];
+      if (!config?.apiKey?.trim()) throw new Error(`Add your ${this.providerLabel(provider)} API key in Settings \u2192 AI first.`);
+      const model = modelOverride || config.model.trim();
+      if (!model) throw new Error("Enter a model name in Settings \u2192 AI.");
+      let response;
+      if (provider === "gemini") {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(config.apiKey.trim())}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: systemText }] }, contents: [{ parts: [{ text: userText }] }] })
+        });
+      } else {
+        const isClaude = provider === "claude";
+        const apiKey = config.apiKey.trim().replace(/^Bearer\s+/i, "");
+        const endpoint = provider === "openai" ? "https://api.openai.com/v1/chat/completions" : isClaude ? "https://api.anthropic.com/v1/messages" : "https://openrouter.ai/api/v1/chat/completions";
+        const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` };
+        let body;
+        if (isClaude) {
+          headers["x-api-key"] = apiKey;
+          headers["anthropic-version"] = "2023-06-01";
+          headers["anthropic-dangerous-direct-browser-access"] = "true";
+          delete headers.Authorization;
+          body = { model, max_tokens: 2048, system: systemText, messages: [{ role: "user", content: userText }] };
+        } else {
+          if (provider === "openrouter") headers["X-OpenRouter-Title"] = "Pixel3D";
+          body = { model, messages: [{ role: "system", content: systemText }, { role: "user", content: userText }], temperature: 0.2 };
         }
+        response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body) });
       }
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const detail = result.error?.message || result.message || `HTTP ${response.status}`;
+        const error = new Error(`${this.providerLabel(provider)} request failed: ${detail}`);
+        error.status = response.status;
+        throw error;
+      }
+      const text = provider === "gemini" ? result.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") : provider === "claude" ? result.content?.filter((p) => p.type === "text").map((p) => p.text).join("") : result.choices?.[0]?.message?.content;
+      if (typeof text !== "string" || !text.trim()) throw new Error("The AI provider returned an empty response.");
+      return text;
+    }
+    async getOpenRouterFreeModels() {
+      const response = await fetch("https://openrouter.ai/api/v1/models");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(`Could not load OpenRouter's free model list (HTTP ${response.status}).`);
+      return (Array.isArray(data.data) ? data.data : []).filter((model) => Number(model.pricing?.prompt) === 0 && Number(model.pricing?.completion) === 0 && typeof model.id === "string").sort((a2, b2) => a2.id.localeCompare(b2.id));
+    }
+    parseJSON(text) {
+      const cleaned = text.replace(/```(?:json)?/gi, "").trim();
+      const start = cleaned.indexOf("[");
+      const objectStart = cleaned.indexOf("{");
+      const first = start < 0 ? objectStart : objectStart < 0 ? start : Math.min(start, objectStart);
+      const end = Math.max(cleaned.lastIndexOf("]"), cleaned.lastIndexOf("}"));
+      if (first < 0 || end < first) throw new Error("The AI response did not contain JSON.");
+      return JSON.parse(cleaned.slice(first, end + 1));
+    }
+    validateSceneItem(item, index) {
+      const fail = () => {
+        throw new Error(`AI scene item ${index + 1} is invalid.`);
+      };
+      if (!item || typeof item !== "object" || !["shape", "figure", "light"].includes(item.type)) fail();
+      const allowedShapes = ["box", "sphere", "cone", "cylinder", "pyramid", "plane", "torus"];
+      if (item.type === "shape" && !allowedShapes.includes(item.shapeType)) fail();
+      if (item.type === "figure" && !["male", "female"].includes(item.gender)) fail();
+      if (item.type === "light" && !["point", "spot", "directional"].includes(item.lightType)) fail();
+      for (const key of ["position", "rotation", "scale"]) {
+        if (item[key] !== void 0 && (!item[key] || !["x", "y", "z"].every((axis) => Number.isFinite(Number(item[key][axis]))))) fail();
+      }
+      if (item.color && !/^#[0-9a-fA-F]{6}$/.test(item.color)) fail();
+      return item;
+    }
+    providerLabel(provider) {
+      return { gemini: "Gemini", openai: "OpenAI", claude: "Claude", openrouter: "OpenRouter" }[provider] || "AI";
     }
   };
 
@@ -36131,229 +36854,6 @@
 
   // js/materialsManager.js
   init_three_module();
-
-  // js/layerMaterial.js
-  init_three_module();
-  var LayerMaterial = class {
-    constructor(baseMaterial = null) {
-      this.layers = [];
-      this.baseMaterial = baseMaterial;
-      this.mesh = null;
-      this.threeMaterial = baseMaterial || new MeshPhysicalMaterial();
-      this._dirty = true;
-    }
-    addLayer(type, properties = {}) {
-      const id = "layer-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
-      const layer = {
-        id,
-        type,
-        visible: true,
-        opacity: 1,
-        blendMode: "normal",
-        properties: { ...properties }
-      };
-      this.layers.push(layer);
-      this._dirty = true;
-      return layer;
-    }
-    removeLayer(id) {
-      this.layers = this.layers.filter((l) => l.id !== id);
-      this._dirty = true;
-      this._applyLayers();
-    }
-    updateLayer(id, updates) {
-      const layer = this.layers.find((l) => l.id === id);
-      if (!layer) return;
-      Object.assign(layer, updates);
-      this._dirty = true;
-      this._applyLayers();
-    }
-    reorderLayers(newOrder) {
-      this.layers = newOrder;
-      this._dirty = true;
-      this._applyLayers();
-    }
-    getMaterial() {
-      if (this._dirty) {
-        this._applyLayers();
-      }
-      return this.threeMaterial;
-    }
-    _applyLayers() {
-      if (!this.threeMaterial) return;
-      const visibleLayers = this.layers.filter((l) => l.visible);
-      if (visibleLayers.length === 0) return;
-      const baseLayer = visibleLayers.find((l) => l.type === "color") || visibleLayers[0];
-      const otherLayers = visibleLayers.filter((l) => l !== baseLayer);
-      if (baseLayer && baseLayer.type === "color") {
-        const props = baseLayer.properties;
-        this.threeMaterial.color.set(props.color || 16777215);
-        this.threeMaterial.opacity = baseLayer.opacity;
-        this.threeMaterial.transparent = baseLayer.opacity < 1;
-      }
-      otherLayers.forEach((layer) => {
-        const props = layer.properties;
-        const factor = layer.opacity;
-        switch (layer.type) {
-          case "color":
-            if (props.color !== void 0) {
-              this._blendColor(this.threeMaterial.color, new Color(props.color), factor, layer.blendMode);
-            }
-            break;
-          case "roughness":
-            if (props.roughness !== void 0) {
-              this.threeMaterial.roughness = this._blendValue(
-                this.threeMaterial.roughness,
-                props.roughness,
-                factor,
-                layer.blendMode
-              );
-            }
-            break;
-          case "metalness":
-            if (props.metalness !== void 0) {
-              this.threeMaterial.metalness = this._blendValue(
-                this.threeMaterial.metalness,
-                props.metalness,
-                factor,
-                layer.blendMode
-              );
-            }
-            break;
-          case "clearcoat":
-            if (props.clearcoat !== void 0) {
-              this.threeMaterial.clearcoat = this._blendValue(
-                this.threeMaterial.clearcoat || 0,
-                props.clearcoat,
-                factor,
-                layer.blendMode
-              );
-            }
-            break;
-          case "transmission":
-            if (props.transmission !== void 0) {
-              this.threeMaterial.transmission = this._blendValue(
-                this.threeMaterial.transmission || 0,
-                props.transmission,
-                factor,
-                layer.blendMode
-              );
-            }
-            break;
-          case "sheen":
-            if (props.sheen !== void 0) {
-              this.threeMaterial.sheen = this._blendValue(
-                this.threeMaterial.sheen || 0,
-                props.sheen,
-                factor,
-                layer.blendMode
-              );
-            }
-            break;
-          case "displacement":
-            if (props.displacementMap) {
-              this.threeMaterial.displacementMap = props.displacementMap;
-              this.threeMaterial.displacementScale = this._blendValue(
-                this.threeMaterial.displacementScale || 0,
-                props.displacementScale || 0,
-                factor,
-                layer.blendMode
-              );
-            }
-            break;
-          case "outline":
-            if (props.outlineEnabled && this.mesh) {
-              const outlineColor = props.outlineColor || 0;
-              const outlineThickness = props.outlineThickness || 0.02;
-              this._applyOutline(outlineColor, outlineThickness);
-            } else if (this.mesh) {
-              this._removeOutline();
-            }
-            break;
-          case "glass":
-            if (props.transmission !== void 0) {
-              this.threeMaterial.transmission = this._blendValue(
-                this.threeMaterial.transmission || 0,
-                props.transmission,
-                factor,
-                layer.blendMode
-              );
-              this.threeMaterial.ior = props.ior || 1.5;
-              this.threeMaterial.thickness = props.thickness || 0.5;
-            }
-            break;
-        }
-      });
-      this.threeMaterial.needsUpdate = true;
-      this._dirty = false;
-    }
-    _blendValue(base, target, factor, blendMode) {
-      if (blendMode === "add") return base + target * factor;
-      if (blendMode === "multiply") return base * (1 - factor) + base * target * factor;
-      if (blendMode === "screen") return base * (1 - factor) + (1 - (1 - base) * (1 - target)) * factor;
-      if (blendMode === "overlay") {
-        const value = base < 0.5 ? 2 * base * target : 1 - 2 * (1 - base) * (1 - target);
-        return base * (1 - factor) + value * factor;
-      }
-      return base * (1 - factor) + target * factor;
-    }
-    _blendColor(base, target, factor, blendMode) {
-      base.setRGB(
-        this._blendValue(base.r, target.r, factor, blendMode),
-        this._blendValue(base.g, target.g, factor, blendMode),
-        this._blendValue(base.b, target.b, factor, blendMode)
-      );
-    }
-    _applyOutline(color, thickness) {
-      if (!this.mesh) return;
-      const existing = this.mesh.getObjectByName("outline");
-      if (existing) {
-        existing.geometry.dispose();
-        existing.material.dispose();
-        this.mesh.remove(existing);
-      }
-      const outlineMaterial = new MeshBasicMaterial({
-        color,
-        side: BackSide,
-        transparent: true,
-        opacity: 0.6,
-        depthTest: true,
-        depthWrite: true
-      });
-      const outlineMesh = new Mesh(this.mesh.geometry, outlineMaterial);
-      outlineMesh.name = "outline";
-      outlineMesh.renderOrder = 0;
-      const s = 1 + thickness;
-      outlineMesh.scale.set(s, s, s);
-      outlineMesh.visible = true;
-      this.mesh.add(outlineMesh);
-    }
-    _removeOutline() {
-      if (!this.mesh) return;
-      const existing = this.mesh.getObjectByName("outline");
-      if (existing) {
-        existing.geometry.dispose();
-        existing.material.dispose();
-        this.mesh.remove(existing);
-      }
-    }
-    setMesh(mesh) {
-      this.mesh = mesh;
-      this._applyLayers();
-    }
-    getLayers() {
-      return this.layers;
-    }
-    dispose() {
-      this._removeOutline();
-      if (this.threeMaterial) {
-        this.threeMaterial.dispose();
-      }
-      this.layers = [];
-    }
-  };
-
-  // js/materialsManager.js
   var MaterialsManager = class {
     constructor(app) {
       this.app = app;
@@ -37029,6 +37529,18 @@
     applyMaterialToSelected(material) {
       if (!this.app.selectedObject) {
         this.app.ui.showNotification("No object selected!", "error");
+        return;
+      }
+      if (material && !material.threeMaterial && this.app.ui?.assets?.materials) {
+        const existing = this.materials.find((item) => item.sourceAssetId === material.id);
+        if (existing) {
+          material = existing;
+        } else {
+          material = this.compileAssetMaterial(material);
+        }
+      }
+      if (!material?.threeMaterial) {
+        this.app.ui?.showNotification("Invalid material", "error");
         return;
       }
       const obj = this.app.selectedObject;
@@ -41173,7 +41685,7 @@
       clockStartDelay: 10
     },
     // Scene Defaults
-    scene: {
+    sceneDefaults: {
       gridSize: 40,
       gridDivisions: 40,
       axesSize: 10,
@@ -57128,7 +57640,6 @@ ${elements.join("\n")}
       "tool-particles": "particles",
       "tool-physics": "physics",
       "tool-scene-settings": "scene",
-      "tool-aframe-export": "aframe",
       "tool-toggle-overlays": "overlays",
       "tool-settings": "settings",
       "mode-hand": "hand",

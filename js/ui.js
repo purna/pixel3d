@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LAYER_PRESETS } from './layerMaterial.js';
 import { hexToRgb, rgbToHex, rgbToHsl, hslToRgb, rgbToHsv, hsvToRgb } from './colorUtils.js';
 
 export class UI {
@@ -212,11 +213,6 @@ export class UI {
             this.scrollToSection('section-scene');
         });
 
-        // A-Frame export toolbar button
-        document.getElementById('tool-aframe-export')?.addEventListener('click', () => {
-            this.scrollToSection('section-scene');
-        });
-
         // Particles toolbar button
         document.getElementById('tool-particles')?.addEventListener('click', () => {
             this.scrollToSection('section-scene');
@@ -313,15 +309,60 @@ export class UI {
             }
         });
 
-        // Collapsible sections
+        // Collapsible sections - support accordion mode within Scene panel
         document.querySelectorAll('.collapsible-header').forEach(header => {
             header.addEventListener('click', () => {
                 const targetId = header.dataset.target;
                 const content = document.getElementById(targetId);
-                if (content) {
+                if (!content) return;
+
+                const isScenePanel = header.closest('#section-scene');
+                const isOpen = !content.classList.contains('hidden');
+
+                if (isScenePanel && isOpen) {
+                    // In accordion mode within Scene panel: only collapse, don't open another
+                    header.classList.add('collapsed');
+                    content.classList.add('hidden');
+                } else if (isScenePanel && !isOpen) {
+                    // Accordion: collapse all siblings, then open this one
+                    const section = header.closest('#section-scene');
+                    if (section) {
+                        section.querySelectorAll('.collapsible-header').forEach(otherHeader => {
+                            if (otherHeader !== header) {
+                                otherHeader.classList.add('collapsed');
+                                const otherId = otherHeader.dataset.target;
+                                const otherContent = document.getElementById(otherId);
+                                if (otherContent) otherContent.classList.add('hidden');
+                            }
+                        });
+                    }
+                    header.classList.remove('collapsed');
+                    content.classList.remove('hidden');
+                } else {
+                    // Non-Scene-panel sections: toggle independently
                     header.classList.toggle('collapsed');
                     content.classList.toggle('hidden');
                 }
+            });
+        });
+
+        // Scene panel expand/collapse all buttons
+        document.getElementById('scene-expand-all')?.addEventListener('click', () => {
+            const section = document.getElementById('section-scene');
+            if (!section) return;
+            section.querySelectorAll('.collapsible-header').forEach(header => {
+                header.classList.remove('collapsed');
+                const content = document.getElementById(header.dataset.target);
+                if (content) content.classList.remove('hidden');
+            });
+        });
+        document.getElementById('scene-collapse-all')?.addEventListener('click', () => {
+            const section = document.getElementById('section-scene');
+            if (!section) return;
+            section.querySelectorAll('.collapsible-header').forEach(header => {
+                header.classList.add('collapsed');
+                const content = document.getElementById(header.dataset.target);
+                if (content) content.classList.add('hidden');
             });
         });
 
@@ -410,6 +451,22 @@ export class UI {
                 btn.addEventListener('click', () => this.saveAsset(type));
             }
         });
+
+        // Apply material to selection
+        const applyBtn = document.getElementById('material-asset-apply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', () => {
+                this.saveAsset('materials');
+                if (this.app.materialsManager) {
+                    const modal = document.getElementById('material-asset-modal');
+                    const editingId = modal.dataset.editingAssetId;
+                    const asset = editingId ? this.getAsset('materials', editingId) : null;
+                    if (asset) {
+                        this.app.materialsManager.applyMaterialToSelected(asset);
+                    }
+                }
+            });
+        }
 
         // Close modals on overlay click
         document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -600,8 +657,8 @@ export class UI {
 
     resetSceneSettings() {
         // Reset to default values from config or use hardcoded defaults
-        const defaults = (typeof APP_DEFAULTS !== 'undefined' && APP_DEFAULTS.scene)
-            ? APP_DEFAULTS.scene
+        const defaults = (typeof APP_DEFAULTS !== 'undefined' && APP_DEFAULTS.sceneDefaults)
+            ? APP_DEFAULTS.sceneDefaults
             : {
                 backgroundEnabled: true,
                 backgroundColor: '#1a1a2e',
@@ -1358,6 +1415,9 @@ export class UI {
                 });
             }
 
+            // Initialize compact color picker
+            this.initMaterialColorPicker(asset);
+
             const lightingSlider = document.getElementById('material-lighting');
             const lightingValue = document.getElementById('material-lighting-value');
             if (lightingSlider && lightingValue) {
@@ -1365,6 +1425,7 @@ export class UI {
                 lightingValue.textContent = asset?.lighting || 0;
                 lightingSlider.addEventListener('input', (e) => {
                     lightingValue.textContent = e.target.value;
+                    updateMaterialPreview();
                 });
             }
 
@@ -1399,7 +1460,8 @@ export class UI {
                 };
             }
 
-            this.renderMaterialTextureLayers(asset?.layers || []);
+            const materialLayers = asset?.layers?.length > 0 ? asset.layers : [{ type: 'color', color: this._materialColorState ? '#' + rgbToHex(hslToRgb({ h: this._materialColorState.h, s: this._materialColorState.s, l: this._materialColorState.l })) : '#888888', opacity: 100, enabled: true, blendMode: 'normal' }];
+            this.renderMaterialTextureLayers(materialLayers);
             updateMaterialPreview();
 
             const materialValues = {
@@ -1489,6 +1551,193 @@ export class UI {
         this._colorEditorState = { ...hsl, a };
         this.updateColorEditorUI();
         this.setupColorFormatSelector();
+    }
+
+    initMaterialColorPicker(asset) {
+        let hsl = { h: 0, s: 0, l: 50 };
+        let a = 1;
+
+        if (asset) {
+            const color = asset.color || '#888888';
+            const rgb = hexToRgb(color);
+            hsl = rgbToHsl(rgb);
+            a = asset.alpha ?? 1;
+        }
+
+        this._materialColorState = { ...hsl, a };
+        this.updateMaterialColorPickerUI();
+        this.setupMaterialColorPicker();
+    }
+
+    setupMaterialColorPicker() {
+        this.setupMaterialSLPicker();
+        this.setupMaterialColorSlider('material-hue-slider', 0, 360, (v) => {
+            this._materialColorState.h = v;
+            this.updateMaterialColorPickerUI();
+        });
+        this.setupMaterialColorSlider('material-saturation-slider', 0, 100, (v) => {
+            this._materialColorState.s = v;
+            this.updateMaterialColorPickerUI();
+        });
+        this.setupMaterialColorSlider('material-lightness-slider', 0, 100, (v) => {
+            this._materialColorState.l = v;
+            this.updateMaterialColorPickerUI();
+        });
+    }
+
+    updateMaterialColorPickerUI() {
+        const state = this._materialColorState;
+        if (!state) return;
+
+        const rgb = hslToRgb({ h: state.h, s: state.s, l: state.l });
+        const hex = rgbToHex(rgb);
+
+        const slPicker = document.getElementById('material-color-sl-picker');
+        if (slPicker) {
+            const hueColor = `hsl(${state.h}, 100%, 50%)`;
+            slPicker.style.background = `
+                linear-gradient(to top, #000, transparent),
+                linear-gradient(to right, #fff, transparent),
+                linear-gradient(to right, ${hueColor}, #888)
+            `;
+        }
+
+        const slThumb = slPicker?.querySelector('.color-sl-thumb');
+        if (slThumb) {
+            slThumb.style.left = `${state.s}%`;
+            slThumb.style.top = `${100 - state.l}%`;
+        }
+
+        const preview = document.getElementById('material-color-preview-swatch');
+        if (preview) {
+            preview.style.backgroundColor = `rgba(${Math.round(rgb.r*255)}, ${Math.round(rgb.g*255)}, ${Math.round(rgb.b*255)}, ${state.a})`;
+        }
+
+        const hueSlider = document.getElementById('material-hue-slider');
+        const hueThumb = hueSlider?.querySelector('.slider-thumb');
+        if (hueThumb) {
+            hueThumb.style.left = `${(state.h / 360) * 100}%`;
+        }
+        const hueValue = document.getElementById('material-hue-value');
+        if (hueValue) hueValue.value = Math.round(state.h);
+
+        const satSlider = document.getElementById('material-saturation-slider');
+        const satThumb = satSlider?.querySelector('.slider-thumb');
+        if (satThumb) {
+            satThumb.style.left = `${state.s}%`;
+        }
+        const satValue = document.getElementById('material-saturation-value');
+        if (satValue) satValue.value = Math.round(state.s);
+
+        const lightSlider = document.getElementById('material-lightness-slider');
+        const lightThumb = lightSlider?.querySelector('.slider-thumb');
+        if (lightThumb) {
+            lightThumb.style.left = `${state.l}%`;
+        }
+        const lightValue = document.getElementById('material-lightness-value');
+        if (lightValue) lightValue.value = Math.round(state.l);
+
+        // Sync hidden native color input
+        const colorPicker = document.getElementById('material-color-picker');
+        if (colorPicker) {
+            colorPicker.value = '#' + hex;
+        }
+
+        // Keep the base colour layer in step with the sliders (otherwise it paints over the preview)
+        const baseLayer = [...document.querySelectorAll('#material-asset-items .material-texture-layer')].find(el => el.querySelector('.layer-select')?.value === 'color');
+        const layerColor = baseLayer?.querySelector('[data-prop="color"]');
+        if (layerColor && layerColor.value !== '#' + hex) {
+            layerColor.value = '#' + hex;
+            layerColor.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+            this.updateMaterialPreview?.();
+        }
+    }
+
+    setupMaterialSLPicker() {
+        const picker = document.getElementById('material-color-sl-picker');
+        if (!picker || picker._slPickerSetup) return;
+        picker._slPickerSetup = true;
+
+        let isDragging = false;
+
+        const updateFromEvent = (e) => {
+            const rect = picker.getBoundingClientRect();
+            const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+            this._materialColorState.s = x * 100;
+            this._materialColorState.l = (1 - y) * 100;
+            this.updateMaterialColorPickerUI();
+        };
+
+        picker.style.touchAction = 'none';
+        picker.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            e.preventDefault();
+            try { picker.setPointerCapture(e.pointerId); } catch (_) {}
+            updateFromEvent(e);
+        });
+        picker.addEventListener('pointermove', (e) => { if (isDragging) updateFromEvent(e); });
+        const endDrag = () => { isDragging = false; };
+        picker.addEventListener('pointerup', endDrag);
+        picker.addEventListener('pointercancel', endDrag);
+    }
+
+    setupMaterialColorSlider(id, min, max, onChange) {
+        const slider = document.getElementById(id);
+        if (!slider || slider._materialSliderSetup) return;
+        slider._materialSliderSetup = true;
+
+        const track = slider.querySelector('.slider-track');
+        const thumb = slider.querySelector('.slider-thumb');
+        if (!track || !thumb) return;
+
+        const setValue = (value) => {
+            value = Math.max(min, Math.min(max, value));
+            const percent = (value - min) / (max - min) * 100;
+            thumb.style.left = `${percent}%`;
+            onChange(value);
+        };
+
+        const updateFromEvent = (e) => {
+            const rect = slider.getBoundingClientRect();
+            const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const value = min + x * (max - min);
+            setValue(value);
+        };
+
+        let isDragging = false;
+
+        const startDrag = (e) => {
+            isDragging = true;
+            e.preventDefault();
+            updateFromEvent(e);
+        };
+
+        const onMouseMove = (e) => {
+            if (isDragging) updateFromEvent(e);
+        };
+
+        const onMouseUp = () => {
+            isDragging = false;
+        };
+
+        slider.style.touchAction = 'none';
+        slider.addEventListener('pointerdown', (e) => {
+            startDrag(e);
+            try { slider.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        slider.addEventListener('pointermove', onMouseMove);
+        slider.addEventListener('pointerup', onMouseUp);
+        slider.addEventListener('pointercancel', onMouseUp);
+
+        const valueInput = document.getElementById(id.replace('-slider', '-value'));
+        if (valueInput) {
+            valueInput.addEventListener('input', () => {
+                const value = parseFloat(valueInput.value);
+                if (!isNaN(value)) setValue(value);
+            });
+        }
     }
 
     setupColorEditor() {
@@ -1922,7 +2171,11 @@ export class UI {
             if (transmissionValue) transmissionValue.textContent = '0.00';
             if (sheenInput) sheenInput.value = '0';
             if (sheenValue) sheenValue.textContent = '0.00';
-            if (itemsContainer) itemsContainer.innerHTML = '';
+            if (itemsContainer) {
+                itemsContainer.innerHTML = '';
+                const color = colorPicker?.value || '#888888';
+                this.renderMaterialTextureLayers([{ type: 'color', color: color, opacity: 100, enabled: true, blendMode: 'normal' }]);
+            }
             if (lightingSlider) {
                 lightingSlider.value = '0';
                 if (lightingValue) lightingValue.textContent = '0';
@@ -1962,14 +2215,24 @@ export class UI {
             const preview = document.getElementById('image-preview');
             const urlInput = document.getElementById('image-asset-url');
             if (nameInput) nameInput.value = '';
-            if (preview) preview.src = '';
+            if (preview) {
+                preview.classList.add('broken');
+                preview.src = '';
+                preview.onerror = () => { preview.classList.add('broken'); };
+                preview.onload = () => { preview.classList.remove('broken'); };
+            }
             if (urlInput) urlInput.value = '';
         } else if (type === 'media') {
             const nameInput = document.getElementById('video-asset-name');
             const preview = document.getElementById('video-preview');
             const urlInput = document.getElementById('video-asset-url');
             if (nameInput) nameInput.value = '';
-            if (preview) preview.src = '';
+            if (preview) {
+                preview.classList.add('broken');
+                preview.src = '';
+                preview.onerror = () => { preview.classList.add('broken'); };
+                preview.onload = () => { preview.classList.remove('broken'); };
+            }
             if (urlInput) urlInput.value = '';
         } else if (type === 'audio') {
             const nameInput = document.getElementById('audio-asset-name');
@@ -2040,14 +2303,32 @@ export class UI {
                 const preview = document.getElementById('image-preview');
                 const urlInput = document.getElementById('image-asset-url');
                 if (nameInput) nameInput.value = asset.name || '';
-                if (preview && asset.url) preview.src = asset.url;
+                if (preview) {
+                    preview.onerror = () => { preview.classList.add('broken'); };
+                    preview.onload = () => { preview.classList.remove('broken'); };
+                    if (asset.url) {
+                        preview.src = asset.url;
+                    } else {
+                        preview.classList.add('broken');
+                        preview.src = '';
+                    }
+                }
                 if (urlInput) urlInput.value = asset.url || '';
             } else if (type === 'media') {
                 const nameInput = document.getElementById('video-asset-name');
                 const preview = document.getElementById('video-preview');
                 const urlInput = document.getElementById('video-asset-url');
                 if (nameInput) nameInput.value = asset.name || '';
-                if (preview && asset.url) preview.src = asset.url;
+                if (preview) {
+                    preview.onerror = () => { preview.classList.add('broken'); };
+                    preview.onload = () => { preview.classList.remove('broken'); };
+                    if (asset.url) {
+                        preview.src = asset.url;
+                    } else {
+                        preview.classList.add('broken');
+                        preview.src = '';
+                    }
+                }
                 if (urlInput) urlInput.value = asset.url || '';
             } else if (type === 'audio') {
                 const nameInput = document.getElementById('audio-asset-name');
@@ -2174,16 +2455,19 @@ export class UI {
         const nameInput = document.getElementById('texture-asset-name');
         if (!typeSelect) return;
         typeSelect.innerHTML = this.textureLayerTypes().map(type => `<option value="${type}">${type[0].toUpperCase() + type.slice(1)}</option>`).join('');
-        let layer = asset?.layer ? { ...asset.layer } : this.defaultTextureLayer('gradient');
+        let layer = asset?.layer ? { ...this.defaultTextureLayer(asset.layer.type || 'gradient'), ...asset.layer } : this.defaultTextureLayer('gradient');
         if (nameInput) nameInput.value = asset?.name || '';
         const render = () => {
             const panel = document.getElementById('texture-asset-properties');
             if (!panel) return;
             panel.innerHTML = this.textureLayerFields(layer);
-            panel.querySelectorAll('input,select').forEach(control => control.addEventListener('input', () => {
-                layer = this.readTextureAssetEditor();
-                this.renderTextureAssetPreview(layer);
-            }));
+            panel.querySelectorAll('input,select').forEach(control => {
+                const eventType = control.tagName === 'SELECT' ? 'change' : 'input';
+                control.addEventListener(eventType, () => {
+                    layer = this.readTextureAssetEditor();
+                    this.renderTextureAssetPreview(layer);
+                });
+            });
             const pattern = panel.querySelector('[data-prop="pattern"]');
             if (pattern) pattern.value = layer.pattern;
             this.renderTextureAssetPreview(layer);
@@ -2197,7 +2481,16 @@ export class UI {
         const type = document.getElementById('texture-asset-type')?.value || 'color';
         const layer = this.defaultTextureLayer(type);
         document.querySelectorAll('#texture-asset-properties [data-prop]').forEach(control => {
-            layer[control.dataset.prop] = control.type === 'checkbox' ? control.checked : ((control.type === 'number' || control.type === 'range') ? parseFloat(control.value) : control.value);
+            let val;
+            if (control.type === 'checkbox') {
+                val = control.checked;
+            } else if (control.type === 'number' || control.type === 'range') {
+                val = parseFloat(control.value);
+                if (isNaN(val)) val = layer[control.dataset.prop];
+            } else {
+                val = control.value;
+            }
+            layer[control.dataset.prop] = val;
         });
         return layer;
     }
@@ -2359,13 +2652,28 @@ export class UI {
 
     collectMaterialTextureLayers() {
         return [...document.querySelectorAll('#material-asset-items .material-texture-layer')].map(layerEl => {
-            const layer = { type: layerEl.querySelector('.layer-select')?.value || 'color', enabled: layerEl.querySelector('.layer-enabled')?.checked !== false, opacity: parseFloat(layerEl.querySelector('.layer-opacity')?.value || 100), blendMode: layerEl.querySelector('.layer-blend-mode')?.value || 'normal' };
-            layerEl.querySelectorAll('[data-prop]').forEach(control => { layer[control.dataset.prop] = control.type === 'checkbox' ? control.checked : ((control.type === 'number' || control.type === 'range') ? parseFloat(control.value) : control.value); });
+            const layer = { type: layerEl.querySelector('.layer-select')?.value || 'color', enabled: layerEl.querySelector('.layer-enabled')?.checked !== false, opacity: parseFloat(layerEl.querySelector('.layer-opacity')?.value || 100), blendMode: layerEl.querySelector('.layer-blend-mode')?.value || 'normal', _expanded: !layerEl.classList.contains('collapsed') };
+            const textureAssetSelect = layerEl.querySelector('.layer-texture-asset');
+            if (textureAssetSelect && textureAssetSelect.value) layer.textureAssetId = textureAssetSelect.value;
+            const defaults = this.defaultTextureLayer(layer.type);
+            layerEl.querySelectorAll('[data-prop]').forEach(control => {
+                let val;
+                if (control.type === 'checkbox') {
+                    val = control.checked;
+                } else if (control.type === 'number' || control.type === 'range') {
+                    val = parseFloat(control.value);
+                    if (isNaN(val)) val = defaults[control.dataset.prop];
+                } else {
+                    val = control.value;
+                }
+                layer[control.dataset.prop] = val;
+            });
             return layer;
         });
     }
 
     materialPresets() {
+        const toHexStr = color => typeof color === 'string' && color.startsWith('#') ? color : '#' + String(color ?? 0xffffff).toString(16).padStart(6, '0');
         return {
             glass: {
                 color: '#88ccff', metalness: 0.05, roughness: 0.05, clearcoat: 0,
@@ -2452,14 +2760,19 @@ export class UI {
             const layer = { ...this.defaultTextureLayer(rawLayer.type || 'color'), ...rawLayer };
             const layerEl = document.createElement('div');
             layerEl.className = 'material-texture-layer';
-            const textureOptions = (this.assets.textures || []).map(texture => `<option value="${texture.id}">${texture.name}</option>`).join('');
-            const positionOptions = layers.map((_, position) => `<option value="${position}" ${position === index ? 'selected' : ''}>${position + 1}</option>`).join('');
+            layerEl.draggable = true;
+            layerEl.dataset.layerIndex = index;
+            if (layer._expanded === false) layerEl.classList.add('collapsed');
+             const textureOptions = (this.assets.textures || []).map(texture => `<option value="${texture.id}" ${layer.textureAssetId === texture.id ? 'selected' : ''}>${texture.name}</option>`).join('');
+            const isExpanded = layer._expanded !== false;
             layerEl.innerHTML = `
-                <div class="material-layer-header">
+                <div class="material-layer-header" data-layer-index="${index}">
+                    <div class="layer-drag-handle" title="Drag to reorder"><i class="fas fa-grip-lines"></i></div>
                     <label class="layer-toggle">
                         <input class="layer-enabled" type="checkbox" ${layer.enabled ? 'checked' : ''}>
                         <span>Enabled</span>
                     </label>
+                    <span class="layer-index-badge">${index + 1}</span>
                     <select class="layer-select" aria-label="Layer type">${this.textureLayerTypes().map(type => `<option value="${type}" ${type === layer.type ? 'selected' : ''}>${type[0].toUpperCase() + type.slice(1)}</option>`).join('')}</select>
                     <select class="layer-blend-mode" aria-label="Blend mode"><option value="normal">Normal</option><option value="add">Add</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option></select>
                     <label class="layer-opacity-control">
@@ -2467,15 +2780,15 @@ export class UI {
                         <input class="layer-opacity" type="range" min="0" max="100" value="${layer.opacity}">
                         <output>${Number(layer.opacity ?? 100).toFixed(0)}%</output>
                     </label>
-                    <select class="layer-position" aria-label="Layer position">${positionOptions}</select>
+                    <button class="layer-toggle-expand" aria-label="${isExpanded ? 'Collapse' : 'Expand'} layer" title="${isExpanded ? 'Collapse' : 'Expand'} layer">
+                        <i class="fas fa-chevron-${isExpanded ? 'down' : 'right'}"></i>
+                    </button>
                     <div class="layer-actions">
-                        <button class="layer-up" title="Move layer up" aria-label="Move layer up"><i class="fas fa-chevron-up"></i></button>
-                        <button class="layer-down" title="Move layer down" aria-label="Move layer down"><i class="fas fa-chevron-down"></i></button>
                         <button class="layer-save-texture" title="Save layer as reusable texture"><i class="fas fa-save"></i> Save</button>
-                        <button class="layer-close" title="Remove layer" aria-label="Remove layer"><i class="fas fa-times"></i></button>
+                        <button class="layer-close" title="Remove layer" aria-label="Remove layer" ${layers.length <= 1 ? 'disabled' : ''}><i class="fas fa-times"></i></button>
                     </div>
                 </div>
-                <div class="material-layer-body">
+                <div class="material-layer-body ${isExpanded ? 'expanded' : 'collapsed'}" style="${isExpanded ? '' : 'display:none;'}">
                     <div class="layer-preview-frame">
                         <canvas class="layer-preview-canvas" width="64" height="64" aria-label="Layer preview"></canvas>
                     </div>
@@ -2495,38 +2808,93 @@ export class UI {
             const updateLayerPreview = () => {
                 const current = this.collectMaterialTextureLayers()[index];
                 this.renderTextureAssetPreview(current, layerEl.querySelector('.layer-preview-canvas'));
+                this.updateMaterialPreview?.();
             };
             layerEl.querySelectorAll('[data-prop], .layer-opacity').forEach(control => {
                 control.addEventListener('input', updateLayerPreview);
             });
 
             layerEl.querySelector('.layer-select').addEventListener('change', event => { const current = this.collectMaterialTextureLayers(); current[index] = this.defaultTextureLayer(event.target.value); this.renderMaterialTextureLayers(current); this.updateMaterialPreview?.(); });
-            layerEl.querySelector('.layer-close').addEventListener('click', () => { const current = this.collectMaterialTextureLayers(); current.splice(index, 1); this.renderMaterialTextureLayers(current); this.updateMaterialPreview?.(); });
-            layerEl.querySelector('.layer-up').disabled = index === 0;
-            layerEl.querySelector('.layer-down').disabled = index === layers.length - 1;
-            layerEl.querySelector('.layer-up').onclick = event => {
-                event.preventDefault();
-                event.stopPropagation();
-                const previous = layerEl.previousElementSibling;
-                if (previous) previous.before(layerEl);
-                this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
-                this.updateMaterialPreview?.();
-            };
-            layerEl.querySelector('.layer-down').onclick = event => {
-                event.preventDefault();
-                event.stopPropagation();
-                const next = layerEl.nextElementSibling;
-                if (next) next.after(layerEl);
-                this.renderMaterialTextureLayers(this.collectMaterialTextureLayers());
-                this.updateMaterialPreview?.();
-            };
-            layerEl.querySelector('.layer-position').addEventListener('change', event => {
+            layerEl.querySelector('.layer-close').addEventListener('click', () => {
                 const current = this.collectMaterialTextureLayers();
-                const [moved] = current.splice(index, 1);
-                current.splice(parseInt(event.target.value), 0, moved);
+                if (current.length <= 1) {
+                    this.showNotification('Cannot remove the last layer', 'warning');
+                    return;
+                }
+                current.splice(index, 1);
                 this.renderMaterialTextureLayers(current);
                 this.updateMaterialPreview?.();
             });
+
+            // Drag and drop reordering
+            layerEl.addEventListener('dragstart', (e) => {
+                if (!e.target.closest('.layer-drag-handle')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', index);
+                layerEl.classList.add('dragging');
+            });
+            layerEl.addEventListener('dragend', () => {
+                layerEl.classList.remove('dragging');
+                document.querySelectorAll('.material-texture-layer').forEach(el => el.classList.remove('drag-over'));
+            });
+            layerEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                layerEl.classList.add('drag-over');
+            });
+            layerEl.addEventListener('dragleave', () => {
+                layerEl.classList.remove('drag-over');
+            });
+            layerEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const fromIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                const toIndex = index;
+                if (fromIndex !== toIndex) {
+                    const current = this.collectMaterialTextureLayers();
+                    const [moved] = current.splice(fromIndex, 1);
+                    current.splice(toIndex, 0, moved);
+                    this.renderMaterialTextureLayers(current);
+                    this.updateMaterialPreview?.();
+                }
+            });
+
+            // Toggle expand/collapse (accordion: only one layer expanded at a time)
+            layerEl.querySelector('.layer-toggle-expand').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const current = this.collectMaterialTextureLayers();
+                const wasExpanded = current[index]._expanded !== false;
+                if (wasExpanded) {
+                    current[index]._expanded = false;
+                } else {
+                    current.forEach((layer, i) => {
+                        if (i !== index) layer._expanded = false;
+                    });
+                    current[index]._expanded = true;
+                }
+                this.renderMaterialTextureLayers(current);
+                this.updateMaterialPreview?.();
+            });
+
+            // Enable/disable checkbox
+            layerEl.querySelector('.layer-enabled').addEventListener('change', (e) => {
+                const current = this.collectMaterialTextureLayers();
+                current[index].enabled = e.target.checked;
+                this.renderMaterialTextureLayers(current);
+                this.updateMaterialPreview?.();
+            });
+
+            // Blend mode change
+            layerEl.querySelector('.layer-blend-mode').addEventListener('change', (e) => {
+                const current = this.collectMaterialTextureLayers();
+                current[index].blendMode = e.target.value;
+                this.renderMaterialTextureLayers(current);
+                this.updateMaterialPreview?.();
+            });
+
             layerEl.querySelector('.layer-save-texture').addEventListener('click', () => {
                 const current = this.collectMaterialTextureLayers()[index];
                 const preview = document.createElement('canvas'); preview.width = preview.height = 256;
@@ -2856,18 +3224,22 @@ export class UI {
                 const sceneData = await this.app.gemini.generateScene(text);
                 // Use FileManager to load the data structure
                 this.app.fileManager.loadData(sceneData);
-                this.showNotification('Scene generated by AI!', 'success');
+                const usedFallback = this.app.gemini.activeProvider === 'openrouter'
+                    && this.app.gemini.lastUsedModel !== this.app.gemini.settings.openrouter.model.trim();
+                this.showNotification(usedFallback ? `Selected model unavailable; generated with ${this.app.gemini.lastUsedModel}.` : 'Scene generated by AI!', 'success');
             } else if (this.currentAIMode === 'material') {
                 const colorHex = await this.app.gemini.generateMaterialColor(text);
                 if (this.app.selectedObject) {
                     this.app.applyColorToSelected(colorHex);
-                    this.showNotification('Material color applied!', 'success');
+                    const usedFallback = this.app.gemini.activeProvider === 'openrouter'
+                        && this.app.gemini.lastUsedModel !== this.app.gemini.settings.openrouter.model.trim();
+                    this.showNotification(usedFallback ? `Material applied using ${this.app.gemini.lastUsedModel}.` : 'Material color applied!', 'success');
                 }
             }
             this.closeAIModal();
         } catch (err) {
             console.error(err);
-            this.showNotification('AI Generation failed. See console for details.', 'error');
+            this.showNotification(err?.message || 'AI generation failed.', 'error');
             this.spinner.classList.remove('active');
             this.btnGenerate.disabled = false;
             this.btnCancel.disabled = false;
@@ -2980,20 +3352,21 @@ export class UI {
             return div;
         };
 
-        // Helper: Create Vector3 Inputs
-        const createVec3 = (label, prefix, vec, onChangeObj) => {
-            const group = document.createElement('div');
-            group.className = 'property-group';
-            group.innerHTML = `<div class="property-label">${label}</div>`;
+        // Helper: Create Vector3 Input Row
+        const createVec3Row = (label, prefix, vec, onChangeObj) => {
             const row = document.createElement('div');
             row.className = 'input-row';
-
+            row.style.gap = '4px';
+            const labelSpan = document.createElement('span');
+            labelSpan.style.fontSize = '0.65rem';
+            labelSpan.style.color = 'var(--text-secondary)';
+            labelSpan.style.width = '50px';
+            labelSpan.textContent = label;
+            row.appendChild(labelSpan);
             row.appendChild(createInput('X', `${prefix}-x`, vec.x, (v) => { vec.x = v; onChangeObj(); }));
             row.appendChild(createInput('Y', `${prefix}-y`, vec.y, (v) => { vec.y = v; onChangeObj(); }));
             row.appendChild(createInput('Z', `${prefix}-z`, vec.z, (v) => { vec.z = v; onChangeObj(); }));
-
-            group.appendChild(row);
-            this.propsContent.appendChild(group);
+            return row;
         };
 
         // FIGURE CONTROLS
@@ -3031,10 +3404,16 @@ export class UI {
             this.propsContent.appendChild(figureGroup);
         }
 
-        // TRANSFORM CONTROLS
-        createVec3('Position', 'pos', obj.position, () => { });
-        createVec3('Rotation', 'rot', obj.rotation, () => { });
-        createVec3('Scale', 'scl', obj.scale, () => { });
+        // TRANSFORM CONTROLS - grouped to save vertical space
+        const transformGroup = document.createElement('div');
+        transformGroup.className = 'property-group';
+        transformGroup.innerHTML = `<div class="property-label">Transform</div>`;
+
+        transformGroup.appendChild(createVec3Row('Position', 'pos', obj.position, () => { }));
+        transformGroup.appendChild(createVec3Row('Rotation', 'rot', obj.rotation, () => { }));
+        transformGroup.appendChild(createVec3Row('Scale', 'scl', obj.scale, () => { }));
+
+        this.propsContent.appendChild(transformGroup);
 
         if (isShape2D) {
             try {
@@ -3486,6 +3865,39 @@ export class UI {
         const materialGroup = document.createElement('div');
         materialGroup.className = 'property-group';
         materialGroup.innerHTML = `<div class="property-label">Material Properties (PBR)</div>`;
+
+        // Edit in Material Editor button
+        const editBtnRow = document.createElement('div');
+        editBtnRow.className = 'input-row';
+        editBtnRow.style.marginBottom = '8px';
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'btn primary';
+        editBtn.style.width = '100%';
+        editBtn.style.fontSize = '0.75rem';
+        editBtn.innerHTML = '<i class="fas fa-palette" style="margin-right: 6px;"></i> Edit in Material Editor';
+        editBtn.addEventListener('click', () => {
+            // Create a material asset from current material and open editor
+            const assetData = {
+                name: editedMaterial.name || 'Material',
+                color: '#' + editedMaterial.color.getHexString(),
+                metalness: editedMaterial.metalness ?? 0.2,
+                roughness: editedMaterial.roughness ?? 0.3,
+                opacity: editedMaterial.opacity !== undefined ? editedMaterial.opacity * 100 : 100,
+                clearcoat: editedMaterial.clearcoat ?? 0,
+                transmission: editedMaterial.transmission ?? 0,
+                sheen: editedMaterial.sheen ?? 0,
+                alpha: editedMaterial.opacity ?? 1,
+                layers: (editedMaterial.textureLayers || []).map(l => ({ ...l }))
+            };
+            const savedAsset = this.addAsset('materials', assetData);
+            if (this.app.materialsManager) {
+                this.app.materialsManager.compileAssetMaterial(savedAsset);
+            }
+            this.openAssetModal('materials', savedAsset.id);
+        });
+        editBtnRow.appendChild(editBtn);
+        materialGroup.appendChild(editBtnRow);
 
         // Metallic property
         const metallicRow = document.createElement('div');
@@ -4676,35 +5088,6 @@ export class UI {
         }
     }
 
-    initSceneExport() {
-        // Initialize export button
-        const exportBtn = document.getElementById('btn-export-png');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                this.exportSceneAsPNG();
-            });
-        }
-
-        // Initialize camera border toggle
-        const borderToggle = document.getElementById('show-camera-border');
-        if (borderToggle) {
-            borderToggle.addEventListener('change', (e) => {
-                this.toggleCameraBorder(e.target.checked);
-            });
-        }
-
-        // Initialize canvas size controls
-        const resolutionDropdown = document.getElementById('export-resolution');
-        if (resolutionDropdown) {
-            resolutionDropdown.addEventListener('change', () => this.updateCameraBorderFromDropdown());
-        }
-
-        // Initialize camera border visualization
-        this.updateCameraBorder();
-
-        // Make camera border preview draggable
-        this.makeCameraBorderDraggable();
-    }
 
     makeCameraBorderDraggable() {
         const preview = document.getElementById('camera-border-preview');
@@ -4977,45 +5360,6 @@ export class UI {
         
     }
     
-    // Camera zoom methods
-    zoomCamera(factor) {
-        if (this.app.camera) {
-            // Get current zoom level from slider
-            const slider = document.getElementById('zoom-slider');
-            let currentZoom = slider ? parseFloat(slider.value) : 50;
-
-            // Apply zoom factor
-            currentZoom *= factor;
-
-            // Constrain to valid range
-            currentZoom = Math.max(1, Math.min(100, currentZoom));
-
-            // Update slider
-            if (slider) {
-                slider.value = currentZoom;
-            }
-
-            // Apply zoom to camera
-            this.setCameraZoom(currentZoom);
-        }
-    }
-    
-    setCameraZoom(zoomLevel) {
-        if (this.app.camera && this.app.cameraManager) {
-            // Convert zoom level to camera position
-            const zoomFactor = zoomLevel / 50; // 50 = neutral zoom
-            this.app.cameraManager.setCameraZoom(zoomFactor);
-
-            // Update the zoom display if needed
-            this.updateZoomDisplay(zoomLevel);
-        }
-    }
-    
-    updateZoomDisplay(zoomLevel) {
-        // You could add visual feedback here if needed
-        
-    }
-
 
     toggleCameraBorder(show) {
         const preview = document.getElementById('camera-border-preview');
@@ -5142,6 +5486,7 @@ export class UI {
         }
 
         // Switch to the requested tab
+        this.loadAISettingsToUI();
         this.switchSettingsTab(initialTab);
 
         this.unifiedSettingsModal.classList.add('open');
@@ -5174,6 +5519,7 @@ export class UI {
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
                 this.saveSettings();
+                this.saveAISettingsFromUI();
                 this.closeUnifiedSettingsModal();
             });
         }
@@ -5183,6 +5529,18 @@ export class UI {
             tab.addEventListener('click', () => {
                 this.switchSettingsTab(tab.dataset.tab);
             });
+        });
+
+        const aiProvider = document.getElementById('ai-provider');
+        if (aiProvider) {
+            aiProvider.addEventListener('change', () => this.updateAIProviderFields(aiProvider.value));
+        }
+
+        document.getElementById('ai-openrouter-load-free-models')?.addEventListener('click', () => {
+            this.loadOpenRouterFreeModels();
+        });
+        document.getElementById('ai-openrouter-free-models')?.addEventListener('change', (event) => {
+            if (event.target.value) document.getElementById('ai-openrouter-model').value = event.target.value;
         });
 
         // Resolution dropdown change handler
@@ -5247,6 +5605,77 @@ export class UI {
 
         if (activeTab) activeTab.classList.add('active');
         if (activeContent) activeContent.classList.add('active');
+    }
+
+    loadAISettingsToUI() {
+        const settings = this.app.gemini?.settings;
+        if (!settings) return;
+        const providerEl = document.getElementById('ai-provider');
+        if (providerEl) providerEl.value = settings.provider;
+        for (const provider of ['gemini', 'openai', 'claude', 'openrouter']) {
+            const keyEl = document.getElementById(`ai-${provider}-key`);
+            const modelEl = document.getElementById(`ai-${provider}-model`);
+            if (keyEl) keyEl.value = settings[provider]?.apiKey || '';
+            if (modelEl) modelEl.value = settings[provider]?.model || '';
+        }
+        const fallbackEnabledEl = document.getElementById('ai-openrouter-fallback-enabled');
+        if (fallbackEnabledEl) fallbackEnabledEl.checked = settings.openrouterFallbackEnabled === true;
+        this.updateAIProviderFields(settings.provider);
+    }
+
+    updateAIProviderFields(provider) {
+        document.querySelectorAll('.ai-provider-fields').forEach(fields => {
+            fields.hidden = fields.dataset.providerFields !== provider;
+        });
+    }
+
+    async loadOpenRouterFreeModels() {
+        const button = document.getElementById('ai-openrouter-load-free-models');
+        const select = document.getElementById('ai-openrouter-free-models');
+        const status = document.getElementById('ai-openrouter-model-status');
+        if (!button || !select || !status) return;
+
+        button.disabled = true;
+        status.textContent = 'Loading the public OpenRouter model list…';
+        try {
+            const freeModels = await this.app.gemini.getOpenRouterFreeModels();
+
+            select.replaceChildren(new Option('Choose a free model…', ''));
+            freeModels.forEach(model => {
+                const label = model.name ? `${model.id} — ${model.name}` : model.id;
+                select.add(new Option(label, model.id));
+            });
+            select.hidden = freeModels.length === 0;
+            status.textContent = freeModels.length
+                ? `${freeModels.length} free models found. Select one to fill the model field.`
+                : 'No models with zero prompt and completion prices were returned.';
+        } catch (error) {
+            select.hidden = true;
+            status.textContent = `Could not load OpenRouter models: ${error.message}`;
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    saveAISettingsFromUI() {
+        if (!this.app.gemini) return;
+        const settings = {
+            provider: document.getElementById('ai-provider')?.value || 'gemini',
+            openrouterFallbackEnabled: document.getElementById('ai-openrouter-fallback-enabled')?.checked === true
+        };
+        for (const provider of ['gemini', 'openai', 'claude', 'openrouter']) {
+            settings[provider] = {
+                apiKey: document.getElementById(`ai-${provider}-key`)?.value.trim() || '',
+                model: document.getElementById(`ai-${provider}-model`)?.value.trim() || ''
+            };
+        }
+        try {
+            this.app.gemini.saveSettings(settings);
+            this.showNotification('AI provider settings saved in this browser.', 'success');
+        } catch (error) {
+            console.error('Could not save AI settings:', error);
+            this.showNotification('Could not save AI settings. Browser storage may be unavailable.', 'error');
+        }
     }
 
     // --- PARTICLE SYSTEMS FUNCTIONALITY ---

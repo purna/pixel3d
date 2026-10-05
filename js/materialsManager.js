@@ -679,6 +679,19 @@ export class MaterialsManager {
             return;
         }
 
+        if (material && !material.threeMaterial && this.app.ui?.assets?.materials) {
+            const existing = this.materials.find(item => item.sourceAssetId === material.id);
+            if (existing) {
+                material = existing;
+            } else {
+                material = this.compileAssetMaterial(material);
+            }
+        }
+        if (!material?.threeMaterial) {
+            this.app.ui?.showNotification('Invalid material', 'error');
+            return;
+        }
+
         const obj = this.app.selectedObject;
         let targetMesh = null;
 

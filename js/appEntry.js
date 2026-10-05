@@ -22,7 +22,6 @@ function initializeIcons() {
         'tool-particles': 'particles',
         'tool-physics': 'physics',
         'tool-scene-settings': 'scene',
-        'tool-aframe-export': 'aframe',
         'tool-toggle-overlays': 'overlays',
         'tool-settings': 'settings',
         'mode-hand': 'hand',

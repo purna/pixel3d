@@ -15,8 +15,13 @@
 
 ### 🤖 AI-Powered Scene Generation
 - **Magic Scene Generator**: Describe your scene in natural language and let AI create it
-- **Gemini Integration**: Uses Google's Gemini AI for intelligent scene generation
+- **Multiple AI Providers**: Configure Gemini, OpenAI API, Anthropic Claude, or OpenRouter under Settings → AI
+- **Saved Provider Settings**: API keys and model choices are saved in this browser's local storage
+- **OpenRouter Model Fallback**: Optionally try the next free model when the selected OpenRouter model is rate-limited or temporarily unavailable
+- **OpenRouter Free Model List**: Fetch OpenRouter's public catalog and choose models whose prompt and completion prices are both zero
 - **Smart Object Placement**: AI automatically positions and colors objects based on your description
+
+AI providers require an API key from the provider's developer platform. A ChatGPT subscription does not include OpenAI API access; use an OpenAI API key and billing account. Browser-local keys are not encrypted and are intended for personal/local use. For a public deployment, proxy AI requests through a backend so users' keys and service credentials are not exposed in client-side code.
 
 ### 👥 Character Animation
 - **Animated Characters**: Support for Xbot (female) and Ybot (male) characters
@@ -35,6 +40,11 @@
 - **Transform Controls**: Move, rotate, and scale objects with precision
 - **Layer Management**: Organize objects in folders for better scene organization
 - **Materials System**: Comprehensive material editor with color management
+- **Material Layers**: Layer-based materials with blend modes, opacity, and type-specific properties (Color, Glass, Reflection, Outline, Noise, Gradient, Cavity, Fresnel, Toon, Duct, Rainbow)
+- **Material Presets**: Quick-apply presets for Glass, Metal, Plastic, Fabric, and Outline materials
+- **Accordion Layer Panel**: Material layer details use accordion behavior—expand one layer while collapsing others
+- **Asset Library**: Save and reuse textures and materials across scenes
+- **Scene Panel Accordion**: Scene settings sections use accordion behavior with expand/collapse all buttons
 - **History Management**: Full undo/redo functionality for all actions
 
 ### 📸 Export & Production

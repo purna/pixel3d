@@ -99,7 +99,7 @@ export const APP_DEFAULTS = {
     },
 
     // Scene Defaults
-    scene: {
+    sceneDefaults: {
         gridSize: 40,
         gridDivisions: 40,
         axesSize: 10,
