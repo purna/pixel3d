@@ -2715,7 +2715,8 @@ input[type="color"] {
     pointer-events: none;
 }
 
-.color-slider-value {
+input[type="number"].color-slider-value {
+    flex: 0 0 50px;
     width: 50px;
     background: var(--bg-light);
     border: 1px solid var(--border-color);
@@ -2859,6 +2860,7 @@ input[type="color"] {
 .saturation-slider-compact,
 .lightness-slider-compact {
     flex: 1;
+    min-width: 40px;
     height: 12px;
     border-radius: 6px;
     position: relative;
@@ -2887,7 +2889,8 @@ input[type="color"] {
     background: linear-gradient(to right, #000, #fff);
 }
 
-.color-slider-value-compact {
+input[type="number"].color-slider-value-compact {
+    flex: 0 0 48px;
     width: 48px;
     background: var(--bg-light);
     border: 1px solid var(--border-color);
@@ -4014,4 +4017,225 @@ input[type="color"] {
         height: 120px;
         flex-basis: 120px;
     }
+}
+
+
+/* --- Colour picker slider layout guard (material + colour asset modals) ---
+   A global input[type="number"]{width:100%} rule used to squeeze the slider
+   tracks to 0px. These rules are intentionally forceful. */
+.color-slider-row,
+.color-slider-row-compact {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.color-slider-label,
+.color-slider-label-compact {
+    flex: 0 0 auto;
+}
+.hue-slider,
+.saturation-slider,
+.transparency-slider,
+.hue-slider-compact,
+.saturation-slider-compact,
+.lightness-slider-compact {
+    flex: 1 1 80px !important;
+    min-width: 80px !important;
+    position: relative;
+    height: 14px;
+    cursor: pointer;
+    touch-action: none;
+}
+.hue-slider .slider-track,
+.saturation-slider .slider-track,
+.transparency-slider .slider-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+input[type="number"].color-slider-value,
+input[type="number"].color-slider-value-compact {
+    flex: 0 0 52px !important;
+    width: 52px !important;
+    min-width: 0;
+}
+
+
+/* --- Material layer rows ---------------------------------------------------
+   Collapsed : [grip] [x] Enabled (n)                          [v] [x]
+   Expanded  : same top row, hairline, then  [Type] [Blend] [Opacity ---- 100%] [Save]
+   Pure CSS: .layer-actions uses display:contents so Save / Remove become
+   direct flex items of the header and can be ordered independently.      */
+.material-layer-header {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 10px;
+    padding: 10px 12px !important;
+}
+
+.material-layer-header > * {
+    min-width: 0;
+}
+
+.material-layer-header .layer-actions {
+    display: contents;
+}
+
+/* Row 1 - always visible */
+.material-layer-header .layer-drag-handle {
+    order: 1;
+    flex: 0 0 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.material-layer-header .layer-toggle        { order: 2; flex: 0 0 auto; }
+.material-layer-header .layer-index-badge   { order: 3; flex: 0 0 auto; }
+.material-layer-header .layer-toggle-expand { order: 4; flex: 0 0 28px; margin-left: auto; }
+.material-layer-header .layer-close         { order: 5; flex: 0 0 28px; }
+
+/* Hairline between the two rows (also forces the line break) */
+.material-layer-header::after {
+    content: '';
+    order: 6;
+    flex: 0 0 100%;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+/* Row 2 - only when expanded */
+.material-layer-header .layer-select {
+    order: 7;
+    flex: 1 1 130px;
+    width: auto;
+    min-width: 100px;
+}
+.material-layer-header .layer-blend-mode {
+    order: 8;
+    flex: 0 1 110px;
+    width: auto;
+    min-width: 90px;
+}
+.material-layer-header .layer-opacity-control {
+    order: 9;
+    flex: 2 1 200px;
+    min-width: 160px;
+    display: grid;
+    grid-template-columns: auto minmax(60px, 1fr) 38px;
+    gap: 8px;
+}
+.material-layer-header .layer-save-texture {
+    order: 10;
+    flex: 0 0 auto;
+}
+
+/* Collapsed: keep only grip, Enabled, badge, expand, remove */
+.material-texture-layer.collapsed .layer-select,
+.material-texture-layer.collapsed .layer-blend-mode,
+.material-texture-layer.collapsed .layer-opacity-control,
+.material-texture-layer.collapsed .layer-save-texture {
+    display: none;
+}
+.material-texture-layer.collapsed .material-layer-header::after {
+    display: none;
+}
+.material-texture-layer.collapsed .material-layer-header {
+    border-bottom: none;
+    padding: 8px 12px !important;
+}
+
+/* Settings: flow into as many columns as fit instead of one long strip */
+.layer-properties {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.layer-fields .layer-texture-asset {
+    width: 100%;
+}
+
+
+/* --- Layers panel header: title on the left, Alpha on the right --- */
+.material-layers-panel > .editor-section-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap;
+    gap: 12px;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+.material-layers-panel > .editor-section-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.material-layers-panel .panel-header-attachment {
+    position: static !important;
+    flex: 0 0 auto;
+    margin: 0 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.material-layers-panel .alpha-control {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.material-layers-panel .alpha-control input[type="number"] {
+    width: 64px !important;
+    padding: 4px 6px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+
+/* --- Neutralise modal.css's generic `.modal header/footer/section` rules for the
+       material editor's section panels (they are real <header>/<footer> elements) --- */
+.modal header.editor-section-header {
+    padding: 11px 12px !important;
+    margin: 0 !important;
+    width: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+.modal header.editor-section-header > div {
+    width: auto !important;
+}
+
+.modal header.editor-section-header > div:first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.modal header.editor-section-header p {
+    white-space: normal;
+}
+
+.modal footer.material-layer-actions {
+    padding: 10px !important;
+    margin-top: 0 !important;
+    width: auto !important;
+}
+
+.material-properties-panel .material-presets-row {
+    padding: 10px 12px;
+    box-sizing: border-box;
 }

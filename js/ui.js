@@ -1460,7 +1460,7 @@ export class UI {
                 };
             }
 
-            const materialLayers = asset?.layers?.length > 0 ? asset.layers : [{ type: 'color', color: this._materialColorState ? '#' + rgbToHex(hslToRgb({ h: this._materialColorState.h, s: this._materialColorState.s, l: this._materialColorState.l })) : '#888888', opacity: 100, enabled: true, blendMode: 'normal' }];
+            const materialLayers = asset?.layers?.length > 0 ? asset.layers : [{ type: 'color', color: this._materialColorState ? rgbToHex(hslToRgb({ h: this._materialColorState.h, s: this._materialColorState.s, l: this._materialColorState.l })) : '#888888', opacity: 100, enabled: true, blendMode: 'normal' }];
             this.renderMaterialTextureLayers(materialLayers);
             updateMaterialPreview();
 
@@ -1640,14 +1640,14 @@ export class UI {
         // Sync hidden native color input
         const colorPicker = document.getElementById('material-color-picker');
         if (colorPicker) {
-            colorPicker.value = '#' + hex;
+            colorPicker.value = hex;
         }
 
         // Keep the base colour layer in step with the sliders (otherwise it paints over the preview)
         const baseLayer = [...document.querySelectorAll('#material-asset-items .material-texture-layer')].find(el => el.querySelector('.layer-select')?.value === 'color');
         const layerColor = baseLayer?.querySelector('[data-prop="color"]');
-        if (layerColor && layerColor.value !== '#' + hex) {
-            layerColor.value = '#' + hex;
+        if (layerColor && layerColor.value !== hex) {
+            layerColor.value = hex;
             layerColor.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
             this.updateMaterialPreview?.();
