@@ -31133,7 +31133,7 @@
           lightingValue.textContent = asset?.lighting || 0;
           lightingSlider.addEventListener("input", (e) => {
             lightingValue.textContent = e.target.value;
-          updateMaterialPreview();
+            updateMaterialPreview();
           });
         }
         const opacitySlider = document.getElementById("material-opacity");
@@ -31319,14 +31319,13 @@
       if (colorPicker) {
         colorPicker.value = hex;
       }
-      // Keep the base colour layer in step with the sliders (otherwise it paints over the preview)
-      const baseLayer = [...document.querySelectorAll('#material-asset-items .material-texture-layer')].find(el => el.querySelector('.layer-select')?.value === 'color');
+      const baseLayer = [...document.querySelectorAll("#material-asset-items .material-texture-layer")].find((el) => el.querySelector(".layer-select")?.value === "color");
       const layerColor = baseLayer?.querySelector('[data-prop="color"]');
       if (layerColor && layerColor.value !== hex) {
-          layerColor.value = hex;
-          layerColor.dispatchEvent(new Event('input', { bubbles: true }));
+        layerColor.value = hex;
+        layerColor.dispatchEvent(new Event("input", { bubbles: true }));
       } else {
-          this.updateMaterialPreview?.();
+        this.updateMaterialPreview?.();
       }
     }
     setupMaterialSLPicker() {
@@ -31362,10 +31361,8 @@
       picker.addEventListener("pointercancel", endDrag);
     }
     setupMaterialColorSlider(id, min, max, onChange) {
-
       const slider = document.getElementById(id);
-      if (!slider || slider._materialSliderSetup) return;
-      slider._materialSliderSetup = true;
+      if (!slider) return;
       const track = slider.querySelector(".slider-track");
       const thumb = slider.querySelector(".slider-thumb");
       if (!track || !thumb) return;
@@ -31394,13 +31391,11 @@
         isDragging = false;
       };
       slider.style.touchAction = "none";
-      slider.addEventListener("pointerdown", (e) => {
-        startDrag(e);
-        try {
-          slider.setPointerCapture(e.pointerId);
-        } catch (_) {
-        }
+      ["mousedown", "pointerdown"].forEach((evt) => {
+        slider.addEventListener(evt, startDrag);
       });
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
       slider.addEventListener("pointermove", onMouseMove);
       slider.addEventListener("pointerup", onMouseUp);
       slider.addEventListener("pointercancel", onMouseUp);

@@ -1685,8 +1685,7 @@ export class UI {
 
     setupMaterialColorSlider(id, min, max, onChange) {
         const slider = document.getElementById(id);
-        if (!slider || slider._materialSliderSetup) return;
-        slider._materialSliderSetup = true;
+        if (!slider) return;
 
         const track = slider.querySelector('.slider-track');
         const thumb = slider.querySelector('.slider-thumb');
@@ -1723,10 +1722,11 @@ export class UI {
         };
 
         slider.style.touchAction = 'none';
-        slider.addEventListener('pointerdown', (e) => {
-            startDrag(e);
-            try { slider.setPointerCapture(e.pointerId); } catch (_) {}
+        ['mousedown', 'pointerdown'].forEach(evt => {
+            slider.addEventListener(evt, startDrag);
         });
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
         slider.addEventListener('pointermove', onMouseMove);
         slider.addEventListener('pointerup', onMouseUp);
         slider.addEventListener('pointercancel', onMouseUp);
@@ -2826,7 +2826,7 @@ export class UI {
                 this.updateMaterialPreview?.();
             });
 
-            // Drag and drop reordering
+            // Drag and drop reordering - only from drag handle
             layerEl.addEventListener('dragstart', (e) => {
                 if (!e.target.closest('.layer-drag-handle')) {
                     e.preventDefault();

@@ -2244,6 +2244,16 @@ input[type="color"] {
     transition: background 0.2s;
 }
 
+.material-texture-layer input,
+.material-texture-layer select,
+.material-texture-layer button,
+.material-texture-layer output {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    user-drag: none;
+}
+
 .material-texture-layer:last-child {
     border-bottom: none;
 }
@@ -2925,7 +2935,9 @@ input[type="number"].color-slider-value-compact {
     top: 50%;
     left: 0;
     transform: translate(-50%, -50%);
+    pointer-events: auto;
     z-index: 2;
+    cursor: pointer;
 }
 
 /* Image Asset Modal */
