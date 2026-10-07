@@ -8,7 +8,8 @@ export const APP_DEFAULTS = {
         tooltipsEnabled: true,
         cameraSpeed: 1.0,
         autosaveEnabled: false,
-        autosaveInterval: 5
+        autosaveInterval: 5,
+        tutorialAutoStart: false
     },
 
     // Scene Settings Defaults

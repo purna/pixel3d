@@ -30,7 +30,10 @@ class TutorialSystem {
         // Auto-start tutorial if enabled in settings
         setTimeout(() => {
             const enableTutorialsCheckbox = document.getElementById('settings-enable-tutorials');
-            if (enableTutorialsCheckbox && enableTutorialsCheckbox.checked) {
+            const autoStartCheckbox = document.getElementById('settings-tutorial-auto-start');
+            const appDefault = this.app.APP_DEFAULTS?.ui?.tutorialAutoStart ?? true;
+            const autoStart = autoStartCheckbox ? autoStartCheckbox.checked : appDefault;
+            if (enableTutorialsCheckbox && enableTutorialsCheckbox.checked && autoStart) {
                 this.startTutorial('main');
             }
         }, 1000); // Small delay to allow UI to fully initialize
@@ -70,6 +73,7 @@ class TutorialSystem {
         // The tutorial settings are already in the HTML, so we just need to wire up the event listeners
         const enableTutorialsCheckbox = document.getElementById('settings-enable-tutorials');
         const startTutorialBtn = document.getElementById('startTutorialBtn');
+        const autoStartCheckbox = document.getElementById('settings-tutorial-auto-start');
 
         if (enableTutorialsCheckbox) {
             // Set default to enabled (checked)
@@ -80,6 +84,17 @@ class TutorialSystem {
                 this.app.tutorialConfig.tutorials.main.enabled = e.target.checked;
                 if (!e.target.checked && this.config.isTutorialActive()) {
                     this.hideTutorial();
+                }
+            });
+        }
+
+        if (autoStartCheckbox) {
+            const defaultValue = this.app.APP_DEFAULTS?.ui?.tutorialAutoStart ?? true;
+            autoStartCheckbox.checked = defaultValue;
+            autoStartCheckbox.addEventListener('change', (e) => {
+                this.tutorialAutoStart = e.target.checked;
+                if (this.app.APP_DEFAULTS) {
+                    this.app.APP_DEFAULTS.ui.tutorialAutoStart = e.target.checked;
                 }
             });
         }

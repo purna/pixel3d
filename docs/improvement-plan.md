@@ -532,3 +532,102 @@ Add these to your importmap for CDN usage:
 ```
 
 > **Note**: Verify CDN availability for each package. Some may require npm/bundler setup.
+
+---
+
+## Phase 6: Physics Engine Integration
+
+### 6.1 Physics Engine Selection
+
+**Recommended**: `@dimforge/rapier3d-compat`
+
+| Engine | Pros | Cons |
+|--------|------|------|
+| **Rapier** | Fast WASM/Rust, stable stacking, convex & trimesh support, maintained | Requires WASM loading |
+| cannon-es | Pure JS, simple API | 3D only, less stable with stacking |
+| Jolt | Powerful, battle-tested | Heavier than needed |
+| Ammo.js | Feature-rich | Painful API |
+
+**Import (CDN ESM):**
+```js
+import { World,RigidBody, Collider, ColliderDesc, RigidBodyDesc } from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.14.0/+esm/dist/rapier_wasm_only.mjs';
+```
+
+### 6.2 Component Model
+
+Store physics components as plain data on each object's `userData`, so they serialize with existing JSON save/load:
+
+```js
+obj.userData.components = {
+  rigidBody: {
+    type: 'dynamic',          // 'static' | 'dynamic' | 'kinematic'
+    mass: 1,
+    gravityScale: 1,
+    linearDamping: 0,
+    angularDamping: 0.05,
+    lockTranslation: [false, false, false],
+    lockRotation:    [false, false, false],
+    ccd: false
+  },
+  collider: {
+    shape: 'auto',            // auto-fit from primitive
+    offset: [0, 0, 0],
+    size: null,               // auto from geometry
+    sensor: false,
+    friction: 0.5,
+    restitution: 0.2,
+    group: 1,
+    mask: 0xffff
+  }
+};
+```
+
+A `physicsManager.js` builds the Rapier world from this data when the user hits Play.
+
+### 6.3 Collider Auto-Fit
+
+Map existing primitives to Rapier collider shapes:
+
+| Primitive | Shape |
+|-----------|-------|
+| Box | `cuboid` |
+| Sphere | `ball` |
+| Cylinder | `cylinder` |
+| Cone | `cone` |
+| Plane | `cuboid` (thin) |
+| Tetrahedron/Octahedron/Dodecahedron/Icosahedron | `convexHull` |
+| Torus / Torus Knot | `convexHull` (dynamic) or `trimesh` (static only) |
+
+**Important**: Bake object scale into collider size, since non-uniform scale on rotated parents doesn't map cleanly to Rapier.
+
+Draw a green wireframe gizmo for the collider in the editor for debugging.
+
+### 6.4 3D vs 2D
+
+Use a single 3D engine with a dimension toggle:
+- Locks Z translation and X/Y rotation (2.5D mode)
+- Pair with orthographic camera
+- Only bring in `rapier2d-compat` if a genuinely separate 2D canvas mode is needed
+
+### 6.5 Editor Gotchas
+
+- **Play/Stop must snapshot and restore transforms** — otherwise physics overwrites authored scene, corrupting autosave and undo
+- History should NOT record simulation movement
+- Disable TransformControls (or set bodies to kinematic) during simulation
+- Use a **fixed timestep** with an accumulator, interpolate for rendering
+- Keyframed objects become kinematic bodies so they push dynamic ones around
+
+### 6.6 Export
+
+- Write component data into `userData` in `initSceneN` output
+- Write to `extras` for GLB export
+- Ship a tiny `initPhysics(group, RAPIER)` helper for exported scenes running in other Three.js apps
+
+### 6.7 Future Components
+
+- Joints (hinge, fixed, spring)
+- Trigger zones with enter/exit events
+- Character controller (Rapier kinematic controller, pairs well with Xbot/Ybot)
+- Force fields and gravity zones
+- Positional audio source
+- Behavior/script hooks (`onStart`, `onUpdate`, `onCollision`)

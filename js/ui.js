@@ -1138,15 +1138,196 @@ export class UI {
         return canvas.toDataURL('image/png');
     }
 
+    renderComponentsPanel() {
+        const container = document.getElementById('assets-list');
+        if (!container) return;
+
+        const particlePresets = ['fire', 'smoke', 'sparkle', 'rain', 'snow', 'explosion'];
+
+        container.innerHTML = `
+            <div class="component-section">
+                <div class="component-section-header">
+                    <i class="fas fa-cube"></i> Components
+                </div>
+
+                <!-- Particle Component -->
+                <div class="component-card" data-component="particle">
+                    <div class="component-card-header">
+                        <span class="component-card-title">Particle System</span>
+                        <button class="component-toggle" data-component="particle">▼</button>
+                    </div>
+                    <div class="component-card-content">
+                        <div class="property-group">
+                            <label class="property-label">Preset</label>
+                            <select id="particle-preset-select" class="property-select">
+                                ${particlePresets.map(p => `<option value="${p}">${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <button class="btn btn-sm" id="btn-add-particle" style="width: 100%;">Add Particle System</button>
+                    </div>
+                </div>
+
+                <!-- Rigid Body Component -->
+                <div class="component-card" data-component="rigidbody">
+                    <div class="component-card-header">
+                        <span class="component-card-title">Rigid Body</span>
+                        <button class="component-toggle" data-component="rigidbody">▼</button>
+                    </div>
+                    <div class="component-card-content">
+                        <div class="property-group">
+                            <label class="property-label">Body Type</label>
+                            <select id="physics-body-type" class="property-select">
+                                <option value="2">Dynamic</option>
+                                <option value="0">Static</option>
+                                <option value="1">Kinematic</option>
+                            </select>
+                        </div>
+                        <div class="property-group">
+                            <label class="property-label">Mass: <span id="physics-mass-value">1.0</span></label>
+                            <input type="range" id="physics-mass" min="0" max="10" step="0.1" value="1">
+                        </div>
+                        <button class="btn btn-sm" id="btn-apply-physics" style="width: 100%;">Add Physics Body</button>
+                    </div>
+                </div>
+
+                <!-- Collider Component -->
+                <div class="component-card" data-component="collider">
+                    <div class="component-card-header">
+                        <span class="component-card-title">Collider</span>
+                        <button class="component-toggle" data-component="collider">▼</button>
+                    </div>
+                    <div class="component-card-content">
+                        <div class="property-group">
+                            <label class="property-label">Shape</label>
+                            <select id="collider-shape" class="property-select">
+                                <option value="auto">Auto (from geometry)</option>
+                                <option value="box">Box</option>
+                                <option value="sphere">Sphere</option>
+                                <option value="cylinder">Cylinder</option>
+                            </select>
+                        </div>
+                        <div class="property-group">
+                            <label class="property-label">Is Trigger (Sensor)</label>
+                            <input type="checkbox" id="collider-sensor" checked>
+                        </div>
+                        <div class="property-group">
+                            <label class="property-label">Friction: <span id="collider-friction-value">0.5</span></label>
+                            <input type="range" id="collider-friction" min="0" max="1" step="0.01" value="0.5">
+                        </div>
+                        <button class="btn btn-sm" id="btn-apply-collider" style="width: 100%;">Add Collider</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.setupComponentToggles();
+        this.setupComponentButtons();
+    }
+
+    setupComponentToggles() {
+        const toggles = document.querySelectorAll('.component-toggle');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const compId = toggle.getAttribute('data-component');
+                const card = toggle.closest('.component-card');
+                const content = card.querySelector('.component-card-content');
+                if (content.classList.contains('collapsed')) {
+                    content.classList.remove('collapsed');
+                    toggle.textContent = '▼';
+                } else {
+                    content.classList.add('collapsed');
+                    toggle.textContent = '▶';
+                }
+            });
+        });
+    }
+
+    setupComponentButtons() {
+        const addParticleBtn = document.getElementById('btn-add-particle');
+        if (addParticleBtn) {
+            addParticleBtn.addEventListener('click', () => {
+                this.addParticleToSelected();
+            });
+        }
+
+        const massSlider = document.getElementById('physics-mass');
+        const massValue = document.getElementById('physics-mass-value');
+        if (massSlider && massValue) {
+            massSlider.addEventListener('input', () => {
+                massValue.textContent = parseFloat(massSlider.value).toFixed(1);
+            });
+        }
+
+        const applyPhysicsBtn = document.getElementById('btn-apply-physics');
+        if (applyPhysicsBtn) {
+            applyPhysicsBtn.addEventListener('click', () => {
+                this.applyPhysicsToObject();
+            });
+        }
+
+        const frictionSlider = document.getElementById('collider-friction');
+        const frictionValue = document.getElementById('collider-friction-value');
+        if (frictionSlider && frictionValue) {
+            frictionSlider.addEventListener('input', () => {
+                frictionValue.textContent = parseFloat(frictionSlider.value).toFixed(2);
+            });
+        }
+
+        const applyColliderBtn = document.getElementById('btn-apply-collider');
+        if (applyColliderBtn) {
+            applyColliderBtn.addEventListener('click', () => {
+                this.applyColliderToObject();
+            });
+        }
+    }
+
+    addParticleToSelected() {
+        if (!this.app.particleManager || !this.app.selectedObject) {
+            this.showNotification('Please select an object first', 'warning');
+            return;
+        }
+        const presetSelect = document.getElementById('particle-preset-select');
+        const preset = presetSelect?.value ?? 'fire';
+        this.app.particleManager.addParticleToObject(this.app.selectedObject, preset);
+        this.showNotification(`${preset} particles added`, 'success');
+    }
+
+    applyColliderToObject() {
+        if (!this.app.selectedObject) {
+            this.showNotification('Please select an object first', 'warning');
+            return;
+        }
+        const mesh = this.app.selectedObject;
+        const shapeSelect = document.getElementById('collider-shape');
+        const sensorCheckbox = document.getElementById('collider-sensor');
+
+        const shape = shapeSelect?.value ?? 'auto';
+        const isSensor = sensorCheckbox?.checked ?? false;
+
+        if (!mesh.userData.components) {
+            mesh.userData.components = {};
+        }
+
+        mesh.userData.components.collider = {
+            shape: shape,
+            sensor: isSensor,
+            offset: [0, 0, 0],
+            size: null
+        };
+
+        this.showNotification(`Collider added: ${shape}`, 'success');
+    }
+
     renderAssetsPanel(tab = 'components', searchQuery = '') {
         const container = document.getElementById('assets-list');
         if (!container) return;
 
         container.innerHTML = '';
+        container.className = 'assets-list';
 
-        // Components are Unity-style behaviours. None are defined yet.
         if (tab === 'components') {
-            container.innerHTML = '<div class="empty-state"><p>No components have been defined yet.</p><br><p>Components will add reusable behaviours to scene objects.</p></div>';
+            this.renderComponentsPanel();
             return;
         }
 

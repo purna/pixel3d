@@ -44,6 +44,7 @@ class StageApp {
         this.originalColors = new Map();
 
         // Snap state
+        this.APP_DEFAULTS = APP_DEFAULTS;
         this.snapEnabled = APP_DEFAULTS.snap.enabled;
         this.snapMode = APP_DEFAULTS.snap.mode;
         this.snapGridUnit = APP_DEFAULTS.snap.gridUnit;
