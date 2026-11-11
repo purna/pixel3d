@@ -4315,3 +4315,89 @@ input[type="number"].color-slider-value-compact {
     padding: 10px 12px;
     box-sizing: border-box;
 }
+
+/* =============================================
+   OBJECT COMPONENT MANAGEMENT
+   ============================================= */
+.component-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.component-toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.component-toolbar-row select {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.75rem;
+}
+
+.component-toolbar-row .btn {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    padding: 6px 10px;
+}
+
+.component-toolbar-empty {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+}
+
+.component-group-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.component-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+}
+
+.component-header-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.62rem;
+    transition: all 0.2s;
+}
+
+.component-header-actions button:hover:not(:disabled) {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.component-header-actions button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.component-header-actions button:last-child:hover {
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+}

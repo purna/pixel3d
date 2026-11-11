@@ -3932,8 +3932,10 @@ export class UI {
             // Add PBR Material Properties (Metallic and Roughness)
             this.addMaterialProperties(obj, targetMesh, activeMaterial);
 
-            // Add per-object physics controls
-            this.addPhysicsControls(obj);
+            // Add per-object component controls
+            if (obj.userData.components?.physics !== false) this.addPhysicsControls(obj);
+            if (obj.userData.components?.collider) this.addColliderComponentProperties(obj);
+            if (this.app.particleManager?.getComponentForMesh(obj)) this.addParticleComponentProperties(obj);
         }
 
         // LIGHT PROPERTIES
@@ -4231,6 +4233,7 @@ export class UI {
             this.addAFrameProperties(obj);
         }
 
+        this.applyComponentManagement(obj);
     }
 
     add2DProperties(obj) {
@@ -4305,7 +4308,9 @@ export class UI {
         group.appendChild(opacityRow);
 
         this.propsContent.appendChild(group);
-        this.addPhysicsControls(obj);
+        if (obj.userData.components?.physics !== false) this.addPhysicsControls(obj);
+        if (obj.userData.components?.collider) this.addColliderComponentProperties(obj);
+        if (this.app.particleManager?.getComponentForMesh(obj)) this.addParticleComponentProperties(obj);
     }
 
     // Add PBR Material Properties (Metallic and Roughness)
@@ -4669,6 +4674,7 @@ export class UI {
 
         const physicsGroup = document.createElement('div');
         physicsGroup.className = 'property-group';
+        physicsGroup.dataset.component = 'physics';
         physicsGroup.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas fa-atom" style="margin-right: 6px;"></i>Physics</div>`;
 
         // Enable/disable physics for this object
@@ -4866,8 +4872,10 @@ export class UI {
         physicsSettings.style.display = 'flex';
         physicsSettings.style.flexDirection = 'column';
         physicsSettings.style.gap = '6px';
-        while (physicsGroup.children.length > 1) {
-            physicsSettings.appendChild(physicsGroup.children[1]);
+        // Keep the heading (child 0) and the Enable Physics checkbox (child 1)
+        // visible; only the detailed settings below them follow the toggle.
+        while (physicsGroup.children.length > 2) {
+            physicsSettings.appendChild(physicsGroup.children[2]);
         }
         physicsGroup.appendChild(physicsSettings);
 
@@ -5002,6 +5010,7 @@ export class UI {
     addAFrameProperties(obj) {
         if (!obj.userData.aframe) {
             obj.userData.aframe = {
+                enabled: true,
                 src: '',
                 shadow: { cast: true, receive: true },
                 animation: '',
@@ -5010,16 +5019,41 @@ export class UI {
         }
 
         const aframeData = obj.userData.aframe;
+        if (aframeData.enabled === undefined) aframeData.enabled = true;
 
-        // Create A-Frame properties group
         const aframeGroup = document.createElement('div');
         aframeGroup.className = 'property-group';
+        aframeGroup.dataset.component = 'aframe';
         aframeGroup.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas fa-vr-cardboard" style="margin-right: 6px;"></i>A-Frame Properties</div>`;
 
-        // Source/Asset URL
+        const enableRow = document.createElement('div');
+        enableRow.className = 'input-row';
+        enableRow.style.marginBottom = '8px';
+        const enableToggle = document.createElement('input');
+        enableToggle.type = 'checkbox';
+        enableToggle.id = 'aframe-enabled';
+        enableToggle.checked = aframeData.enabled !== false;
+        enableToggle.style.marginRight = '8px';
+        const enableLabel = document.createElement('span');
+        enableLabel.style.fontSize = '0.75rem';
+        enableLabel.style.color = 'var(--text-secondary)';
+        enableLabel.textContent = 'Enable A-Frame';
+        enableRow.append(enableToggle, enableLabel);
+        aframeGroup.appendChild(enableRow);
+
+        const aframeSettings = document.createElement('div');
+        aframeSettings.className = 'aframe-settings';
+        aframeSettings.style.display = aframeData.enabled !== false ? 'flex' : 'none';
+        aframeSettings.style.flexDirection = 'column';
+        aframeSettings.style.gap = '8px';
+
+        enableToggle.addEventListener('change', (e) => {
+            aframeData.enabled = e.target.checked;
+            aframeSettings.style.display = e.target.checked ? 'flex' : 'none';
+        });
+
         const srcRow = document.createElement('div');
         srcRow.className = 'input-row';
-        srcRow.style.marginBottom = '8px';
         srcRow.innerHTML = `
             <span style="font-size: 0.65rem; color: var(--text-secondary); width: 60px;">Asset URL:</span>
             <input type="text" id="aframe-src" value="${aframeData.src || ''}" 
@@ -5029,12 +5063,10 @@ export class UI {
         srcRow.querySelector('input').addEventListener('input', (e) => {
             aframeData.src = e.target.value;
         });
-        aframeGroup.appendChild(srcRow);
+        aframeSettings.appendChild(srcRow);
 
-        // Shadow settings
         const shadowRow = document.createElement('div');
         shadowRow.className = 'input-row';
-        shadowRow.style.marginBottom = '8px';
         shadowRow.innerHTML = `
             <label style="font-size: 0.65rem; color: var(--text-secondary); display: flex; align-items: center; margin-right: 12px;">
                 <input type="checkbox" id="aframe-shadow-cast" ${aframeData.shadow?.cast ? 'checked' : ''} style="margin-right: 4px;">
@@ -5053,12 +5085,10 @@ export class UI {
             if (!aframeData.shadow) aframeData.shadow = {};
             aframeData.shadow.receive = e.target.checked;
         });
-        aframeGroup.appendChild(shadowRow);
+        aframeSettings.appendChild(shadowRow);
 
-        // Animation
         const animRow = document.createElement('div');
         animRow.className = 'input-row';
-        animRow.style.marginBottom = '8px';
         animRow.innerHTML = `
             <span style="font-size: 0.65rem; color: var(--text-secondary); width: 60px;">Animation:</span>
             <input type="text" id="aframe-animation" value="${aframeData.animation || ''}" 
@@ -5068,17 +5098,15 @@ export class UI {
         animRow.querySelector('input').addEventListener('input', (e) => {
             aframeData.animation = e.target.value;
         });
-        aframeGroup.appendChild(animRow);
+        aframeSettings.appendChild(animRow);
 
-        // Quick animation presets
         const presetsRow = document.createElement('div');
         presetsRow.className = 'input-row';
-        presetsRow.style.marginBottom = '4px';
         presetsRow.innerHTML = `
             <span style="font-size: 0.6rem; color: var(--text-secondary);">Presets:</span>
-            <button class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="rotate">Rotate</button>
-            <button class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="bounce">Bounce</button>
-            <button class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="pulse">Pulse</button>
+            <button type="button" class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="rotate">Rotate</button>
+            <button type="button" class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="bounce">Bounce</button>
+            <button type="button" class="btn" style="font-size: 0.6rem; padding: 2px 6px; margin-left: 4px;" data-preset="pulse">Pulse</button>
         `;
         presetsRow.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -5102,9 +5130,288 @@ export class UI {
                 }
             });
         });
-        aframeGroup.appendChild(presetsRow);
+        aframeSettings.appendChild(presetsRow);
 
+        aframeGroup.appendChild(aframeSettings);
         this.propsContent.appendChild(aframeGroup);
+    }
+
+    componentDefinitions() {
+        return {
+            physics: {
+                name: 'Physics',
+                icon: 'fa-atom',
+                present: obj => obj.userData.components?.physics !== false,
+                canAdd: obj => !!obj.geometry
+            },
+            aframe: {
+                name: 'A-Frame',
+                icon: 'fa-vr-cardboard',
+                present: obj => !!obj.userData.aframe,
+                canAdd: obj => obj.userData.type === 'shape'
+            },
+            particle: {
+                name: 'Particle System',
+                icon: 'fa-magic',
+                present: obj => !!this.app.particleManager?.getComponentForMesh(obj),
+                canAdd: () => true
+            },
+            collider: {
+                name: 'Collider',
+                icon: 'fa-cube',
+                present: obj => !!obj.userData.components?.collider,
+                canAdd: obj => !!obj.geometry
+            }
+        };
+    }
+
+    addParticleComponentProperties(obj) {
+        const component = this.app.particleManager?.getComponentForMesh(obj);
+        if (!component) return;
+
+        const group = document.createElement('div');
+        group.className = 'property-group';
+        group.dataset.component = 'particle';
+        group.innerHTML = `<div class="property-label" style="color: var(--accent-primary);"><i class="fas fa-magic" style="margin-right: 6px;"></i>Particle System</div>`;
+
+        const row = document.createElement('div');
+        row.className = 'input-row';
+        row.innerHTML = '<span style="font-size:0.7rem;color:var(--text-secondary);width:60px;">Preset:</span>';
+
+        const select = document.createElement('select');
+        select.style.cssText = 'flex:1;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 8px;font-size:0.75rem;color:var(--text-primary);';
+        ['fire', 'smoke', 'sparkle', 'rain', 'snow', 'explosion'].forEach(preset => {
+            const option = document.createElement('option');
+            option.value = preset;
+            option.textContent = preset.charAt(0).toUpperCase() + preset.slice(1);
+            if (component.presetName === preset) option.selected = true;
+            select.appendChild(option);
+        });
+        select.addEventListener('change', (e) => {
+            this.app.particleManager.addParticleToObject(obj, e.target.value);
+            this.renderPropertiesPanel(obj);
+            this.app.layerManager?.render();
+        });
+
+        row.appendChild(select);
+        group.appendChild(row);
+        this.propsContent.appendChild(group);
+    }
+
+    addColliderComponentProperties(obj) {
+        const collider = obj.userData.components?.collider;
+        if (!collider) return;
+
+        const group = document.createElement('div');
+        group.className = 'property-group';
+        group.dataset.component = 'collider';
+        group.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas fa-cube" style="margin-right: 6px;"></i>Collider</div>`;
+
+        const shapeRow = document.createElement('div');
+        shapeRow.className = 'input-row';
+        shapeRow.innerHTML = '<span style="font-size:0.7rem;color:var(--text-secondary);width:60px;">Shape:</span>';
+        const shapeSelect = document.createElement('select');
+        shapeSelect.style.cssText = 'flex:1;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 8px;font-size:0.75rem;color:var(--text-primary);';
+        [['auto', 'Auto'], ['box', 'Box'], ['sphere', 'Sphere'], ['cylinder', 'Cylinder']].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            if ((collider.shape || 'auto') === value) option.selected = true;
+            shapeSelect.appendChild(option);
+        });
+        shapeSelect.addEventListener('change', e => { collider.shape = e.target.value; });
+        shapeRow.appendChild(shapeSelect);
+        group.appendChild(shapeRow);
+
+        const sensorRow = document.createElement('label');
+        sensorRow.className = 'input-row';
+        sensorRow.style.fontSize = '0.7rem';
+        sensorRow.style.color = 'var(--text-secondary)';
+        const sensorToggle = document.createElement('input');
+        sensorToggle.type = 'checkbox';
+        sensorToggle.checked = collider.sensor === true;
+        sensorToggle.addEventListener('change', e => { collider.sensor = e.target.checked; });
+        sensorRow.append(sensorToggle, document.createTextNode(' Is Trigger (Sensor)'));
+        group.appendChild(sensorRow);
+
+        this.propsContent.appendChild(group);
+    }
+
+    applyComponentManagement(obj) {
+        const groups = Array.from(this.propsContent.children).filter(child => child.dataset?.component);
+        if (!groups.length) {
+            this.addComponentToolbar(obj, []);
+            return;
+        }
+
+        const ids = groups.map(group => group.dataset.component);
+        const order = Array.isArray(obj.userData.componentOrder)
+            ? obj.userData.componentOrder.filter(id => ids.includes(id))
+            : [];
+        ids.forEach(id => { if (!order.includes(id)) order.push(id); });
+        obj.userData.componentOrder = order;
+
+        order.forEach(id => {
+            const group = groups.find(candidate => candidate.dataset.component === id);
+            if (group) this.propsContent.appendChild(group);
+        });
+
+        groups.forEach(group => this.addComponentHeaderControls(obj, group));
+        this.addComponentToolbar(obj, groups.map(group => group.dataset.component));
+    }
+
+    addComponentToolbar(obj, activeIds) {
+        this.propsContent.querySelectorAll('.component-toolbar').forEach(toolbar => toolbar.remove());
+        const definitions = this.componentDefinitions();
+        const available = Object.entries(definitions).filter(([id, definition]) =>
+            !activeIds.includes(id) && !definition.present(obj) && (!definition.canAdd || definition.canAdd(obj))
+        );
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'component-toolbar';
+        const title = document.createElement('div');
+        title.className = 'property-label';
+        title.textContent = 'Components';
+        toolbar.appendChild(title);
+
+        const row = document.createElement('div');
+        row.className = 'component-toolbar-row';
+        if (available.length) {
+            const select = document.createElement('select');
+            select.id = 'component-add-select';
+            available.forEach(([id, definition]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = definition.name;
+                select.appendChild(option);
+            });
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'btn primary';
+            addButton.id = 'component-add-btn';
+            addButton.innerHTML = '<i class="fas fa-plus"></i> Add';
+            addButton.addEventListener('click', () => this.addComponentToObject(obj, select.value));
+            row.append(select, addButton);
+        } else {
+            const empty = document.createElement('span');
+            empty.className = 'component-toolbar-empty';
+            empty.textContent = 'All available components added';
+            row.appendChild(empty);
+        }
+        toolbar.appendChild(row);
+
+        const objectTitle = this.propsContent.querySelector('.object-title-group');
+        if (objectTitle) objectTitle.insertAdjacentElement('afterend', toolbar);
+        else this.propsContent.prepend(toolbar);
+    }
+
+    addComponentHeaderControls(obj, group) {
+        const id = group.dataset.component;
+        const label = Array.from(group.children).find(child => child.classList?.contains('property-label'));
+        if (!label || label.querySelector('.component-header-actions')) return;
+
+        label.classList.add('component-group-label');
+        const actions = document.createElement('span');
+        actions.className = 'component-header-actions';
+
+        const makeButton = (icon, title, disabled, handler) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.title = title;
+            button.disabled = disabled;
+            button.innerHTML = `<i class="fas ${icon}"></i>`;
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                handler();
+            });
+            return button;
+        };
+
+        const order = obj.userData.componentOrder || [];
+        const index = order.indexOf(id);
+        actions.appendChild(makeButton('fa-arrow-up', 'Move component up', index <= 0, () => this.moveComponentInObject(obj, id, -1)));
+        actions.appendChild(makeButton('fa-arrow-down', 'Move component down', index === -1 || index >= order.length - 1, () => this.moveComponentInObject(obj, id, 1)));
+        actions.appendChild(makeButton('fa-trash', 'Remove component', false, () => this.removeComponentFromObject(obj, id)));
+        label.appendChild(actions);
+    }
+
+    moveComponentInObject(obj, id, delta) {
+        const order = Array.isArray(obj.userData.componentOrder) ? [...obj.userData.componentOrder] : [];
+        const index = order.indexOf(id);
+        const target = index + delta;
+        if (index === -1 || target < 0 || target >= order.length) return;
+        [order[index], order[target]] = [order[target], order[index]];
+        obj.userData.componentOrder = order;
+        this.renderPropertiesPanel(obj);
+    }
+
+    addComponentToObject(obj, id) {
+        const definition = this.componentDefinitions()[id];
+        if (!definition) return;
+
+        if (id === 'physics') {
+            if (!obj.userData.components) obj.userData.components = {};
+            obj.userData.components.physics = true;
+            obj.userData.physicsEnabled = true;
+            this.app.physicsManager?.addMesh(obj, {
+                mass: obj.userData.physicsMass ?? 1,
+                bodyType: obj.userData.physicsBodyType ?? 2,
+                friction: obj.userData.physicsFriction ?? 0.3,
+                restitution: obj.userData.physicsRestitution ?? 0.2,
+                linearDamping: obj.userData.physicsLinearDamping ?? 0.01,
+                angularDamping: obj.userData.physicsAngularDamping ?? 0.01
+            });
+        } else if (id === 'aframe') {
+            obj.userData.aframe = {
+                enabled: true,
+                src: '',
+                shadow: { cast: true, receive: true },
+                animation: '',
+                customAttrs: {}
+            };
+        } else if (id === 'particle') {
+            this.app.particleManager?.addParticleToObject(obj, 'fire');
+        } else if (id === 'collider') {
+            if (!obj.userData.components) obj.userData.components = {};
+            obj.userData.components.collider = {
+                shape: 'auto',
+                sensor: false,
+                offset: [0, 0, 0],
+                size: null
+            };
+        }
+
+        const order = Array.isArray(obj.userData.componentOrder) ? [...obj.userData.componentOrder] : [];
+        if (!order.includes(id)) order.push(id);
+        obj.userData.componentOrder = order;
+        this.renderPropertiesPanel(obj);
+        this.app.layerManager?.render();
+        this.showNotification(`${definition.name} component added`, 'success');
+    }
+
+    removeComponentFromObject(obj, id) {
+        const definition = this.componentDefinitions()[id];
+        if (!definition) return;
+
+        if (id === 'physics') {
+            if (!obj.userData.components) obj.userData.components = {};
+            obj.userData.components.physics = false;
+            obj.userData.physicsEnabled = false;
+            this.app.physicsManager?.removeMesh(obj);
+        } else if (id === 'aframe') {
+            delete obj.userData.aframe;
+        } else if (id === 'particle') {
+            this.app.particleManager?.removeParticleFromObject(obj);
+        } else if (id === 'collider' && obj.userData.components) {
+            delete obj.userData.components.collider;
+        }
+
+        if (Array.isArray(obj.userData.componentOrder)) {
+            obj.userData.componentOrder = obj.userData.componentOrder.filter(componentId => componentId !== id);
+        }
+        this.renderPropertiesPanel(obj);
+        this.app.layerManager?.render();
+        this.showNotification(`${definition.name} component removed`, 'info');
     }
 
     // Add Materials Selector to Properties Panel

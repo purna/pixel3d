@@ -84,7 +84,7 @@ export class AFrameExporter {
         }
 
         // A-Frame specific properties from userData
-        if (obj.userData.aframe) {
+        if (obj.userData.aframe && obj.userData.aframe.enabled !== false) {
             const aframeData = obj.userData.aframe;
             if (aframeData.src) {
                 attrs.push(`src="${aframeData.src}"`);
