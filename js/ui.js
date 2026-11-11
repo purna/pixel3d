@@ -4685,6 +4685,24 @@ export class UI {
             body.angularDamping = value;
         });
 
+        // Keep the detailed physics settings out of the way until physics is
+        // actually enabled for this object.
+        const physicsSettings = document.createElement('div');
+        physicsSettings.className = 'physics-settings';
+        physicsSettings.style.display = 'flex';
+        physicsSettings.style.flexDirection = 'column';
+        physicsSettings.style.gap = '6px';
+        while (physicsGroup.children.length > 1) {
+            physicsSettings.appendChild(physicsGroup.children[1]);
+        }
+        physicsGroup.appendChild(physicsSettings);
+
+        const syncPhysicsSettingsVisibility = () => {
+            physicsSettings.style.display = enableToggle.checked ? 'flex' : 'none';
+        };
+        syncPhysicsSettingsVisibility();
+        enableToggle.addEventListener('change', syncPhysicsSettingsVisibility);
+
         this.propsContent.appendChild(physicsGroup);
     }
 

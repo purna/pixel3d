@@ -34177,6 +34177,20 @@
       addPhysicsSlider("Spin drag", "physicsAngularDamping", 0, 1, 0.01, 0.01, (body, value) => {
         body.angularDamping = value;
       });
+      const physicsSettings = document.createElement("div");
+      physicsSettings.className = "physics-settings";
+      physicsSettings.style.display = "flex";
+      physicsSettings.style.flexDirection = "column";
+      physicsSettings.style.gap = "6px";
+      while (physicsGroup.children.length > 1) {
+        physicsSettings.appendChild(physicsGroup.children[1]);
+      }
+      physicsGroup.appendChild(physicsSettings);
+      const syncPhysicsSettingsVisibility = () => {
+        physicsSettings.style.display = enableToggle.checked ? "flex" : "none";
+      };
+      syncPhysicsSettingsVisibility();
+      enableToggle.addEventListener("change", syncPhysicsSettingsVisibility);
       this.propsContent.appendChild(physicsGroup);
     }
     // Add 2D Text Controls to Properties Panel
