@@ -6983,6 +6983,19 @@
       dispose
     };
   }
+  function transformVertex(vertexPosition, mvPosition, center, scale, sin, cos) {
+    _alignedPosition.subVectors(vertexPosition, center).addScalar(0.5).multiply(scale);
+    if (sin !== void 0) {
+      _rotatedPosition.x = cos * _alignedPosition.x - sin * _alignedPosition.y;
+      _rotatedPosition.y = sin * _alignedPosition.x + cos * _alignedPosition.y;
+    } else {
+      _rotatedPosition.copy(_alignedPosition);
+    }
+    vertexPosition.copy(mvPosition);
+    vertexPosition.x += _rotatedPosition.x;
+    vertexPosition.y += _rotatedPosition.y;
+    vertexPosition.applyMatrix4(_viewWorldMatrix);
+  }
   function testPoint(point, index, localThresholdSq, matrixWorld, raycaster, intersects2, object) {
     const rayPointDistanceSq = _ray.distanceSqToPoint(point);
     if (rayPointDistanceSq < localThresholdSq) {
@@ -7582,7 +7595,7 @@
       }
     }
   }
-  var REVISION, MOUSE, TOUCH, CullFaceNone, CullFaceBack, CullFaceFront, PCFShadowMap, PCFSoftShadowMap, VSMShadowMap, FrontSide, BackSide, DoubleSide, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, ConstantColorFactor, OneMinusConstantColorFactor, ConstantAlphaFactor, OneMinusConstantAlphaFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, AttachedBindMode, DetachedBindMode, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, CubeUVReflectionMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedInt248Type, AlphaFormat, RGBAFormat, LuminanceFormat, LuminanceAlphaFormat, DepthFormat, DepthStencilFormat, RedFormat, RedIntegerFormat, RGFormat, RGIntegerFormat, RGBAIntegerFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, RGB_ETC2_Format, RGBA_ETC2_EAC_Format, RGBA_ASTC_4x4_Format, RGBA_ASTC_5x4_Format, RGBA_ASTC_5x5_Format, RGBA_ASTC_6x5_Format, RGBA_ASTC_6x6_Format, RGBA_ASTC_8x5_Format, RGBA_ASTC_8x6_Format, RGBA_ASTC_8x8_Format, RGBA_ASTC_10x5_Format, RGBA_ASTC_10x6_Format, RGBA_ASTC_10x8_Format, RGBA_ASTC_10x10_Format, RGBA_ASTC_12x10_Format, RGBA_ASTC_12x12_Format, RGBA_BPTC_Format, RGB_BPTC_SIGNED_Format, RGB_BPTC_UNSIGNED_Format, RED_RGTC1_Format, SIGNED_RED_RGTC1_Format, RED_GREEN_RGTC2_Format, SIGNED_RED_GREEN_RGTC2_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, NormalAnimationBlendMode, AdditiveAnimationBlendMode, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, LinearEncoding, sRGBEncoding, BasicDepthPacking, RGBADepthPacking, TangentSpaceNormalMap, ObjectSpaceNormalMap, NoColorSpace, SRGBColorSpace, LinearSRGBColorSpace, DisplayP3ColorSpace, LinearDisplayP3ColorSpace, LinearTransfer, SRGBTransfer, Rec709Primaries, P3Primaries, KeepStencilOp, AlwaysStencilFunc, NeverCompare, LessCompare, EqualCompare, LessEqualCompare, GreaterCompare, NotEqualCompare, GreaterEqualCompare, AlwaysCompare, StaticDrawUsage, GLSL3, _SRGBAFormat, WebGLCoordinateSystem, WebGPUCoordinateSystem, EventDispatcher, _lut, _seed, DEG2RAD, RAD2DEG, MathUtils, Vector2, Matrix3, _m3, _cache, LINEAR_SRGB_TO_LINEAR_DISPLAY_P3, LINEAR_DISPLAY_P3_TO_LINEAR_SRGB, COLOR_SPACES, SUPPORTED_WORKING_COLOR_SPACES, ColorManagement, _canvas, ImageUtils, _sourceId, Source, _textureId, Texture, Vector4, RenderTarget, WebGLRenderTarget, DataArrayTexture, Data3DTexture, Quaternion, Vector3, _vector$c, _quaternion$4, Box3, _points, _vector$b, _box$4, _v0$2, _v1$7, _v2$4, _f0, _f1, _f2, _center, _extents, _triangleNormal, _testAxis, _box$3, _v1$6, _v2$3, Sphere, _vector$a, _segCenter, _segDir, _diff, _edge1, _edge2, _normal$1, Ray, Matrix4, _v1$5, _m1$2, _zero, _one, _x, _y, _z, _matrix$1, _quaternion$3, Euler, Layers, _object3DId, _v1$4, _q1, _m1$1, _target, _position$3, _scale$2, _quaternion$2, _xAxis, _yAxis, _zAxis, _addedEvent, _removedEvent, Object3D, _v0$1, _v1$3, _v2$2, _v3$1, _vab, _vac, _vbc, _vap, _vbp, _vcp, warnedGetUV, Triangle, _colorKeywords, _hslA, _hslB, Color, _color, _materialId, Material, MeshBasicMaterial, _vector$9, _vector2$1, BufferAttribute, Uint16BufferAttribute, Uint32BufferAttribute, Float32BufferAttribute, _id$2, _m1, _obj, _offset, _box$2, _boxMorphTargets, _vector$8, BufferGeometry, _inverseMatrix$3, _ray$3, _sphere$6, _sphereHitAt, _vA$1, _vB$1, _vC$1, _tempA, _morphA, _uvA$1, _uvB$1, _uvC$1, _normalA, _normalB, _normalC, _intersectionPoint, _intersectionPointWorld, Mesh, BoxGeometry, UniformsUtils, default_vertex, default_fragment, ShaderMaterial, Camera, PerspectiveCamera, fov, aspect, CubeCamera, CubeTexture, WebGLCubeRenderTarget, _vector1, _vector2, _normalMatrix, Plane, _sphere$5, _vector$7, Frustum, PlaneGeometry, alphahash_fragment, alphahash_pars_fragment, alphamap_fragment, alphamap_pars_fragment, alphatest_fragment, alphatest_pars_fragment, aomap_fragment, aomap_pars_fragment, batching_pars_vertex, batching_vertex, begin_vertex, beginnormal_vertex, bsdfs, iridescence_fragment, bumpmap_pars_fragment, clipping_planes_fragment, clipping_planes_pars_fragment, clipping_planes_pars_vertex, clipping_planes_vertex, color_fragment, color_pars_fragment, color_pars_vertex, color_vertex, common, cube_uv_reflection_fragment, defaultnormal_vertex, displacementmap_pars_vertex, displacementmap_vertex, emissivemap_fragment, emissivemap_pars_fragment, colorspace_fragment, colorspace_pars_fragment, envmap_fragment, envmap_common_pars_fragment, envmap_pars_fragment, envmap_pars_vertex, envmap_vertex, fog_vertex, fog_pars_vertex, fog_fragment, fog_pars_fragment, gradientmap_pars_fragment, lightmap_fragment, lightmap_pars_fragment, lights_lambert_fragment, lights_lambert_pars_fragment, lights_pars_begin, envmap_physical_pars_fragment, lights_toon_fragment, lights_toon_pars_fragment, lights_phong_fragment, lights_phong_pars_fragment, lights_physical_fragment, lights_physical_pars_fragment, lights_fragment_begin, lights_fragment_maps, lights_fragment_end, logdepthbuf_fragment, logdepthbuf_pars_fragment, logdepthbuf_pars_vertex, logdepthbuf_vertex, map_fragment, map_pars_fragment, map_particle_fragment, map_particle_pars_fragment, metalnessmap_fragment, metalnessmap_pars_fragment, morphcolor_vertex, morphnormal_vertex, morphtarget_pars_vertex, morphtarget_vertex, normal_fragment_begin, normal_fragment_maps, normal_pars_fragment, normal_pars_vertex, normal_vertex, normalmap_pars_fragment, clearcoat_normal_fragment_begin, clearcoat_normal_fragment_maps, clearcoat_pars_fragment, iridescence_pars_fragment, opaque_fragment, packing, premultiplied_alpha_fragment, project_vertex, dithering_fragment, dithering_pars_fragment, roughnessmap_fragment, roughnessmap_pars_fragment, shadowmap_pars_fragment, shadowmap_pars_vertex, shadowmap_vertex, shadowmask_pars_fragment, skinbase_vertex, skinning_pars_vertex, skinning_vertex, skinnormal_vertex, specularmap_fragment, specularmap_pars_fragment, tonemapping_fragment, tonemapping_pars_fragment, transmission_fragment, transmission_pars_fragment, uv_pars_fragment, uv_pars_vertex, uv_vertex, worldpos_vertex, vertex$h, fragment$h, vertex$g, fragment$g, vertex$f, fragment$f, vertex$e, fragment$e, vertex$d, fragment$d, vertex$c, fragment$c, vertex$b, fragment$b, vertex$a, fragment$a, vertex$9, fragment$9, vertex$8, fragment$8, vertex$7, fragment$7, vertex$6, fragment$6, vertex$5, fragment$5, vertex$4, fragment$4, vertex$3, fragment$3, vertex$2, fragment$2, vertex$1, fragment$1, ShaderChunk, UniformsLib, ShaderLib, _rgb, OrthographicCamera, LOD_MIN, EXTRA_LOD_SIGMA, MAX_SAMPLES, _flatCamera, _clearColor, _oldTarget, _oldActiveCubeFace, _oldActiveMipmapLevel, PHI, INV_PHI, _axisDirections, PMREMGenerator, DepthTexture, emptyTexture, emptyShadowTexture, emptyArrayTexture, empty3dTexture, emptyCubeTexture, arrayCacheF32, arrayCacheI32, mat4array, mat3array, mat2array, SingleUniform, PureArrayUniform, StructuredUniform, RePathPart, WebGLUniforms, COMPLETION_STATUS_KHR, programIdCount, includePattern, shaderChunkMap, unrollLoopPattern, _id$1, WebGLShaderCache, WebGLShaderStage, nextVersion, MeshDepthMaterial, MeshDistanceMaterial, vertex, fragment, ArrayCamera, Group, _moveEvent, WebXRController, WebXRManager, WebGLRenderer, WebGL1Renderer, Fog, Scene, InterleavedBuffer, _vector$6, InterleavedBufferAttribute, SpriteMaterial, _basePosition, _skinIndex, _skinWeight, _vector3, _matrix4, _vertex, _sphere$4, _inverseMatrix$2, _ray$2, SkinnedMesh, Bone, DataTexture, _offsetMatrix, _identityMatrix$1, Skeleton, InstancedBufferAttribute, _instanceLocalMatrix, _instanceWorldMatrix, _instanceIntersects, _box3, _identity, _mesh$1, _sphere$3, InstancedMesh, LineBasicMaterial, _start$1, _end$1, _inverseMatrix$1, _ray$1, _sphere$1, Line, _start, _end, LineSegments, LineLoop, PointsMaterial, _inverseMatrix, _ray, _sphere, _position$2, Points, CompressedTexture, CanvasTexture, Curve, EllipseCurve, ArcCurve, tmp, px, py, pz, CatmullRomCurve3, CubicBezierCurve, CubicBezierCurve3, LineCurve, LineCurve3, QuadraticBezierCurve, QuadraticBezierCurve3, SplineCurve, Curves, CurvePath, Path, CircleGeometry, CylinderGeometry, ConeGeometry, PolyhedronGeometry, DodecahedronGeometry, Shape, Earcut, ShapeUtils, IcosahedronGeometry, OctahedronGeometry, ShapeGeometry, SphereGeometry, TetrahedronGeometry, TorusGeometry, TorusKnotGeometry, MeshStandardMaterial, MeshPhysicalMaterial, Interpolant, CubicInterpolant, LinearInterpolant, DiscreteInterpolant, KeyframeTrack, BooleanKeyframeTrack, ColorKeyframeTrack, NumberKeyframeTrack, QuaternionLinearInterpolant, QuaternionKeyframeTrack, StringKeyframeTrack, VectorKeyframeTrack, AnimationClip, Cache, LoadingManager, DefaultLoadingManager, Loader, loading, HttpError, FileLoader, ImageLoader, TextureLoader, Light, HemisphereLight, _projScreenMatrix$1, _lightPositionWorld$1, _lookTarget$1, LightShadow, SpotLightShadow, SpotLight, _projScreenMatrix, _lightPositionWorld, _lookTarget, PointLightShadow, PointLight, DirectionalLightShadow, DirectionalLight, AmbientLight, LoaderUtils, ImageBitmapLoader, Clock, PropertyMixer, _RESERVED_CHARS_RE, _reservedRe, _wordChar, _wordCharOrDot, _directoryRe, _nodeRe, _objectRe, _propertyRe, _trackRe, _supportedObjectNames, Composite, PropertyBinding, AnimationAction, _controlInterpolantsResultBuffer, AnimationMixer, Uniform, Raycaster, Spherical, _startP, _startEnd, Line3, _vector$3, SpotLightHelper, PointLightHelper, _vector$1, _color1, _color2, HemisphereLightHelper, GridHelper, _v1, _v2, _v3, DirectionalLightHelper, AxesHelper;
+  var REVISION, MOUSE, TOUCH, CullFaceNone, CullFaceBack, CullFaceFront, PCFShadowMap, PCFSoftShadowMap, VSMShadowMap, FrontSide, BackSide, DoubleSide, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, ConstantColorFactor, OneMinusConstantColorFactor, ConstantAlphaFactor, OneMinusConstantAlphaFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, AttachedBindMode, DetachedBindMode, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, CubeUVReflectionMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, LinearFilter, LinearMipmapNearestFilter, LinearMipmapLinearFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedInt248Type, AlphaFormat, RGBAFormat, LuminanceFormat, LuminanceAlphaFormat, DepthFormat, DepthStencilFormat, RedFormat, RedIntegerFormat, RGFormat, RGIntegerFormat, RGBAIntegerFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, RGB_ETC2_Format, RGBA_ETC2_EAC_Format, RGBA_ASTC_4x4_Format, RGBA_ASTC_5x4_Format, RGBA_ASTC_5x5_Format, RGBA_ASTC_6x5_Format, RGBA_ASTC_6x6_Format, RGBA_ASTC_8x5_Format, RGBA_ASTC_8x6_Format, RGBA_ASTC_8x8_Format, RGBA_ASTC_10x5_Format, RGBA_ASTC_10x6_Format, RGBA_ASTC_10x8_Format, RGBA_ASTC_10x10_Format, RGBA_ASTC_12x10_Format, RGBA_ASTC_12x12_Format, RGBA_BPTC_Format, RGB_BPTC_SIGNED_Format, RGB_BPTC_UNSIGNED_Format, RED_RGTC1_Format, SIGNED_RED_RGTC1_Format, RED_GREEN_RGTC2_Format, SIGNED_RED_GREEN_RGTC2_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, NormalAnimationBlendMode, AdditiveAnimationBlendMode, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, LinearEncoding, sRGBEncoding, BasicDepthPacking, RGBADepthPacking, TangentSpaceNormalMap, ObjectSpaceNormalMap, NoColorSpace, SRGBColorSpace, LinearSRGBColorSpace, DisplayP3ColorSpace, LinearDisplayP3ColorSpace, LinearTransfer, SRGBTransfer, Rec709Primaries, P3Primaries, KeepStencilOp, AlwaysStencilFunc, NeverCompare, LessCompare, EqualCompare, LessEqualCompare, GreaterCompare, NotEqualCompare, GreaterEqualCompare, AlwaysCompare, StaticDrawUsage, GLSL3, _SRGBAFormat, WebGLCoordinateSystem, WebGPUCoordinateSystem, EventDispatcher, _lut, _seed, DEG2RAD, RAD2DEG, MathUtils, Vector2, Matrix3, _m3, _cache, LINEAR_SRGB_TO_LINEAR_DISPLAY_P3, LINEAR_DISPLAY_P3_TO_LINEAR_SRGB, COLOR_SPACES, SUPPORTED_WORKING_COLOR_SPACES, ColorManagement, _canvas, ImageUtils, _sourceId, Source, _textureId, Texture, Vector4, RenderTarget, WebGLRenderTarget, DataArrayTexture, Data3DTexture, Quaternion, Vector3, _vector$c, _quaternion$4, Box3, _points, _vector$b, _box$4, _v0$2, _v1$7, _v2$4, _f0, _f1, _f2, _center, _extents, _triangleNormal, _testAxis, _box$3, _v1$6, _v2$3, Sphere, _vector$a, _segCenter, _segDir, _diff, _edge1, _edge2, _normal$1, Ray, Matrix4, _v1$5, _m1$2, _zero, _one, _x, _y, _z, _matrix$1, _quaternion$3, Euler, Layers, _object3DId, _v1$4, _q1, _m1$1, _target, _position$3, _scale$2, _quaternion$2, _xAxis, _yAxis, _zAxis, _addedEvent, _removedEvent, Object3D, _v0$1, _v1$3, _v2$2, _v3$1, _vab, _vac, _vbc, _vap, _vbp, _vcp, warnedGetUV, Triangle, _colorKeywords, _hslA, _hslB, Color, _color, _materialId, Material, MeshBasicMaterial, _vector$9, _vector2$1, BufferAttribute, Uint16BufferAttribute, Uint32BufferAttribute, Float32BufferAttribute, _id$2, _m1, _obj, _offset, _box$2, _boxMorphTargets, _vector$8, BufferGeometry, _inverseMatrix$3, _ray$3, _sphere$6, _sphereHitAt, _vA$1, _vB$1, _vC$1, _tempA, _morphA, _uvA$1, _uvB$1, _uvC$1, _normalA, _normalB, _normalC, _intersectionPoint, _intersectionPointWorld, Mesh, BoxGeometry, UniformsUtils, default_vertex, default_fragment, ShaderMaterial, Camera, PerspectiveCamera, fov, aspect, CubeCamera, CubeTexture, WebGLCubeRenderTarget, _vector1, _vector2, _normalMatrix, Plane, _sphere$5, _vector$7, Frustum, PlaneGeometry, alphahash_fragment, alphahash_pars_fragment, alphamap_fragment, alphamap_pars_fragment, alphatest_fragment, alphatest_pars_fragment, aomap_fragment, aomap_pars_fragment, batching_pars_vertex, batching_vertex, begin_vertex, beginnormal_vertex, bsdfs, iridescence_fragment, bumpmap_pars_fragment, clipping_planes_fragment, clipping_planes_pars_fragment, clipping_planes_pars_vertex, clipping_planes_vertex, color_fragment, color_pars_fragment, color_pars_vertex, color_vertex, common, cube_uv_reflection_fragment, defaultnormal_vertex, displacementmap_pars_vertex, displacementmap_vertex, emissivemap_fragment, emissivemap_pars_fragment, colorspace_fragment, colorspace_pars_fragment, envmap_fragment, envmap_common_pars_fragment, envmap_pars_fragment, envmap_pars_vertex, envmap_vertex, fog_vertex, fog_pars_vertex, fog_fragment, fog_pars_fragment, gradientmap_pars_fragment, lightmap_fragment, lightmap_pars_fragment, lights_lambert_fragment, lights_lambert_pars_fragment, lights_pars_begin, envmap_physical_pars_fragment, lights_toon_fragment, lights_toon_pars_fragment, lights_phong_fragment, lights_phong_pars_fragment, lights_physical_fragment, lights_physical_pars_fragment, lights_fragment_begin, lights_fragment_maps, lights_fragment_end, logdepthbuf_fragment, logdepthbuf_pars_fragment, logdepthbuf_pars_vertex, logdepthbuf_vertex, map_fragment, map_pars_fragment, map_particle_fragment, map_particle_pars_fragment, metalnessmap_fragment, metalnessmap_pars_fragment, morphcolor_vertex, morphnormal_vertex, morphtarget_pars_vertex, morphtarget_vertex, normal_fragment_begin, normal_fragment_maps, normal_pars_fragment, normal_pars_vertex, normal_vertex, normalmap_pars_fragment, clearcoat_normal_fragment_begin, clearcoat_normal_fragment_maps, clearcoat_pars_fragment, iridescence_pars_fragment, opaque_fragment, packing, premultiplied_alpha_fragment, project_vertex, dithering_fragment, dithering_pars_fragment, roughnessmap_fragment, roughnessmap_pars_fragment, shadowmap_pars_fragment, shadowmap_pars_vertex, shadowmap_vertex, shadowmask_pars_fragment, skinbase_vertex, skinning_pars_vertex, skinning_vertex, skinnormal_vertex, specularmap_fragment, specularmap_pars_fragment, tonemapping_fragment, tonemapping_pars_fragment, transmission_fragment, transmission_pars_fragment, uv_pars_fragment, uv_pars_vertex, uv_vertex, worldpos_vertex, vertex$h, fragment$h, vertex$g, fragment$g, vertex$f, fragment$f, vertex$e, fragment$e, vertex$d, fragment$d, vertex$c, fragment$c, vertex$b, fragment$b, vertex$a, fragment$a, vertex$9, fragment$9, vertex$8, fragment$8, vertex$7, fragment$7, vertex$6, fragment$6, vertex$5, fragment$5, vertex$4, fragment$4, vertex$3, fragment$3, vertex$2, fragment$2, vertex$1, fragment$1, ShaderChunk, UniformsLib, ShaderLib, _rgb, OrthographicCamera, LOD_MIN, EXTRA_LOD_SIGMA, MAX_SAMPLES, _flatCamera, _clearColor, _oldTarget, _oldActiveCubeFace, _oldActiveMipmapLevel, PHI, INV_PHI, _axisDirections, PMREMGenerator, DepthTexture, emptyTexture, emptyShadowTexture, emptyArrayTexture, empty3dTexture, emptyCubeTexture, arrayCacheF32, arrayCacheI32, mat4array, mat3array, mat2array, SingleUniform, PureArrayUniform, StructuredUniform, RePathPart, WebGLUniforms, COMPLETION_STATUS_KHR, programIdCount, includePattern, shaderChunkMap, unrollLoopPattern, _id$1, WebGLShaderCache, WebGLShaderStage, nextVersion, MeshDepthMaterial, MeshDistanceMaterial, vertex, fragment, ArrayCamera, Group, _moveEvent, WebXRController, WebXRManager, WebGLRenderer, WebGL1Renderer, Fog, Scene, InterleavedBuffer, _vector$6, InterleavedBufferAttribute, SpriteMaterial, _geometry, _intersectPoint, _worldScale, _mvPosition, _alignedPosition, _rotatedPosition, _viewWorldMatrix, _vA, _vB, _vC, _uvA, _uvB, _uvC, Sprite, _basePosition, _skinIndex, _skinWeight, _vector3, _matrix4, _vertex, _sphere$4, _inverseMatrix$2, _ray$2, SkinnedMesh, Bone, DataTexture, _offsetMatrix, _identityMatrix$1, Skeleton, InstancedBufferAttribute, _instanceLocalMatrix, _instanceWorldMatrix, _instanceIntersects, _box3, _identity, _mesh$1, _sphere$3, InstancedMesh, LineBasicMaterial, _start$1, _end$1, _inverseMatrix$1, _ray$1, _sphere$1, Line, _start, _end, LineSegments, LineLoop, PointsMaterial, _inverseMatrix, _ray, _sphere, _position$2, Points, CompressedTexture, CanvasTexture, Curve, EllipseCurve, ArcCurve, tmp, px, py, pz, CatmullRomCurve3, CubicBezierCurve, CubicBezierCurve3, LineCurve, LineCurve3, QuadraticBezierCurve, QuadraticBezierCurve3, SplineCurve, Curves, CurvePath, Path, CircleGeometry, CylinderGeometry, ConeGeometry, PolyhedronGeometry, DodecahedronGeometry, Shape, Earcut, ShapeUtils, IcosahedronGeometry, OctahedronGeometry, ShapeGeometry, SphereGeometry, TetrahedronGeometry, TorusGeometry, TorusKnotGeometry, MeshStandardMaterial, MeshPhysicalMaterial, Interpolant, CubicInterpolant, LinearInterpolant, DiscreteInterpolant, KeyframeTrack, BooleanKeyframeTrack, ColorKeyframeTrack, NumberKeyframeTrack, QuaternionLinearInterpolant, QuaternionKeyframeTrack, StringKeyframeTrack, VectorKeyframeTrack, AnimationClip, Cache, LoadingManager, DefaultLoadingManager, Loader, loading, HttpError, FileLoader, ImageLoader, TextureLoader, Light, HemisphereLight, _projScreenMatrix$1, _lightPositionWorld$1, _lookTarget$1, LightShadow, SpotLightShadow, SpotLight, _projScreenMatrix, _lightPositionWorld, _lookTarget, PointLightShadow, PointLight, DirectionalLightShadow, DirectionalLight, AmbientLight, LoaderUtils, ImageBitmapLoader, _context, AudioContext, Clock, _position$1, _quaternion$1, _scale$1, _orientation$1, AudioListener, Audio, _position, _quaternion, _scale, _orientation, PositionalAudio, PropertyMixer, _RESERVED_CHARS_RE, _reservedRe, _wordChar, _wordCharOrDot, _directoryRe, _nodeRe, _objectRe, _propertyRe, _trackRe, _supportedObjectNames, Composite, PropertyBinding, AnimationAction, _controlInterpolantsResultBuffer, AnimationMixer, Uniform, Raycaster, Spherical, _startP, _startEnd, Line3, _vector$3, SpotLightHelper, PointLightHelper, _vector$1, _color1, _color2, HemisphereLightHelper, GridHelper, _v1, _v2, _v3, DirectionalLightHelper, AxesHelper;
   var init_three_module = __esm({
     "node_modules/three/build/three.module.js"() {
       REVISION = "160";
@@ -18757,6 +18770,106 @@
           return this;
         }
       };
+      _intersectPoint = /* @__PURE__ */ new Vector3();
+      _worldScale = /* @__PURE__ */ new Vector3();
+      _mvPosition = /* @__PURE__ */ new Vector3();
+      _alignedPosition = /* @__PURE__ */ new Vector2();
+      _rotatedPosition = /* @__PURE__ */ new Vector2();
+      _viewWorldMatrix = /* @__PURE__ */ new Matrix4();
+      _vA = /* @__PURE__ */ new Vector3();
+      _vB = /* @__PURE__ */ new Vector3();
+      _vC = /* @__PURE__ */ new Vector3();
+      _uvA = /* @__PURE__ */ new Vector2();
+      _uvB = /* @__PURE__ */ new Vector2();
+      _uvC = /* @__PURE__ */ new Vector2();
+      Sprite = class extends Object3D {
+        constructor(material = new SpriteMaterial()) {
+          super();
+          this.isSprite = true;
+          this.type = "Sprite";
+          if (_geometry === void 0) {
+            _geometry = new BufferGeometry();
+            const float32Array = new Float32Array([
+              -0.5,
+              -0.5,
+              0,
+              0,
+              0,
+              0.5,
+              -0.5,
+              0,
+              1,
+              0,
+              0.5,
+              0.5,
+              0,
+              1,
+              1,
+              -0.5,
+              0.5,
+              0,
+              0,
+              1
+            ]);
+            const interleavedBuffer = new InterleavedBuffer(float32Array, 5);
+            _geometry.setIndex([0, 1, 2, 0, 2, 3]);
+            _geometry.setAttribute("position", new InterleavedBufferAttribute(interleavedBuffer, 3, 0, false));
+            _geometry.setAttribute("uv", new InterleavedBufferAttribute(interleavedBuffer, 2, 3, false));
+          }
+          this.geometry = _geometry;
+          this.material = material;
+          this.center = new Vector2(0.5, 0.5);
+        }
+        raycast(raycaster, intersects2) {
+          if (raycaster.camera === null) {
+            console.error('THREE.Sprite: "Raycaster.camera" needs to be set in order to raycast against sprites.');
+          }
+          _worldScale.setFromMatrixScale(this.matrixWorld);
+          _viewWorldMatrix.copy(raycaster.camera.matrixWorld);
+          this.modelViewMatrix.multiplyMatrices(raycaster.camera.matrixWorldInverse, this.matrixWorld);
+          _mvPosition.setFromMatrixPosition(this.modelViewMatrix);
+          if (raycaster.camera.isPerspectiveCamera && this.material.sizeAttenuation === false) {
+            _worldScale.multiplyScalar(-_mvPosition.z);
+          }
+          const rotation = this.material.rotation;
+          let sin, cos;
+          if (rotation !== 0) {
+            cos = Math.cos(rotation);
+            sin = Math.sin(rotation);
+          }
+          const center = this.center;
+          transformVertex(_vA.set(-0.5, -0.5, 0), _mvPosition, center, _worldScale, sin, cos);
+          transformVertex(_vB.set(0.5, -0.5, 0), _mvPosition, center, _worldScale, sin, cos);
+          transformVertex(_vC.set(0.5, 0.5, 0), _mvPosition, center, _worldScale, sin, cos);
+          _uvA.set(0, 0);
+          _uvB.set(1, 0);
+          _uvC.set(1, 1);
+          let intersect2 = raycaster.ray.intersectTriangle(_vA, _vB, _vC, false, _intersectPoint);
+          if (intersect2 === null) {
+            transformVertex(_vB.set(-0.5, 0.5, 0), _mvPosition, center, _worldScale, sin, cos);
+            _uvB.set(0, 1);
+            intersect2 = raycaster.ray.intersectTriangle(_vA, _vC, _vB, false, _intersectPoint);
+            if (intersect2 === null) {
+              return;
+            }
+          }
+          const distance2 = raycaster.ray.origin.distanceTo(_intersectPoint);
+          if (distance2 < raycaster.near || distance2 > raycaster.far) return;
+          intersects2.push({
+            distance: distance2,
+            point: _intersectPoint.clone(),
+            uv: Triangle.getInterpolation(_intersectPoint, _vA, _vB, _vC, _uvA, _uvB, _uvC, new Vector2()),
+            face: null,
+            object: this
+          });
+        }
+        copy(source, recursive) {
+          super.copy(source, recursive);
+          if (source.center !== void 0) this.center.copy(source.center);
+          this.material = source.material;
+          return this;
+        }
+      };
       _basePosition = /* @__PURE__ */ new Vector3();
       _skinIndex = /* @__PURE__ */ new Vector4();
       _skinWeight = /* @__PURE__ */ new Vector4();
@@ -23213,6 +23326,17 @@
           scope.manager.itemStart(url);
         }
       };
+      AudioContext = class {
+        static getContext() {
+          if (_context === void 0) {
+            _context = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          return _context;
+        }
+        static setContext(value) {
+          _context = value;
+        }
+      };
       Clock = class {
         constructor(autoStart = true) {
           this.autoStart = autoStart;
@@ -23249,6 +23373,374 @@
             this.elapsedTime += diff;
           }
           return diff;
+        }
+      };
+      _position$1 = /* @__PURE__ */ new Vector3();
+      _quaternion$1 = /* @__PURE__ */ new Quaternion();
+      _scale$1 = /* @__PURE__ */ new Vector3();
+      _orientation$1 = /* @__PURE__ */ new Vector3();
+      AudioListener = class extends Object3D {
+        constructor() {
+          super();
+          this.type = "AudioListener";
+          this.context = AudioContext.getContext();
+          this.gain = this.context.createGain();
+          this.gain.connect(this.context.destination);
+          this.filter = null;
+          this.timeDelta = 0;
+          this._clock = new Clock();
+        }
+        getInput() {
+          return this.gain;
+        }
+        removeFilter() {
+          if (this.filter !== null) {
+            this.gain.disconnect(this.filter);
+            this.filter.disconnect(this.context.destination);
+            this.gain.connect(this.context.destination);
+            this.filter = null;
+          }
+          return this;
+        }
+        getFilter() {
+          return this.filter;
+        }
+        setFilter(value) {
+          if (this.filter !== null) {
+            this.gain.disconnect(this.filter);
+            this.filter.disconnect(this.context.destination);
+          } else {
+            this.gain.disconnect(this.context.destination);
+          }
+          this.filter = value;
+          this.gain.connect(this.filter);
+          this.filter.connect(this.context.destination);
+          return this;
+        }
+        getMasterVolume() {
+          return this.gain.gain.value;
+        }
+        setMasterVolume(value) {
+          this.gain.gain.setTargetAtTime(value, this.context.currentTime, 0.01);
+          return this;
+        }
+        updateMatrixWorld(force) {
+          super.updateMatrixWorld(force);
+          const listener = this.context.listener;
+          const up = this.up;
+          this.timeDelta = this._clock.getDelta();
+          this.matrixWorld.decompose(_position$1, _quaternion$1, _scale$1);
+          _orientation$1.set(0, 0, -1).applyQuaternion(_quaternion$1);
+          if (listener.positionX) {
+            const endTime = this.context.currentTime + this.timeDelta;
+            listener.positionX.linearRampToValueAtTime(_position$1.x, endTime);
+            listener.positionY.linearRampToValueAtTime(_position$1.y, endTime);
+            listener.positionZ.linearRampToValueAtTime(_position$1.z, endTime);
+            listener.forwardX.linearRampToValueAtTime(_orientation$1.x, endTime);
+            listener.forwardY.linearRampToValueAtTime(_orientation$1.y, endTime);
+            listener.forwardZ.linearRampToValueAtTime(_orientation$1.z, endTime);
+            listener.upX.linearRampToValueAtTime(up.x, endTime);
+            listener.upY.linearRampToValueAtTime(up.y, endTime);
+            listener.upZ.linearRampToValueAtTime(up.z, endTime);
+          } else {
+            listener.setPosition(_position$1.x, _position$1.y, _position$1.z);
+            listener.setOrientation(_orientation$1.x, _orientation$1.y, _orientation$1.z, up.x, up.y, up.z);
+          }
+        }
+      };
+      Audio = class extends Object3D {
+        constructor(listener) {
+          super();
+          this.type = "Audio";
+          this.listener = listener;
+          this.context = listener.context;
+          this.gain = this.context.createGain();
+          this.gain.connect(listener.getInput());
+          this.autoplay = false;
+          this.buffer = null;
+          this.detune = 0;
+          this.loop = false;
+          this.loopStart = 0;
+          this.loopEnd = 0;
+          this.offset = 0;
+          this.duration = void 0;
+          this.playbackRate = 1;
+          this.isPlaying = false;
+          this.hasPlaybackControl = true;
+          this.source = null;
+          this.sourceType = "empty";
+          this._startedAt = 0;
+          this._progress = 0;
+          this._connected = false;
+          this.filters = [];
+        }
+        getOutput() {
+          return this.gain;
+        }
+        setNodeSource(audioNode) {
+          this.hasPlaybackControl = false;
+          this.sourceType = "audioNode";
+          this.source = audioNode;
+          this.connect();
+          return this;
+        }
+        setMediaElementSource(mediaElement) {
+          this.hasPlaybackControl = false;
+          this.sourceType = "mediaNode";
+          this.source = this.context.createMediaElementSource(mediaElement);
+          this.connect();
+          return this;
+        }
+        setMediaStreamSource(mediaStream) {
+          this.hasPlaybackControl = false;
+          this.sourceType = "mediaStreamNode";
+          this.source = this.context.createMediaStreamSource(mediaStream);
+          this.connect();
+          return this;
+        }
+        setBuffer(audioBuffer) {
+          this.buffer = audioBuffer;
+          this.sourceType = "buffer";
+          if (this.autoplay) this.play();
+          return this;
+        }
+        play(delay = 0) {
+          if (this.isPlaying === true) {
+            console.warn("THREE.Audio: Audio is already playing.");
+            return;
+          }
+          if (this.hasPlaybackControl === false) {
+            console.warn("THREE.Audio: this Audio has no playback control.");
+            return;
+          }
+          this._startedAt = this.context.currentTime + delay;
+          const source = this.context.createBufferSource();
+          source.buffer = this.buffer;
+          source.loop = this.loop;
+          source.loopStart = this.loopStart;
+          source.loopEnd = this.loopEnd;
+          source.onended = this.onEnded.bind(this);
+          source.start(this._startedAt, this._progress + this.offset, this.duration);
+          this.isPlaying = true;
+          this.source = source;
+          this.setDetune(this.detune);
+          this.setPlaybackRate(this.playbackRate);
+          return this.connect();
+        }
+        pause() {
+          if (this.hasPlaybackControl === false) {
+            console.warn("THREE.Audio: this Audio has no playback control.");
+            return;
+          }
+          if (this.isPlaying === true) {
+            this._progress += Math.max(this.context.currentTime - this._startedAt, 0) * this.playbackRate;
+            if (this.loop === true) {
+              this._progress = this._progress % (this.duration || this.buffer.duration);
+            }
+            this.source.stop();
+            this.source.onended = null;
+            this.isPlaying = false;
+          }
+          return this;
+        }
+        stop() {
+          if (this.hasPlaybackControl === false) {
+            console.warn("THREE.Audio: this Audio has no playback control.");
+            return;
+          }
+          this._progress = 0;
+          if (this.source !== null) {
+            this.source.stop();
+            this.source.onended = null;
+          }
+          this.isPlaying = false;
+          return this;
+        }
+        connect() {
+          if (this.filters.length > 0) {
+            this.source.connect(this.filters[0]);
+            for (let i = 1, l = this.filters.length; i < l; i++) {
+              this.filters[i - 1].connect(this.filters[i]);
+            }
+            this.filters[this.filters.length - 1].connect(this.getOutput());
+          } else {
+            this.source.connect(this.getOutput());
+          }
+          this._connected = true;
+          return this;
+        }
+        disconnect() {
+          if (this._connected === false) {
+            return;
+          }
+          if (this.filters.length > 0) {
+            this.source.disconnect(this.filters[0]);
+            for (let i = 1, l = this.filters.length; i < l; i++) {
+              this.filters[i - 1].disconnect(this.filters[i]);
+            }
+            this.filters[this.filters.length - 1].disconnect(this.getOutput());
+          } else {
+            this.source.disconnect(this.getOutput());
+          }
+          this._connected = false;
+          return this;
+        }
+        getFilters() {
+          return this.filters;
+        }
+        setFilters(value) {
+          if (!value) value = [];
+          if (this._connected === true) {
+            this.disconnect();
+            this.filters = value.slice();
+            this.connect();
+          } else {
+            this.filters = value.slice();
+          }
+          return this;
+        }
+        setDetune(value) {
+          this.detune = value;
+          if (this.source.detune === void 0) return;
+          if (this.isPlaying === true) {
+            this.source.detune.setTargetAtTime(this.detune, this.context.currentTime, 0.01);
+          }
+          return this;
+        }
+        getDetune() {
+          return this.detune;
+        }
+        getFilter() {
+          return this.getFilters()[0];
+        }
+        setFilter(filter) {
+          return this.setFilters(filter ? [filter] : []);
+        }
+        setPlaybackRate(value) {
+          if (this.hasPlaybackControl === false) {
+            console.warn("THREE.Audio: this Audio has no playback control.");
+            return;
+          }
+          this.playbackRate = value;
+          if (this.isPlaying === true) {
+            this.source.playbackRate.setTargetAtTime(this.playbackRate, this.context.currentTime, 0.01);
+          }
+          return this;
+        }
+        getPlaybackRate() {
+          return this.playbackRate;
+        }
+        onEnded() {
+          this.isPlaying = false;
+        }
+        getLoop() {
+          if (this.hasPlaybackControl === false) {
+            console.warn("THREE.Audio: this Audio has no playback control.");
+            return false;
+          }
+          return this.loop;
+        }
+        setLoop(value) {
+          if (this.hasPlaybackControl === false) {
+            console.warn("THREE.Audio: this Audio has no playback control.");
+            return;
+          }
+          this.loop = value;
+          if (this.isPlaying === true) {
+            this.source.loop = this.loop;
+          }
+          return this;
+        }
+        setLoopStart(value) {
+          this.loopStart = value;
+          return this;
+        }
+        setLoopEnd(value) {
+          this.loopEnd = value;
+          return this;
+        }
+        getVolume() {
+          return this.gain.gain.value;
+        }
+        setVolume(value) {
+          this.gain.gain.setTargetAtTime(value, this.context.currentTime, 0.01);
+          return this;
+        }
+      };
+      _position = /* @__PURE__ */ new Vector3();
+      _quaternion = /* @__PURE__ */ new Quaternion();
+      _scale = /* @__PURE__ */ new Vector3();
+      _orientation = /* @__PURE__ */ new Vector3();
+      PositionalAudio = class extends Audio {
+        constructor(listener) {
+          super(listener);
+          this.panner = this.context.createPanner();
+          this.panner.panningModel = "HRTF";
+          this.panner.connect(this.gain);
+        }
+        connect() {
+          super.connect();
+          this.panner.connect(this.gain);
+        }
+        disconnect() {
+          super.disconnect();
+          this.panner.disconnect(this.gain);
+        }
+        getOutput() {
+          return this.panner;
+        }
+        getRefDistance() {
+          return this.panner.refDistance;
+        }
+        setRefDistance(value) {
+          this.panner.refDistance = value;
+          return this;
+        }
+        getRolloffFactor() {
+          return this.panner.rolloffFactor;
+        }
+        setRolloffFactor(value) {
+          this.panner.rolloffFactor = value;
+          return this;
+        }
+        getDistanceModel() {
+          return this.panner.distanceModel;
+        }
+        setDistanceModel(value) {
+          this.panner.distanceModel = value;
+          return this;
+        }
+        getMaxDistance() {
+          return this.panner.maxDistance;
+        }
+        setMaxDistance(value) {
+          this.panner.maxDistance = value;
+          return this;
+        }
+        setDirectionalCone(coneInnerAngle, coneOuterAngle, coneOuterGain) {
+          this.panner.coneInnerAngle = coneInnerAngle;
+          this.panner.coneOuterAngle = coneOuterAngle;
+          this.panner.coneOuterGain = coneOuterGain;
+          return this;
+        }
+        updateMatrixWorld(force) {
+          super.updateMatrixWorld(force);
+          if (this.hasPlaybackControl === true && this.isPlaying === false) return;
+          this.matrixWorld.decompose(_position, _quaternion, _scale);
+          _orientation.set(0, 0, 1).applyQuaternion(_quaternion);
+          const panner = this.panner;
+          if (panner.positionX) {
+            const endTime = this.context.currentTime + this.listener.timeDelta;
+            panner.positionX.linearRampToValueAtTime(_position.x, endTime);
+            panner.positionY.linearRampToValueAtTime(_position.y, endTime);
+            panner.positionZ.linearRampToValueAtTime(_position.z, endTime);
+            panner.orientationX.linearRampToValueAtTime(_orientation.x, endTime);
+            panner.orientationY.linearRampToValueAtTime(_orientation.y, endTime);
+            panner.orientationZ.linearRampToValueAtTime(_orientation.z, endTime);
+          } else {
+            panner.setPosition(_position.x, _position.y, _position.z);
+            panner.setOrientation(_orientation.x, _orientation.y, _orientation.z);
+          }
         }
       };
       PropertyMixer = class {
@@ -26939,20 +27431,20 @@
       }
       return new Float32Array(attribute.array);
     }
-    const _geometry = geometry.index ? geometry.toNonIndexed() : geometry;
+    const _geometry2 = geometry.index ? geometry.toNonIndexed() : geometry;
     const tangents = MikkTSpace.generateTangents(
-      getAttributeArray(_geometry.attributes.position),
-      getAttributeArray(_geometry.attributes.normal),
-      getAttributeArray(_geometry.attributes.uv)
+      getAttributeArray(_geometry2.attributes.position),
+      getAttributeArray(_geometry2.attributes.normal),
+      getAttributeArray(_geometry2.attributes.uv)
     );
     if (negateSign) {
       for (let i = 3; i < tangents.length; i += 4) {
         tangents[i] *= -1;
       }
     }
-    _geometry.setAttribute("tangent", new BufferAttribute(tangents, 4));
-    if (geometry !== _geometry) {
-      geometry.copy(_geometry);
+    _geometry2.setAttribute("tangent", new BufferAttribute(tangents, 4));
+    if (geometry !== _geometry2) {
+      geometry.copy(_geometry2);
     }
     return geometry;
   }
@@ -27346,9 +27838,9 @@
     }
   }
   function computeMorphedAttributes(object) {
-    const _vA = new Vector3();
-    const _vB = new Vector3();
-    const _vC = new Vector3();
+    const _vA2 = new Vector3();
+    const _vB2 = new Vector3();
+    const _vC2 = new Vector3();
     const _tempA2 = new Vector3();
     const _tempB = new Vector3();
     const _tempC = new Vector3();
@@ -27356,9 +27848,9 @@
     const _morphB = new Vector3();
     const _morphC = new Vector3();
     function _calculateMorphedAttributeData(object2, attribute, morphAttribute, morphTargetsRelative2, a3, b3, c3, modifiedAttributeArray) {
-      _vA.fromBufferAttribute(attribute, a3);
-      _vB.fromBufferAttribute(attribute, b3);
-      _vC.fromBufferAttribute(attribute, c3);
+      _vA2.fromBufferAttribute(attribute, a3);
+      _vB2.fromBufferAttribute(attribute, b3);
+      _vC2.fromBufferAttribute(attribute, c3);
       const morphInfluences = object2.morphTargetInfluences;
       if (morphAttribute && morphInfluences) {
         _morphA2.set(0, 0, 0);
@@ -27376,29 +27868,29 @@
             _morphB.addScaledVector(_tempB, influence);
             _morphC.addScaledVector(_tempC, influence);
           } else {
-            _morphA2.addScaledVector(_tempA2.sub(_vA), influence);
-            _morphB.addScaledVector(_tempB.sub(_vB), influence);
-            _morphC.addScaledVector(_tempC.sub(_vC), influence);
+            _morphA2.addScaledVector(_tempA2.sub(_vA2), influence);
+            _morphB.addScaledVector(_tempB.sub(_vB2), influence);
+            _morphC.addScaledVector(_tempC.sub(_vC2), influence);
           }
         }
-        _vA.add(_morphA2);
-        _vB.add(_morphB);
-        _vC.add(_morphC);
+        _vA2.add(_morphA2);
+        _vB2.add(_morphB);
+        _vC2.add(_morphC);
       }
       if (object2.isSkinnedMesh) {
-        object2.applyBoneTransform(a3, _vA);
-        object2.applyBoneTransform(b3, _vB);
-        object2.applyBoneTransform(c3, _vC);
+        object2.applyBoneTransform(a3, _vA2);
+        object2.applyBoneTransform(b3, _vB2);
+        object2.applyBoneTransform(c3, _vC2);
       }
-      modifiedAttributeArray[a3 * 3 + 0] = _vA.x;
-      modifiedAttributeArray[a3 * 3 + 1] = _vA.y;
-      modifiedAttributeArray[a3 * 3 + 2] = _vA.z;
-      modifiedAttributeArray[b3 * 3 + 0] = _vB.x;
-      modifiedAttributeArray[b3 * 3 + 1] = _vB.y;
-      modifiedAttributeArray[b3 * 3 + 2] = _vB.z;
-      modifiedAttributeArray[c3 * 3 + 0] = _vC.x;
-      modifiedAttributeArray[c3 * 3 + 1] = _vC.y;
-      modifiedAttributeArray[c3 * 3 + 2] = _vC.z;
+      modifiedAttributeArray[a3 * 3 + 0] = _vA2.x;
+      modifiedAttributeArray[a3 * 3 + 1] = _vA2.y;
+      modifiedAttributeArray[a3 * 3 + 2] = _vA2.z;
+      modifiedAttributeArray[b3 * 3 + 0] = _vB2.x;
+      modifiedAttributeArray[b3 * 3 + 1] = _vB2.y;
+      modifiedAttributeArray[b3 * 3 + 2] = _vB2.z;
+      modifiedAttributeArray[c3 * 3 + 0] = _vC2.x;
+      modifiedAttributeArray[c3 * 3 + 1] = _vC2.y;
+      modifiedAttributeArray[c3 * 3 + 2] = _vC2.z;
     }
     const geometry = object.geometry;
     const material = object.material;
@@ -29934,6 +30426,444 @@
     return { r, g, b: b2 };
   }
 
+  // js/componentManager.js
+  init_three_module();
+  var SCENE_COMPONENT_IDS = [
+    "animation",
+    "audioSource",
+    "light",
+    "trigger",
+    "interactable",
+    "collectible",
+    "movingPlatform",
+    "billboard",
+    "lod",
+    "visibility"
+  ];
+  var ComponentManager = class {
+    constructor(app) {
+      this.app = app;
+      this.attachments = /* @__PURE__ */ new Map();
+      this.audioListener = null;
+      this.collectedCount = 0;
+      this.interactionPrompt = null;
+      this._bindEvents();
+    }
+    _bindEvents() {
+      this._onKeyDown = (event) => this._handleKeyDown(event);
+      window.addEventListener("keydown", this._onKeyDown);
+      const resumeAudio = () => {
+        if (this.audioListener?.context?.state === "suspended") {
+          this.audioListener.context.resume().catch(() => {
+          });
+        }
+        document.removeEventListener("pointerdown", resumeAudio);
+      };
+      document.addEventListener("pointerdown", resumeAudio);
+    }
+    getData(obj, id) {
+      return obj?.userData?.components?.[id] || null;
+    }
+    _ensureAudioListener() {
+      const camera = this.app.camera;
+      if (!camera) return null;
+      if (!this.audioListener) this.audioListener = new AudioListener();
+      if (this.audioListener.parent !== camera) {
+        this.audioListener.removeFromParent();
+        camera.add(this.audioListener);
+      }
+      return this.audioListener;
+    }
+    ensureAll() {
+      const objects = this.app.getAllObjects ? this.app.getAllObjects() : [...this.app.objects || []];
+      objects.forEach((obj) => this.ensureObject(obj));
+    }
+    ensureObject(obj) {
+      if (!obj?.userData) return;
+      const components = obj.userData.components;
+      const attached = this.attachments.get(obj.uuid) || /* @__PURE__ */ new Map();
+      this.attachments.set(obj.uuid, attached);
+      if (!components) return;
+      SCENE_COMPONENT_IDS.forEach((id) => {
+        const data = components[id];
+        if (data && typeof data === "object") {
+          if (!attached.has(id)) {
+            const state = this.attach(obj, id, data);
+            if (state) attached.set(id, state);
+          }
+        } else if (attached.has(id)) {
+          this.detach(obj, id);
+        }
+      });
+    }
+    attach(obj, id, data) {
+      let state = { obj, id, data };
+      try {
+        if (id === "animation") {
+          const clipId = this._clipId(obj);
+          const clip = this.app.animationManager?.getClip(clipId);
+          this.app.animationManager?.setLoop(data.loop !== false);
+          this.app.animationManager?.setSpeed(data.speed ?? 1);
+          if (data.autoplay !== false && clip) {
+            setTimeout(() => this.app.animationManager?.play(), 0);
+          }
+        } else if (id === "audioSource") {
+          const listener = this._ensureAudioListener();
+          if (!listener) return null;
+          const sound = data.positional !== false ? new PositionalAudio(listener) : new Audio(listener);
+          sound.setLoop(!!data.loop);
+          sound.setVolume(Number(data.volume ?? 1));
+          if (sound.isPositionalAudio) {
+            sound.setRefDistance(Number(data.refDistance ?? 1));
+            sound.setMaxDistance(Number(data.maxDistance ?? 20));
+          }
+          obj.add(sound);
+          state.sound = sound;
+          const url = this._resolveAudioUrl(data);
+          if (url) {
+            sound.load(url, () => {
+              if (data.autoplay) this.playAudioState(state);
+            }, () => {
+              console.warn("Could not load audio component source:", url);
+            });
+          }
+        } else if (id === "light") {
+          const light = this._createComponentLight(data);
+          obj.add(light);
+          if (light.target) obj.add(light.target);
+          state.light = light;
+        } else if (id === "trigger") {
+          state.inside = false;
+          state.fired = false;
+        } else if (id === "collectible") {
+          state.originY = obj.position.y;
+          state.phase = Math.random() * Math.PI * 2;
+          state.collected = false;
+        } else if (id === "movingPlatform") {
+          state.origin = obj.position.clone();
+          state.time = 0;
+        } else if (id === "billboard") {
+          state.sprite = this._createLabelSprite(data);
+          if (state.sprite) obj.add(state.sprite);
+        } else if (id === "lod") {
+          state.restoreVisible = true;
+        } else if (id === "visibility") {
+          obj.visible = data.visible !== false;
+        }
+        return state;
+      } catch (error) {
+        console.warn(`Could not attach ${id} component:`, error);
+        return null;
+      }
+    }
+    detach(obj, id) {
+      const attached = this.attachments.get(obj.uuid);
+      const state = attached?.get(id);
+      if (state) {
+        if (id === "audioSource" && state.sound) {
+          state.sound.stop();
+          state.sound.disconnect();
+          state.sound.removeFromParent();
+        } else if (id === "light" && state.light) {
+          state.light.removeFromParent();
+          state.light.target?.removeFromParent();
+          state.light.dispose?.();
+        } else if (id === "billboard" && state.sprite) {
+          state.sprite.removeFromParent();
+          state.sprite.material?.map?.dispose();
+          state.sprite.material?.dispose();
+        } else if (id === "movingPlatform" && state.origin) {
+          obj.position.copy(state.origin);
+        } else if (id === "collectible" && state.collected) {
+          obj.visible = true;
+        } else if (id === "lod" && state.restoreVisible) {
+          obj.visible = true;
+        }
+      }
+      attached?.delete(id);
+      if (attached && attached.size === 0) this.attachments.delete(obj.uuid);
+    }
+    detachAll(obj) {
+      const attached = this.attachments.get(obj.uuid);
+      if (!attached) return;
+      [...attached.keys()].forEach((id) => this.detach(obj, id));
+    }
+    clear() {
+      this.attachments.forEach((map, uuid) => {
+        const obj = this.app.scene?.getObjectByProperty("uuid", uuid);
+        if (obj) this.detachAll(obj);
+      });
+      this.attachments.clear();
+    }
+    refreshComponent(obj, id) {
+      this.detach(obj, id);
+      this.ensureObject(obj);
+    }
+    update(delta) {
+      this._ensureAudioListener();
+      this.ensureAll();
+      this._updateInteractionPrompt();
+      this.attachments.forEach((map) => {
+        map.forEach((state) => {
+          const { obj, id, data } = state;
+          if (!obj || !obj.parent) return;
+          if (id === "collectible") {
+            if (state.collected) return;
+            state.phase += delta;
+            if (data.spin !== false) obj.rotation.y += delta * 1.8;
+            if (data.bob !== false) obj.position.y = state.originY + Math.sin(state.phase * 2.2) * 0.15;
+          } else if (id === "movingPlatform") {
+            state.time += delta * Math.max(0.01, Number(data.speed ?? 1));
+            const phase = state.time % 2;
+            const amount = phase <= 1 ? phase : 2 - phase;
+            obj.position.set(
+              state.origin.x + Number(data.offsetX ?? 0) * amount,
+              state.origin.y + Number(data.offsetY ?? 0) * amount,
+              state.origin.z + Number(data.offsetZ ?? 0) * amount
+            );
+          } else if (id === "billboard") {
+            if (data.mode === "label") {
+              if (!state.sprite) {
+                state.sprite = this._createLabelSprite(data);
+                if (state.sprite) obj.add(state.sprite);
+              }
+            } else {
+              if (state.sprite) {
+                state.sprite.removeFromParent();
+                state.sprite = null;
+              }
+              obj.lookAt(this.app.camera.position);
+            }
+          } else if (id === "lod") {
+            const distance2 = obj.position.distanceTo(this.app.camera.position);
+            obj.visible = distance2 >= Number(data.minDistance ?? 0) && distance2 <= Number(data.maxDistance ?? 30);
+          } else if (id === "trigger") {
+            this._updateTrigger(state, delta);
+          }
+        });
+      });
+    }
+    _updateTrigger(state, delta) {
+      const { obj, data } = state;
+      if (data.oneShot && state.fired) return;
+      const camera = this.app.camera;
+      if (!camera) return;
+      const local = obj.worldToLocal(camera.position.clone());
+      let inside = false;
+      if ((data.shape || "box") === "sphere") {
+        inside = local.length() <= Number(data.radius ?? 1);
+      } else {
+        inside = Math.abs(local.x) <= Number(data.sizeX ?? 1) / 2 && Math.abs(local.y) <= Number(data.sizeY ?? 1) / 2 && Math.abs(local.z) <= Number(data.sizeZ ?? 1) / 2;
+      }
+      if (inside && !state.inside) {
+        state.fired = true;
+        const message = data.message || `${obj.userData.name || "Trigger"} activated`;
+        this.app.ui?.showNotification?.(message, "info");
+        window.dispatchEvent(new CustomEvent("pixel3d:trigger", {
+          detail: { object: obj, component: data }
+        }));
+      }
+      state.inside = inside;
+    }
+    _createComponentLight(data) {
+      const color = data.color || "#ffffff";
+      const intensity = Number(data.intensity ?? 1);
+      let light;
+      switch (data.type || "point") {
+        case "spot":
+          light = new SpotLight(color, intensity, Number(data.distance ?? 20), Number(data.angle ?? Math.PI / 6), Number(data.penumbra ?? 0.2));
+          light.position.set(0, 3, 2);
+          light.target.position.set(0, 0, 0);
+          break;
+        case "directional":
+          light = new DirectionalLight(color, intensity);
+          light.position.set(3, 5, 3);
+          light.target.position.set(0, 0, 0);
+          break;
+        case "ambient":
+          light = new AmbientLight(color, intensity);
+          break;
+        case "hemisphere":
+          light = new HemisphereLight(color, data.groundColor || "#444444", intensity);
+          break;
+        default:
+          light = new PointLight(color, intensity, Number(data.distance ?? 20));
+          light.position.set(0, 1, 0);
+      }
+      light.castShadow = data.castShadow === true;
+      return light;
+    }
+    _createLabelSprite(data) {
+      if (data.mode !== "label") return null;
+      const text = data.text || "Label";
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.fillStyle = data.background || "rgba(15, 23, 42, 0.82)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `600 ${Number(data.fontSize ?? 48)}px Inter, sans-serif`;
+      ctx.fillStyle = data.color || "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+      const texture = new CanvasTexture(canvas);
+      texture.colorSpace = SRGBColorSpace;
+      const material = new SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+      const sprite = new Sprite(material);
+      const scale = Number(data.scale ?? 1);
+      sprite.scale.set(2 * scale, 0.5 * scale, 1);
+      sprite.position.y = Number(data.offsetY ?? 1.5);
+      sprite.renderOrder = 10;
+      return sprite;
+    }
+    _resolveAudioUrl(data) {
+      if (data.assetId) {
+        const asset = this.app.ui?.getAsset?.("audio", data.assetId);
+        if (asset?.url) return asset.url;
+      }
+      return data.url || "";
+    }
+    _clipId(obj) {
+      return obj.userData?.id || obj.uuid;
+    }
+    playAudioForObject(obj) {
+      const state = this.attachments.get(obj.uuid)?.get("audioSource");
+      if (state) this.playAudioState(state);
+    }
+    playAudioState(state) {
+      if (!state?.sound) return;
+      const play = () => {
+        if (!state.sound.isPlaying) state.sound.play();
+      };
+      if (this.audioListener?.context?.state === "suspended") {
+        this.audioListener.context.resume().then(play).catch(() => {
+        });
+      } else {
+        play();
+      }
+    }
+    stopAudioForObject(obj) {
+      const state = this.attachments.get(obj.uuid)?.get("audioSource");
+      if (state?.sound?.isPlaying) state.sound.stop();
+    }
+    playAnimationForObject(obj) {
+      const clip = this.app.animationManager?.getClip(this._clipId(obj));
+      if (!clip) {
+        this.app.ui?.showNotification?.("This object has no animation clip yet", "warning");
+        return;
+      }
+      this.app.animationManager.setLoop(this.getData(obj, "animation")?.loop !== false);
+      this.app.animationManager.play();
+    }
+    collect(obj) {
+      const data = this.getData(obj, "collectible");
+      if (!data) return;
+      const state = this.attachments.get(obj.uuid)?.get("collectible");
+      if (state?.collected) return;
+      if (state) state.collected = true;
+      obj.visible = false;
+      this.collectedCount += Number(data.value ?? 1);
+      this.app.ui?.showNotification?.(`Collected! Score: ${this.collectedCount}`, "success");
+    }
+    toggleVisibility(obj) {
+      obj.visible = !obj.visible;
+      const data = this.getData(obj, "visibility");
+      if (data) data.visible = obj.visible;
+      return obj.visible;
+    }
+    _updateInteractionPrompt() {
+      const camera = this.app.camera;
+      if (!camera) return;
+      if (!this.interactionPrompt) {
+        this.interactionPrompt = document.createElement("div");
+        this.interactionPrompt.id = "component-interaction-prompt";
+        this.interactionPrompt.style.cssText = [
+          "position:fixed",
+          "left:50%",
+          "bottom:120px",
+          "transform:translateX(-50%)",
+          "padding:8px 14px",
+          "border:1px solid var(--border-color, #334155)",
+          "border-radius:999px",
+          "background:rgba(15,23,42,.9)",
+          "color:#fff",
+          "font:600 0.75rem Inter,sans-serif",
+          "letter-spacing:.02em",
+          "pointer-events:none",
+          "z-index:9999",
+          "display:none",
+          "box-shadow:0 8px 24px rgba(0,0,0,.35)"
+        ].join(";");
+        document.body.appendChild(this.interactionPrompt);
+      }
+      const objects = this.app.getAllObjects ? this.app.getAllObjects() : [];
+      let nearest = null;
+      objects.forEach((obj) => {
+        const data = this.getData(obj, "interactable");
+        if (!data || !obj.visible) return;
+        const distance2 = obj.position.distanceTo(camera.position);
+        if (distance2 > Number(data.range ?? 3)) return;
+        if (!nearest || distance2 < nearest.distance) nearest = { obj, data, distance: distance2 };
+      });
+      if (nearest) {
+        const key = (nearest.data.key || "e").toUpperCase();
+        this.interactionPrompt.textContent = `${key} \xB7 ${nearest.data.prompt || "Interact"}`;
+        this.interactionPrompt.style.display = "block";
+      } else {
+        this.interactionPrompt.style.display = "none";
+      }
+    }
+    _handleKeyDown(event) {
+      const tag = event.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const key = event.key.toLowerCase();
+      const selected = this.app.selectedObject;
+      if (selected) {
+        const visibility = this.getData(selected, "visibility");
+        if (visibility?.toggleKey && visibility.toggleKey.toLowerCase() === key) {
+          event.preventDefault();
+          this.toggleVisibility(selected);
+          this.app.ui?.renderPropertiesPanel?.(selected);
+          return;
+        }
+      }
+      const objects = this.app.getAllObjects ? this.app.getAllObjects() : [];
+      const camera = this.app.camera;
+      if (!camera) return;
+      const interactables = objects.map((obj) => ({ obj, data: this.getData(obj, "interactable") })).filter(({ obj, data }) => data && obj.visible && obj.position.distanceTo(camera.position) <= Number(data.range ?? 3)).sort((a2, b2) => a2.obj.position.distanceTo(camera.position) - b2.obj.position.distanceTo(camera.position));
+      const target = interactables.find(({ data }) => (data.key || "e").toLowerCase() === key);
+      if (!target) return;
+      event.preventDefault();
+      this.performInteraction(target.obj, target.data);
+    }
+    performInteraction(obj, data) {
+      switch (data.action || "none") {
+        case "toggleVisibility":
+          this.toggleVisibility(obj);
+          break;
+        case "playAnimation":
+          this.playAnimationForObject(obj);
+          break;
+        case "playAudio":
+          this.playAudioForObject(obj);
+          break;
+        case "collect":
+          this.collect(obj);
+          break;
+        default:
+          this.app.ui?.showNotification?.(data.prompt || "Interacted", "info");
+      }
+    }
+    dispose() {
+      window.removeEventListener("keydown", this._onKeyDown);
+      this.clear();
+      this.audioListener?.removeFromParent();
+      this.interactionPrompt?.remove();
+    }
+  };
+
   // js/ui.js
   var UI = class {
     constructor(app) {
@@ -30964,10 +31894,45 @@
                         <button class="btn btn-sm" id="btn-apply-collider" style="width: 100%;">Add Collider</button>
                     </div>
                 </div>
+
+                ${this.sceneComponentAssetCardsHTML()}
             </div>
         `;
       this.setupComponentToggles();
       this.setupComponentButtons();
+    }
+    sceneComponentAssetCardsHTML() {
+      const descriptions = {
+        animation: "Play this object on the animation timeline.",
+        audioSource: "Attach a 2D or positional sound from the audio library.",
+        light: "Add a point, spot, directional, ambient, or hemisphere light.",
+        trigger: "Detect when the play camera enters a box or sphere volume.",
+        interactable: "Press a key near the object to run an action.",
+        collectible: "Spin/bob the object and collect it with an interactable.",
+        movingPlatform: "Move the object back and forth along an offset.",
+        billboard: "Face the camera or show a world-space text label.",
+        lod: "Hide the object outside a distance range.",
+        visibility: "Control visibility directly or with a toggle key."
+      };
+      const definitions = this.componentDefinitions();
+      return SCENE_COMPONENT_IDS.map((id) => {
+        const definition = definitions[id];
+        if (!definition) return "";
+        return `
+                <div class="component-card" data-component="${id}">
+                    <div class="component-card-header">
+                        <span class="component-card-title"><i class="fas ${definition.icon}" style="margin-right:6px;"></i>${definition.name}</span>
+                        <button class="component-toggle" data-component="${id}">\u25BC</button>
+                    </div>
+                    <div class="component-card-content collapsed" style="display:none;">
+                        <div class="property-group">
+                            <div class="property-label" style="line-height:1.4;font-weight:400;">${descriptions[id] || ""}</div>
+                        </div>
+                        <button class="btn btn-sm scene-component-add" data-add-scene-component="${id}" style="width: 100%;">Add to Selected Object</button>
+                    </div>
+                </div>
+            `;
+      }).join("");
     }
     setupComponentToggles() {
       const toggles = document.querySelectorAll(".component-toggle");
@@ -30979,9 +31944,11 @@
           const content = card.querySelector(".component-card-content");
           if (content.classList.contains("collapsed")) {
             content.classList.remove("collapsed");
+            content.style.display = "";
             toggle.textContent = "\u25BC";
           } else {
             content.classList.add("collapsed");
+            content.style.display = "none";
             toggle.textContent = "\u25B6";
           }
         });
@@ -31020,6 +31987,15 @@
           this.applyColliderToObject();
         });
       }
+      document.querySelectorAll("[data-add-scene-component]").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!this.app.selectedObject) {
+            this.showNotification("Please select an object first", "warning");
+            return;
+          }
+          this.addComponentToObject(this.app.selectedObject, button.dataset.addSceneComponent);
+        });
+      });
     }
     addParticleToSelected() {
       if (!this.app.particleManager || !this.app.selectedObject) {
@@ -34638,8 +35614,429 @@
           icon: "fa-cube",
           present: (obj) => !!obj.userData.components?.collider,
           canAdd: (obj) => !!obj.geometry
+        },
+        animation: {
+          name: "Animation",
+          icon: "fa-film",
+          present: (obj) => !!obj.userData.components?.animation,
+          canAdd: () => true
+        },
+        audioSource: {
+          name: "Audio Source",
+          icon: "fa-volume-up",
+          present: (obj) => !!obj.userData.components?.audioSource,
+          canAdd: () => true
+        },
+        light: {
+          name: "Light",
+          icon: "fa-lightbulb",
+          present: (obj) => !!obj.userData.components?.light,
+          canAdd: () => true
+        },
+        trigger: {
+          name: "Trigger Volume",
+          icon: "fa-bullseye",
+          present: (obj) => !!obj.userData.components?.trigger,
+          canAdd: () => true
+        },
+        interactable: {
+          name: "Interactable",
+          icon: "fa-hand-pointer",
+          present: (obj) => !!obj.userData.components?.interactable,
+          canAdd: () => true
+        },
+        collectible: {
+          name: "Collectible",
+          icon: "fa-star",
+          present: (obj) => !!obj.userData.components?.collectible,
+          canAdd: () => true
+        },
+        movingPlatform: {
+          name: "Moving Platform",
+          icon: "fa-arrows-alt-h",
+          present: (obj) => !!obj.userData.components?.movingPlatform,
+          canAdd: () => true
+        },
+        billboard: {
+          name: "Billboard / World Label",
+          icon: "fa-comment-dots",
+          present: (obj) => !!obj.userData.components?.billboard,
+          canAdd: () => true
+        },
+        lod: {
+          name: "LOD / Distance Culling",
+          icon: "fa-layer-group",
+          present: (obj) => !!obj.userData.components?.lod,
+          canAdd: () => true
+        },
+        visibility: {
+          name: "Visibility Toggle",
+          icon: "fa-eye",
+          present: (obj) => !!obj.userData.components?.visibility,
+          canAdd: () => true
         }
       };
+    }
+    defaultSceneComponentData(id) {
+      switch (id) {
+        case "animation":
+          return { autoplay: false, loop: true, speed: 1 };
+        case "audioSource":
+          return { assetId: "", url: "", volume: 1, loop: false, autoplay: false, positional: true, refDistance: 1, maxDistance: 20 };
+        case "light":
+          return { type: "point", color: "#ffffff", intensity: 1, distance: 20, castShadow: false };
+        case "trigger":
+          return { shape: "box", sizeX: 1, sizeY: 1, sizeZ: 1, radius: 1, oneShot: false, message: "Trigger activated" };
+        case "interactable":
+          return { key: "e", range: 3, action: "toggleVisibility", prompt: "Press E to interact" };
+        case "collectible":
+          return { value: 1, spin: true, bob: true };
+        case "movingPlatform":
+          return { offsetX: 0, offsetY: 2, offsetZ: 0, speed: 1 };
+        case "billboard":
+          return { mode: "label", text: "World Label", color: "#ffffff", background: "rgba(15, 23, 42, 0.82)", fontSize: 48, scale: 1, offsetY: 1.5 };
+        case "lod":
+          return { minDistance: 0, maxDistance: 30 };
+        case "visibility":
+          return { visible: true, toggleKey: "" };
+        default:
+          return {};
+      }
+    }
+    addAttachedSceneComponentProperties(obj) {
+      SCENE_COMPONENT_IDS.forEach((id) => {
+        const data = obj.userData.components?.[id];
+        if (!data || typeof data !== "object") return;
+        if (this.propsContent.querySelector(`[data-component="${id}"]`)) return;
+        this.addSceneComponentPanel(obj, id, data);
+      });
+    }
+    addSceneComponentPanel(obj, id, data) {
+      const definitions = this.componentDefinitions();
+      const definition = definitions[id];
+      if (!definition) return;
+      const group = document.createElement("div");
+      group.className = "property-group";
+      group.dataset.component = id;
+      group.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas ${definition.icon}" style="margin-right: 6px;"></i>${definition.name}</div>`;
+      const refresh = () => this.app.componentManager?.refreshComponent(obj, id);
+      const addRow = (labelText, control) => {
+        const row = document.createElement("div");
+        row.className = "input-row";
+        row.style.marginBottom = "6px";
+        const label = document.createElement("span");
+        label.style.cssText = "font-size:0.7rem;color:var(--text-secondary);width:84px;flex-shrink:0;";
+        label.textContent = labelText;
+        row.append(label, control);
+        group.appendChild(row);
+        return row;
+      };
+      const numberInput = (value, onChange, attrs = "") => {
+        const input = document.createElement("input");
+        input.type = "number";
+        input.value = value ?? 0;
+        input.style.cssText = "flex:1;min-width:0;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 7px;font-size:0.72rem;color:var(--text-primary);";
+        input.setAttribute("step", "0.1");
+        if (attrs) input.setAttribute("min", attrs);
+        input.addEventListener("change", () => onChange(parseFloat(input.value) || 0));
+        return input;
+      };
+      const textInput = (value, onChange, placeholder = "") => {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = value || "";
+        input.placeholder = placeholder;
+        input.style.cssText = "flex:1;min-width:0;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 7px;font-size:0.72rem;color:var(--text-primary);";
+        input.addEventListener("change", () => onChange(input.value));
+        return input;
+      };
+      const checkbox = (labelText, checked, onChange) => {
+        const row = document.createElement("label");
+        row.className = "input-row";
+        row.style.cssText = "font-size:0.7rem;color:var(--text-secondary);margin-bottom:6px;";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = !!checked;
+        input.style.marginRight = "6px";
+        input.addEventListener("change", () => onChange(input.checked));
+        row.append(input, document.createTextNode(labelText));
+        group.appendChild(row);
+      };
+      const selectInput = (options, value, onChange) => {
+        const select = document.createElement("select");
+        select.style.cssText = "flex:1;min-width:0;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 7px;font-size:0.72rem;color:var(--text-primary);";
+        options.forEach(([optionValue, label]) => {
+          const option = document.createElement("option");
+          option.value = optionValue;
+          option.textContent = label;
+          if (String(value) === String(optionValue)) option.selected = true;
+          select.appendChild(option);
+        });
+        select.addEventListener("change", () => onChange(select.value));
+        return select;
+      };
+      const buttonRow = (buttons) => {
+        const row = document.createElement("div");
+        row.className = "input-row";
+        row.style.marginTop = "4px";
+        buttons.forEach(([label, handler, primary]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = primary ? "btn primary" : "btn";
+          button.style.flex = "1";
+          button.style.fontSize = "0.7rem";
+          button.textContent = label;
+          button.addEventListener("click", handler);
+          row.appendChild(button);
+        });
+        group.appendChild(row);
+      };
+      if (id === "animation") {
+        const clip = this.app.animationManager?.getClip(obj.userData.id || obj.uuid);
+        const status = document.createElement("div");
+        status.style.cssText = "font-size:0.7rem;color:var(--text-secondary);margin-bottom:6px;";
+        status.textContent = clip ? `Timeline clip: ${clip.duration.toFixed(1)}s` : "No timeline clip yet. Add one from the Animation timeline.";
+        group.appendChild(status);
+        checkbox("Autoplay", data.autoplay, (checked) => {
+          data.autoplay = checked;
+          refresh();
+        });
+        checkbox("Loop", data.loop !== false, (checked) => {
+          data.loop = checked;
+          this.app.animationManager?.setLoop(checked);
+        });
+        addRow("Speed:", numberInput(data.speed ?? 1, (value) => {
+          data.speed = Math.max(0.1, Math.min(4, value));
+          this.app.animationManager?.setSpeed(data.speed);
+        }));
+        buttonRow([
+          ["Play", () => this.app.componentManager?.playAnimationForObject(obj), true],
+          ["Stop", () => this.app.animationManager?.stop(), false]
+        ]);
+      } else if (id === "audioSource") {
+        const urlLabel = document.createElement("div");
+        urlLabel.style.cssText = "font-size:0.67rem;color:var(--text-secondary);margin-bottom:6px;word-break:break-all;";
+        urlLabel.textContent = data.url || "No audio file selected";
+        group.appendChild(urlLabel);
+        const audioAssets = this.assets.audio || [];
+        const assetSelect = selectInput(
+          [["", "Choose audio asset\u2026"], ...audioAssets.map((asset) => [asset.id, asset.name])],
+          data.assetId || "",
+          (value) => {
+            data.assetId = value;
+            const asset = audioAssets.find((item) => item.id === value);
+            data.url = asset?.url || "";
+            data.fileName = asset?.fileName || "";
+            refresh();
+            this.renderPropertiesPanel(obj);
+          }
+        );
+        addRow("Audio:", assetSelect);
+        const volume = document.createElement("input");
+        volume.type = "range";
+        volume.min = "0";
+        volume.max = "1";
+        volume.step = "0.01";
+        volume.value = data.volume ?? 1;
+        volume.style.flex = "1";
+        volume.addEventListener("change", () => {
+          data.volume = parseFloat(volume.value);
+          refresh();
+        });
+        addRow("Volume:", volume);
+        checkbox("Loop", data.loop, (checked) => {
+          data.loop = checked;
+          refresh();
+        });
+        checkbox("Autoplay", data.autoplay, (checked) => {
+          data.autoplay = checked;
+          refresh();
+        });
+        checkbox("3D Positional", data.positional !== false, (checked) => {
+          data.positional = checked;
+          refresh();
+        });
+        addRow("Ref. distance:", numberInput(data.refDistance ?? 1, (value) => {
+          data.refDistance = value;
+          refresh();
+        }));
+        addRow("Max distance:", numberInput(data.maxDistance ?? 20, (value) => {
+          data.maxDistance = value;
+          refresh();
+        }));
+        buttonRow([
+          ["Play", () => this.app.componentManager?.playAudioForObject(obj), true],
+          ["Stop", () => this.app.componentManager?.stopAudioForObject(obj), false]
+        ]);
+      } else if (id === "light") {
+        addRow("Type:", selectInput([
+          ["point", "Point"],
+          ["spot", "Spot"],
+          ["directional", "Directional"],
+          ["ambient", "Ambient"],
+          ["hemisphere", "Hemisphere"]
+        ], data.type || "point", (value) => {
+          data.type = value;
+          refresh();
+        }));
+        const color = document.createElement("input");
+        color.type = "color";
+        color.value = data.color || "#ffffff";
+        color.style.flex = "1";
+        color.addEventListener("change", () => {
+          data.color = color.value;
+          refresh();
+        });
+        addRow("Colour:", color);
+        const intensity = document.createElement("input");
+        intensity.type = "range";
+        intensity.min = "0";
+        intensity.max = "10";
+        intensity.step = "0.05";
+        intensity.value = data.intensity ?? 1;
+        intensity.style.flex = "1";
+        intensity.addEventListener("change", () => {
+          data.intensity = parseFloat(intensity.value);
+          refresh();
+        });
+        addRow("Intensity:", intensity);
+        addRow("Distance:", numberInput(data.distance ?? 20, (value) => {
+          data.distance = value;
+          refresh();
+        }));
+        checkbox("Cast shadows", data.castShadow, (checked) => {
+          data.castShadow = checked;
+          refresh();
+        });
+      } else if (id === "trigger") {
+        addRow("Shape:", selectInput([["box", "Box"], ["sphere", "Sphere"]], data.shape || "box", (value) => {
+          data.shape = value;
+          refresh();
+        }));
+        addRow("Size X:", numberInput(data.sizeX ?? 1, (value) => {
+          data.sizeX = value;
+          refresh();
+        }));
+        addRow("Size Y:", numberInput(data.sizeY ?? 1, (value) => {
+          data.sizeY = value;
+          refresh();
+        }));
+        addRow("Size Z:", numberInput(data.sizeZ ?? 1, (value) => {
+          data.sizeZ = value;
+          refresh();
+        }));
+        addRow("Radius:", numberInput(data.radius ?? 1, (value) => {
+          data.radius = value;
+          refresh();
+        }));
+        checkbox("One shot", data.oneShot, (checked) => {
+          data.oneShot = checked;
+          refresh();
+        });
+        addRow("Message:", textInput(data.message, (value) => {
+          data.message = value;
+        }, "Trigger activated"));
+      } else if (id === "interactable") {
+        addRow("Key:", textInput(data.key || "e", (value) => {
+          data.key = value.slice(0, 1).toLowerCase() || "e";
+        }, "e"));
+        addRow("Range:", numberInput(data.range ?? 3, (value) => {
+          data.range = value;
+        }));
+        addRow("Action:", selectInput([
+          ["toggleVisibility", "Toggle visibility"],
+          ["playAnimation", "Play animation"],
+          ["playAudio", "Play audio"],
+          ["collect", "Collect"],
+          ["none", "Message only"]
+        ], data.action || "toggleVisibility", (value) => {
+          data.action = value;
+        }));
+        addRow("Prompt:", textInput(data.prompt, (value) => {
+          data.prompt = value;
+        }, "Press E to interact"));
+      } else if (id === "collectible") {
+        addRow("Value:", numberInput(data.value ?? 1, (value) => {
+          data.value = value;
+        }));
+        checkbox("Spin", data.spin !== false, (checked) => {
+          data.spin = checked;
+        });
+        checkbox("Bob up and down", data.bob !== false, (checked) => {
+          data.bob = checked;
+        });
+      } else if (id === "movingPlatform") {
+        addRow("Offset X:", numberInput(data.offsetX ?? 0, (value) => {
+          data.offsetX = value;
+          refresh();
+        }));
+        addRow("Offset Y:", numberInput(data.offsetY ?? 2, (value) => {
+          data.offsetY = value;
+          refresh();
+        }));
+        addRow("Offset Z:", numberInput(data.offsetZ ?? 0, (value) => {
+          data.offsetZ = value;
+          refresh();
+        }));
+        addRow("Speed:", numberInput(data.speed ?? 1, (value) => {
+          data.speed = value;
+          refresh();
+        }));
+      } else if (id === "billboard") {
+        addRow("Mode:", selectInput([["label", "World label"], ["billboard", "Face camera"]], data.mode || "label", (value) => {
+          data.mode = value;
+          refresh();
+        }));
+        if ((data.mode || "label") === "label") {
+          addRow("Text:", textInput(data.text, (value) => {
+            data.text = value;
+            refresh();
+          }, "World Label"));
+          const color = document.createElement("input");
+          color.type = "color";
+          color.value = data.color || "#ffffff";
+          color.style.flex = "1";
+          color.addEventListener("change", () => {
+            data.color = color.value;
+            refresh();
+          });
+          addRow("Text colour:", color);
+          addRow("Background:", textInput(data.background, (value) => {
+            data.background = value;
+            refresh();
+          }, "rgba(15, 23, 42, 0.82)"));
+          addRow("Font size:", numberInput(data.fontSize ?? 48, (value) => {
+            data.fontSize = value;
+            refresh();
+          }));
+          addRow("Scale:", numberInput(data.scale ?? 1, (value) => {
+            data.scale = value;
+            refresh();
+          }));
+          addRow("Height offset:", numberInput(data.offsetY ?? 1.5, (value) => {
+            data.offsetY = value;
+            refresh();
+          }));
+        }
+      } else if (id === "lod") {
+        addRow("Visible from:", numberInput(data.minDistance ?? 0, (value) => {
+          data.minDistance = value;
+          refresh();
+        }));
+        addRow("Visible to:", numberInput(data.maxDistance ?? 30, (value) => {
+          data.maxDistance = value;
+          refresh();
+        }));
+      } else if (id === "visibility") {
+        checkbox("Visible", data.visible !== false, (checked) => {
+          data.visible = checked;
+          obj.visible = checked;
+        });
+        addRow("Toggle key:", textInput(data.toggleKey, (value) => {
+          data.toggleKey = value.slice(0, 1).toLowerCase();
+        }, "e.g. v"));
+      }
+      this.propsContent.appendChild(group);
     }
     addParticleComponentProperties(obj) {
       const component = this.app.particleManager?.getComponentForMesh(obj);
@@ -34708,6 +36105,7 @@
       this.propsContent.appendChild(group);
     }
     applyComponentManagement(obj) {
+      this.addAttachedSceneComponentProperties(obj);
       const groups = Array.from(this.propsContent.children).filter((child) => child.dataset?.component);
       if (!groups.length) {
         this.addComponentToolbar(obj, []);
@@ -34835,6 +36233,10 @@
           offset: [0, 0, 0],
           size: null
         };
+      } else if (SCENE_COMPONENT_IDS.includes(id)) {
+        if (!obj.userData.components) obj.userData.components = {};
+        obj.userData.components[id] = this.defaultSceneComponentData(id);
+        this.app.componentManager?.refreshComponent(obj, id);
       }
       const order = Array.isArray(obj.userData.componentOrder) ? [...obj.userData.componentOrder] : [];
       if (!order.includes(id)) order.push(id);
@@ -34857,6 +36259,9 @@
         this.app.particleManager?.removeParticleFromObject(obj);
       } else if (id === "collider" && obj.userData.components) {
         delete obj.userData.components.collider;
+      } else if (SCENE_COMPONENT_IDS.includes(id)) {
+        this.app.componentManager?.detach(obj, id);
+        if (obj.userData.components) delete obj.userData.components[id];
       }
       if (Array.isArray(obj.userData.componentOrder)) {
         obj.userData.componentOrder = obj.userData.componentOrder.filter((componentId) => componentId !== id);
@@ -39523,6 +40928,7 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
       this.animationData = clip ? clip.toJSON() : null;
       this.hadPhysics = !!this.app.physicsManager?.getBodyForMesh(this.object);
       this.app.physicsManager?.removeMesh(this.object);
+      this.app.componentManager?.detachAll(this.object);
       this.app.animationManager?.removeClip(objectId);
       this.app.scene.remove(this.object);
       const idx = this.app.objects.indexOf(this.object);
@@ -39560,6 +40966,7 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
         this.app.deselect();
       }
       this.app.physicsManager?.removeMesh(root);
+      this.app.componentManager?.detachAll(root);
       this.app.animationManager?.removeClip(objectId);
       this.folderMemberships.forEach((folder) => {
         folder.objects = folder.objects.filter((object) => object !== root);
@@ -47212,14 +48619,14 @@ ${elements.join("\n")}
      * Add a shape to the body with a local offset and orientation.
      * @return The body object, for chainability.
      */
-    addShape(shape, _offset2, _orientation) {
+    addShape(shape, _offset2, _orientation2) {
       const offset = new Vec3();
       const orientation = new Quaternion2();
       if (_offset2) {
         offset.copy(_offset2);
       }
-      if (_orientation) {
-        orientation.copy(_orientation);
+      if (_orientation2) {
+        orientation.copy(_orientation2);
       }
       this.shapes.push(shape);
       this.shapeOffsets.push(offset);
@@ -57503,6 +58910,7 @@ ${elements.join("\n")}
       this.animationUI = new AnimationUI(this);
       this.physicsManager = null;
       this.particleManager = null;
+      this.componentManager = new ComponentManager(this);
       this.ui = new UI(this);
       this.init();
     }
@@ -58067,6 +59475,7 @@ ${elements.join("\n")}
           folder.objects = [];
         });
       }
+      this.componentManager?.clear();
       this.animationManager?.pause();
       this.animationManager?.clips.clear();
       this.animationManager?.seek(0);
@@ -58361,6 +59770,9 @@ ${elements.join("\n")}
       }
       if (this.particleManager) {
         this.particleManager.update(delta);
+      }
+      if (this.componentManager) {
+        this.componentManager.update(delta);
       }
       if (this.orbit && this.orbit.enabled) {
         this.orbit.update();

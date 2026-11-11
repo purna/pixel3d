@@ -21,6 +21,7 @@ import { AnimationUI } from './animationUI.js';
 import { ExportManager } from './exportManager.js';
 import { PhysicsManager } from './physicsManager.js';
 import { ParticleManager } from './particleManager.js';
+import { ComponentManager } from './componentManager.js';
 import { Notifications } from './notifications.js';
 
 class StageApp {
@@ -76,6 +77,7 @@ class StageApp {
         this.animationUI = new AnimationUI(this); // Init Animation UI
         this.physicsManager = null; // Initialized in init()
         this.particleManager = null; // Initialized in init()
+        this.componentManager = new ComponentManager(this); // Scene component runtime
         this.ui = new UI(this); // UI initialized last so it can access layerManager
 
         this.init();
@@ -826,6 +828,7 @@ this.raycaster.setFromCamera(this.mouse, this.camera);
         if (this.layerManager?.folders) {
             this.layerManager.folders.forEach(folder => { folder.objects = []; });
         }
+        this.componentManager?.clear();
         this.animationManager?.pause();
         this.animationManager?.clips.clear();
         this.animationManager?.seek(0);
@@ -1212,6 +1215,11 @@ this.raycaster.setFromCamera(this.mouse, this.camera);
         // Update particle systems
         if (this.particleManager) {
             this.particleManager.update(delta);
+        }
+
+        // Update attached scene components
+        if (this.componentManager) {
+            this.componentManager.update(delta);
         }
 
         // Update orbit controls (only if initialized and enabled)

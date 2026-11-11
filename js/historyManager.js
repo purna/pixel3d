@@ -156,6 +156,7 @@ export class AddObjectCommand {
         this.animationData = clip ? clip.toJSON() : null;
         this.hadPhysics = !!this.app.physicsManager?.getBodyForMesh(this.object);
         this.app.physicsManager?.removeMesh(this.object);
+        this.app.componentManager?.detachAll(this.object);
         this.app.animationManager?.removeClip(objectId);
 
         // Remove from scene
@@ -207,6 +208,7 @@ export class DeleteObjectCommand {
         }
 
         this.app.physicsManager?.removeMesh(root);
+        this.app.componentManager?.detachAll(root);
         this.app.animationManager?.removeClip(objectId);
         this.folderMemberships.forEach(folder => {
             folder.objects = folder.objects.filter(object => object !== root);

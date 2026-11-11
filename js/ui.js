@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { LAYER_PRESETS } from './layerMaterial.js';
 import { hexToRgb, rgbToHex, rgbToHsl, hslToRgb, rgbToHsv, hsvToRgb } from './colorUtils.js';
+import { SCENE_COMPONENT_IDS } from './componentManager.js';
 
 export class UI {
     constructor(app) {
@@ -1219,11 +1220,47 @@ export class UI {
                         <button class="btn btn-sm" id="btn-apply-collider" style="width: 100%;">Add Collider</button>
                     </div>
                 </div>
+
+                ${this.sceneComponentAssetCardsHTML()}
             </div>
         `;
 
         this.setupComponentToggles();
         this.setupComponentButtons();
+    }
+
+    sceneComponentAssetCardsHTML() {
+        const descriptions = {
+            animation: 'Play this object on the animation timeline.',
+            audioSource: 'Attach a 2D or positional sound from the audio library.',
+            light: 'Add a point, spot, directional, ambient, or hemisphere light.',
+            trigger: 'Detect when the play camera enters a box or sphere volume.',
+            interactable: 'Press a key near the object to run an action.',
+            collectible: 'Spin/bob the object and collect it with an interactable.',
+            movingPlatform: 'Move the object back and forth along an offset.',
+            billboard: 'Face the camera or show a world-space text label.',
+            lod: 'Hide the object outside a distance range.',
+            visibility: 'Control visibility directly or with a toggle key.'
+        };
+        const definitions = this.componentDefinitions();
+        return SCENE_COMPONENT_IDS.map(id => {
+            const definition = definitions[id];
+            if (!definition) return '';
+            return `
+                <div class="component-card" data-component="${id}">
+                    <div class="component-card-header">
+                        <span class="component-card-title"><i class="fas ${definition.icon}" style="margin-right:6px;"></i>${definition.name}</span>
+                        <button class="component-toggle" data-component="${id}">▼</button>
+                    </div>
+                    <div class="component-card-content collapsed" style="display:none;">
+                        <div class="property-group">
+                            <div class="property-label" style="line-height:1.4;font-weight:400;">${descriptions[id] || ''}</div>
+                        </div>
+                        <button class="btn btn-sm scene-component-add" data-add-scene-component="${id}" style="width: 100%;">Add to Selected Object</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     setupComponentToggles() {
@@ -1236,9 +1273,11 @@ export class UI {
                 const content = card.querySelector('.component-card-content');
                 if (content.classList.contains('collapsed')) {
                     content.classList.remove('collapsed');
+                    content.style.display = '';
                     toggle.textContent = '▼';
                 } else {
                     content.classList.add('collapsed');
+                    content.style.display = 'none';
                     toggle.textContent = '▶';
                 }
             });
@@ -1282,6 +1321,16 @@ export class UI {
                 this.applyColliderToObject();
             });
         }
+
+        document.querySelectorAll('[data-add-scene-component]').forEach(button => {
+            button.addEventListener('click', () => {
+                if (!this.app.selectedObject) {
+                    this.showNotification('Please select an object first', 'warning');
+                    return;
+                }
+                this.addComponentToObject(this.app.selectedObject, button.dataset.addSceneComponent);
+            });
+        });
     }
 
     addParticleToSelected() {
@@ -5196,8 +5245,295 @@ export class UI {
                 icon: 'fa-cube',
                 present: obj => !!obj.userData.components?.collider,
                 canAdd: obj => !!obj.geometry
+            },
+            animation: {
+                name: 'Animation',
+                icon: 'fa-film',
+                present: obj => !!obj.userData.components?.animation,
+                canAdd: () => true
+            },
+            audioSource: {
+                name: 'Audio Source',
+                icon: 'fa-volume-up',
+                present: obj => !!obj.userData.components?.audioSource,
+                canAdd: () => true
+            },
+            light: {
+                name: 'Light',
+                icon: 'fa-lightbulb',
+                present: obj => !!obj.userData.components?.light,
+                canAdd: () => true
+            },
+            trigger: {
+                name: 'Trigger Volume',
+                icon: 'fa-bullseye',
+                present: obj => !!obj.userData.components?.trigger,
+                canAdd: () => true
+            },
+            interactable: {
+                name: 'Interactable',
+                icon: 'fa-hand-pointer',
+                present: obj => !!obj.userData.components?.interactable,
+                canAdd: () => true
+            },
+            collectible: {
+                name: 'Collectible',
+                icon: 'fa-star',
+                present: obj => !!obj.userData.components?.collectible,
+                canAdd: () => true
+            },
+            movingPlatform: {
+                name: 'Moving Platform',
+                icon: 'fa-arrows-alt-h',
+                present: obj => !!obj.userData.components?.movingPlatform,
+                canAdd: () => true
+            },
+            billboard: {
+                name: 'Billboard / World Label',
+                icon: 'fa-comment-dots',
+                present: obj => !!obj.userData.components?.billboard,
+                canAdd: () => true
+            },
+            lod: {
+                name: 'LOD / Distance Culling',
+                icon: 'fa-layer-group',
+                present: obj => !!obj.userData.components?.lod,
+                canAdd: () => true
+            },
+            visibility: {
+                name: 'Visibility Toggle',
+                icon: 'fa-eye',
+                present: obj => !!obj.userData.components?.visibility,
+                canAdd: () => true
             }
         };
+    }
+
+    defaultSceneComponentData(id) {
+        switch (id) {
+            case 'animation': return { autoplay: false, loop: true, speed: 1 };
+            case 'audioSource': return { assetId: '', url: '', volume: 1, loop: false, autoplay: false, positional: true, refDistance: 1, maxDistance: 20 };
+            case 'light': return { type: 'point', color: '#ffffff', intensity: 1, distance: 20, castShadow: false };
+            case 'trigger': return { shape: 'box', sizeX: 1, sizeY: 1, sizeZ: 1, radius: 1, oneShot: false, message: 'Trigger activated' };
+            case 'interactable': return { key: 'e', range: 3, action: 'toggleVisibility', prompt: 'Press E to interact' };
+            case 'collectible': return { value: 1, spin: true, bob: true };
+            case 'movingPlatform': return { offsetX: 0, offsetY: 2, offsetZ: 0, speed: 1 };
+            case 'billboard': return { mode: 'label', text: 'World Label', color: '#ffffff', background: 'rgba(15, 23, 42, 0.82)', fontSize: 48, scale: 1, offsetY: 1.5 };
+            case 'lod': return { minDistance: 0, maxDistance: 30 };
+            case 'visibility': return { visible: true, toggleKey: '' };
+            default: return {};
+        }
+    }
+
+    addAttachedSceneComponentProperties(obj) {
+        SCENE_COMPONENT_IDS.forEach(id => {
+            const data = obj.userData.components?.[id];
+            if (!data || typeof data !== 'object') return;
+            if (this.propsContent.querySelector(`[data-component="${id}"]`)) return;
+            this.addSceneComponentPanel(obj, id, data);
+        });
+    }
+
+    addSceneComponentPanel(obj, id, data) {
+        const definitions = this.componentDefinitions();
+        const definition = definitions[id];
+        if (!definition) return;
+
+        const group = document.createElement('div');
+        group.className = 'property-group';
+        group.dataset.component = id;
+        group.innerHTML = `<div class="property-label" style="color: var(--accent-tertiary);"><i class="fas ${definition.icon}" style="margin-right: 6px;"></i>${definition.name}</div>`;
+
+        const refresh = () => this.app.componentManager?.refreshComponent(obj, id);
+        const addRow = (labelText, control) => {
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            row.style.marginBottom = '6px';
+            const label = document.createElement('span');
+            label.style.cssText = 'font-size:0.7rem;color:var(--text-secondary);width:84px;flex-shrink:0;';
+            label.textContent = labelText;
+            row.append(label, control);
+            group.appendChild(row);
+            return row;
+        };
+        const numberInput = (value, onChange, attrs = '') => {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = value ?? 0;
+            input.style.cssText = 'flex:1;min-width:0;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 7px;font-size:0.72rem;color:var(--text-primary);';
+            input.setAttribute('step', '0.1');
+            if (attrs) input.setAttribute('min', attrs);
+            input.addEventListener('change', () => onChange(parseFloat(input.value) || 0));
+            return input;
+        };
+        const textInput = (value, onChange, placeholder = '') => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = value || '';
+            input.placeholder = placeholder;
+            input.style.cssText = 'flex:1;min-width:0;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 7px;font-size:0.72rem;color:var(--text-primary);';
+            input.addEventListener('change', () => onChange(input.value));
+            return input;
+        };
+        const checkbox = (labelText, checked, onChange) => {
+            const row = document.createElement('label');
+            row.className = 'input-row';
+            row.style.cssText = 'font-size:0.7rem;color:var(--text-secondary);margin-bottom:6px;';
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = !!checked;
+            input.style.marginRight = '6px';
+            input.addEventListener('change', () => onChange(input.checked));
+            row.append(input, document.createTextNode(labelText));
+            group.appendChild(row);
+        };
+        const selectInput = (options, value, onChange) => {
+            const select = document.createElement('select');
+            select.style.cssText = 'flex:1;min-width:0;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 7px;font-size:0.72rem;color:var(--text-primary);';
+            options.forEach(([optionValue, label]) => {
+                const option = document.createElement('option');
+                option.value = optionValue;
+                option.textContent = label;
+                if (String(value) === String(optionValue)) option.selected = true;
+                select.appendChild(option);
+            });
+            select.addEventListener('change', () => onChange(select.value));
+            return select;
+        };
+        const buttonRow = (buttons) => {
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            row.style.marginTop = '4px';
+            buttons.forEach(([label, handler, primary]) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = primary ? 'btn primary' : 'btn';
+                button.style.flex = '1';
+                button.style.fontSize = '0.7rem';
+                button.textContent = label;
+                button.addEventListener('click', handler);
+                row.appendChild(button);
+            });
+            group.appendChild(row);
+        };
+
+        if (id === 'animation') {
+            const clip = this.app.animationManager?.getClip(obj.userData.id || obj.uuid);
+            const status = document.createElement('div');
+            status.style.cssText = 'font-size:0.7rem;color:var(--text-secondary);margin-bottom:6px;';
+            status.textContent = clip ? `Timeline clip: ${clip.duration.toFixed(1)}s` : 'No timeline clip yet. Add one from the Animation timeline.';
+            group.appendChild(status);
+            checkbox('Autoplay', data.autoplay, checked => { data.autoplay = checked; refresh(); });
+            checkbox('Loop', data.loop !== false, checked => { data.loop = checked; this.app.animationManager?.setLoop(checked); });
+            addRow('Speed:', numberInput(data.speed ?? 1, value => { data.speed = Math.max(0.1, Math.min(4, value)); this.app.animationManager?.setSpeed(data.speed); }));
+            buttonRow([
+                ['Play', () => this.app.componentManager?.playAnimationForObject(obj), true],
+                ['Stop', () => this.app.animationManager?.stop(), false]
+            ]);
+        } else if (id === 'audioSource') {
+            const urlLabel = document.createElement('div');
+            urlLabel.style.cssText = 'font-size:0.67rem;color:var(--text-secondary);margin-bottom:6px;word-break:break-all;';
+            urlLabel.textContent = data.url || 'No audio file selected';
+            group.appendChild(urlLabel);
+            const audioAssets = this.assets.audio || [];
+            const assetSelect = selectInput(
+                [['', 'Choose audio asset…'], ...audioAssets.map(asset => [asset.id, asset.name])],
+                data.assetId || '',
+                value => {
+                    data.assetId = value;
+                    const asset = audioAssets.find(item => item.id === value);
+                    data.url = asset?.url || '';
+                    data.fileName = asset?.fileName || '';
+                    refresh();
+                    this.renderPropertiesPanel(obj);
+                }
+            );
+            addRow('Audio:', assetSelect);
+            const volume = document.createElement('input');
+            volume.type = 'range';
+            volume.min = '0'; volume.max = '1'; volume.step = '0.01';
+            volume.value = data.volume ?? 1;
+            volume.style.flex = '1';
+            volume.addEventListener('change', () => { data.volume = parseFloat(volume.value); refresh(); });
+            addRow('Volume:', volume);
+            checkbox('Loop', data.loop, checked => { data.loop = checked; refresh(); });
+            checkbox('Autoplay', data.autoplay, checked => { data.autoplay = checked; refresh(); });
+            checkbox('3D Positional', data.positional !== false, checked => { data.positional = checked; refresh(); });
+            addRow('Ref. distance:', numberInput(data.refDistance ?? 1, value => { data.refDistance = value; refresh(); }));
+            addRow('Max distance:', numberInput(data.maxDistance ?? 20, value => { data.maxDistance = value; refresh(); }));
+            buttonRow([
+                ['Play', () => this.app.componentManager?.playAudioForObject(obj), true],
+                ['Stop', () => this.app.componentManager?.stopAudioForObject(obj), false]
+            ]);
+        } else if (id === 'light') {
+            addRow('Type:', selectInput([
+                ['point', 'Point'], ['spot', 'Spot'], ['directional', 'Directional'],
+                ['ambient', 'Ambient'], ['hemisphere', 'Hemisphere']
+            ], data.type || 'point', value => { data.type = value; refresh(); }));
+            const color = document.createElement('input');
+            color.type = 'color'; color.value = data.color || '#ffffff'; color.style.flex = '1';
+            color.addEventListener('change', () => { data.color = color.value; refresh(); });
+            addRow('Colour:', color);
+            const intensity = document.createElement('input');
+            intensity.type = 'range'; intensity.min = '0'; intensity.max = '10'; intensity.step = '0.05';
+            intensity.value = data.intensity ?? 1; intensity.style.flex = '1';
+            intensity.addEventListener('change', () => { data.intensity = parseFloat(intensity.value); refresh(); });
+            addRow('Intensity:', intensity);
+            addRow('Distance:', numberInput(data.distance ?? 20, value => { data.distance = value; refresh(); }));
+            checkbox('Cast shadows', data.castShadow, checked => { data.castShadow = checked; refresh(); });
+        } else if (id === 'trigger') {
+            addRow('Shape:', selectInput([['box', 'Box'], ['sphere', 'Sphere']], data.shape || 'box', value => { data.shape = value; refresh(); }));
+            addRow('Size X:', numberInput(data.sizeX ?? 1, value => { data.sizeX = value; refresh(); }));
+            addRow('Size Y:', numberInput(data.sizeY ?? 1, value => { data.sizeY = value; refresh(); }));
+            addRow('Size Z:', numberInput(data.sizeZ ?? 1, value => { data.sizeZ = value; refresh(); }));
+            addRow('Radius:', numberInput(data.radius ?? 1, value => { data.radius = value; refresh(); }));
+            checkbox('One shot', data.oneShot, checked => { data.oneShot = checked; refresh(); });
+            addRow('Message:', textInput(data.message, value => { data.message = value; }, 'Trigger activated'));
+        } else if (id === 'interactable') {
+            addRow('Key:', textInput(data.key || 'e', value => { data.key = value.slice(0, 1).toLowerCase() || 'e'; }, 'e'));
+            addRow('Range:', numberInput(data.range ?? 3, value => { data.range = value; }));
+            addRow('Action:', selectInput([
+                ['toggleVisibility', 'Toggle visibility'],
+                ['playAnimation', 'Play animation'],
+                ['playAudio', 'Play audio'],
+                ['collect', 'Collect'],
+                ['none', 'Message only']
+            ], data.action || 'toggleVisibility', value => { data.action = value; }));
+            addRow('Prompt:', textInput(data.prompt, value => { data.prompt = value; }, 'Press E to interact'));
+        } else if (id === 'collectible') {
+            addRow('Value:', numberInput(data.value ?? 1, value => { data.value = value; }));
+            checkbox('Spin', data.spin !== false, checked => { data.spin = checked; });
+            checkbox('Bob up and down', data.bob !== false, checked => { data.bob = checked; });
+        } else if (id === 'movingPlatform') {
+            addRow('Offset X:', numberInput(data.offsetX ?? 0, value => { data.offsetX = value; refresh(); }));
+            addRow('Offset Y:', numberInput(data.offsetY ?? 2, value => { data.offsetY = value; refresh(); }));
+            addRow('Offset Z:', numberInput(data.offsetZ ?? 0, value => { data.offsetZ = value; refresh(); }));
+            addRow('Speed:', numberInput(data.speed ?? 1, value => { data.speed = value; refresh(); }));
+        } else if (id === 'billboard') {
+            addRow('Mode:', selectInput([['label', 'World label'], ['billboard', 'Face camera']], data.mode || 'label', value => { data.mode = value; refresh(); }));
+            if ((data.mode || 'label') === 'label') {
+                addRow('Text:', textInput(data.text, value => { data.text = value; refresh(); }, 'World Label'));
+                const color = document.createElement('input');
+                color.type = 'color'; color.value = data.color || '#ffffff'; color.style.flex = '1';
+                color.addEventListener('change', () => { data.color = color.value; refresh(); });
+                addRow('Text colour:', color);
+                addRow('Background:', textInput(data.background, value => { data.background = value; refresh(); }, 'rgba(15, 23, 42, 0.82)'));
+                addRow('Font size:', numberInput(data.fontSize ?? 48, value => { data.fontSize = value; refresh(); }));
+                addRow('Scale:', numberInput(data.scale ?? 1, value => { data.scale = value; refresh(); }));
+                addRow('Height offset:', numberInput(data.offsetY ?? 1.5, value => { data.offsetY = value; refresh(); }));
+            }
+        } else if (id === 'lod') {
+            addRow('Visible from:', numberInput(data.minDistance ?? 0, value => { data.minDistance = value; refresh(); }));
+            addRow('Visible to:', numberInput(data.maxDistance ?? 30, value => { data.maxDistance = value; refresh(); }));
+        } else if (id === 'visibility') {
+            checkbox('Visible', data.visible !== false, checked => {
+                data.visible = checked;
+                obj.visible = checked;
+            });
+            addRow('Toggle key:', textInput(data.toggleKey, value => { data.toggleKey = value.slice(0, 1).toLowerCase(); }, 'e.g. v'));
+        }
+
+        this.propsContent.appendChild(group);
     }
 
     addParticleComponentProperties(obj) {
@@ -5273,6 +5609,7 @@ export class UI {
     }
 
     applyComponentManagement(obj) {
+        this.addAttachedSceneComponentProperties(obj);
         const groups = Array.from(this.propsContent.children).filter(child => child.dataset?.component);
         if (!groups.length) {
             this.addComponentToolbar(obj, []);
@@ -5414,6 +5751,10 @@ export class UI {
                 offset: [0, 0, 0],
                 size: null
             };
+        } else if (SCENE_COMPONENT_IDS.includes(id)) {
+            if (!obj.userData.components) obj.userData.components = {};
+            obj.userData.components[id] = this.defaultSceneComponentData(id);
+            this.app.componentManager?.refreshComponent(obj, id);
         }
 
         const order = Array.isArray(obj.userData.componentOrder) ? [...obj.userData.componentOrder] : [];
@@ -5439,6 +5780,9 @@ export class UI {
             this.app.particleManager?.removeParticleFromObject(obj);
         } else if (id === 'collider' && obj.userData.components) {
             delete obj.userData.components.collider;
+        } else if (SCENE_COMPONENT_IDS.includes(id)) {
+            this.app.componentManager?.detach(obj, id);
+            if (obj.userData.components) delete obj.userData.components[id];
         }
 
         if (Array.isArray(obj.userData.componentOrder)) {
