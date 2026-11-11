@@ -732,6 +732,7 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
                             <button class="asset-tab" data-asset-tab="images">Images</button>
                             <button class="asset-tab" data-asset-tab="media">Media</button>
                             <button class="asset-tab" data-asset-tab="audio">Audio</button>
+                            <button class="asset-tab" data-asset-tab="models">Models</button>
                         </div>
                         <div class="assets-panel-content">
                             <div class="asset-search">
@@ -1566,7 +1567,9 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
                             <input type="text" class="modal-input asset-url-input"
                                 placeholder="https://example.com/audio.mp3" id="audio-asset-url">
                         </div>
-                        <button class="audio-play-btn" id="audio-play-btn"><i class="fas fa-play"></i></button>
+                        <div class="audio-preview-wrap">
+                            <audio class="audio-preview-player" id="audio-preview" controls preload="metadata"></audio>
+                        </div>
                         <div class="audio-asset-property">
                             <div class="property-label">Sound File</div>
                             <label class="file-upload-label-small">
@@ -1584,8 +1587,44 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
             </div>
         </div>
 
+        <!-- MODEL ASSET MODAL -->
+        <div class="modal-overlay model-asset-modal-shell" id="model-asset-modal">
+            <div class="modal">
+                <div class="modal-top-section">
+                    <h2 class="modal-title-text">3D Model Preview</h2>
+                    <button class="modal-close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="model-asset-container">
+                        <input type="text" class="modal-input" placeholder="Model Name" id="model-asset-name">
+                        <div class="model-asset-url-row">
+                            <label class="asset-url-label">GLB / GLTF URL</label>
+                            <input type="text" class="modal-input asset-url-input"
+                                placeholder="./Art/Ybot_child.glb" id="model-asset-url">
+                        </div>
+                        <div class="model-file-row">
+                            <label class="file-upload-label-small model-file-label">
+                                <span><i class="fas fa-folder-open"></i> Load local GLB / GLTF</span>
+                                <input type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" id="model-file-input"
+                                    style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">
+                            </label>
+                            <span class="model-preview-status" id="model-preview-status">Loading…</span>
+                        </div>
+                        <div class="model-preview-frame">
+                            <canvas id="model-preview-canvas"></canvas>
+                        </div>
+                        <div class="model-preview-meta" id="model-preview-meta">Drag to orbit · scroll to zoom</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn" data-close-modal="model-asset-modal">Close</button>
+                    <button class="btn primary" id="model-asset-save">Save</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Self-contained app bundle: works over http:// and when index.html is opened directly. -->
-        <script src="dist/pixel3d.js?v=20261111-7"></script>
+        <script src="dist/pixel3d.js?v=20261111-8"></script>
 
         <!-- ANIMATION TIMELINE PANEL -->
         <div id="anim-panel" style="display:none;">

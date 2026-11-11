@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { LAYER_PRESETS } from './layerMaterial.js';
 import { hexToRgb, rgbToHex, rgbToHsl, hslToRgb, rgbToHsv, hsvToRgb } from './colorUtils.js';
 import { SCENE_COMPONENT_IDS } from './componentManager.js';
@@ -35,7 +37,8 @@ export class UI {
             colors: [],
             images: [],
             media: [],
-            audio: []
+            audio: [],
+            models: []
         };
         try {
             const savedAssets = JSON.parse(localStorage.getItem('pixel3d-assets') || '{}');
@@ -415,7 +418,8 @@ export class UI {
                     'color-asset-modal': 'colors',
                     'image-asset-modal': 'images',
                     'video-asset-modal': 'media',
-                    'audio-asset-modal': 'audio'
+                    'audio-asset-modal': 'audio',
+                    'model-asset-modal': 'models'
                 };
                 const type = typeMap[modalType];
                 if (type) this.closeAssetModal(type);
@@ -432,7 +436,8 @@ export class UI {
                     'color-asset-modal': 'colors',
                     'image-asset-modal': 'images',
                     'video-asset-modal': 'media',
-                    'audio-asset-modal': 'audio'
+                    'audio-asset-modal': 'audio',
+                    'model-asset-modal': 'models'
                 };
                 const type = typeMap[modalType];
                 if (type) this.closeAssetModal(type);
@@ -446,7 +451,8 @@ export class UI {
             'color-asset-save': 'colors',
             'image-asset-save': 'images',
             'video-asset-save': 'media',
-            'audio-asset-save': 'audio'
+            'audio-asset-save': 'audio',
+            'model-asset-save': 'models'
         };
 
         Object.entries(saveBtnMap).forEach(([btnId, type]) => {
@@ -483,7 +489,8 @@ export class UI {
                         'color-asset-modal': 'colors',
                         'image-asset-modal': 'images',
                         'video-asset-modal': 'media',
-                        'audio-asset-modal': 'audio'
+                        'audio-asset-modal': 'audio',
+                        'model-asset-modal': 'models'
                     };
                     const type = typeMap[modalType];
                     if (type) this.closeAssetModal(type);
@@ -1429,6 +1436,8 @@ export class UI {
                 iconHtml = `<div class="asset-item-icon"><i class="fas fa-video"></i></div>`;
             } else if (tab === 'audio') {
                 iconHtml = `<div class="asset-item-icon"><i class="fas fa-volume-up"></i></div>`;
+            } else if (tab === 'models') {
+                iconHtml = `<div class="asset-item-icon"><i class="fas fa-cubes"></i></div>`;
             } else {
                 const iconClass = item.icon || 'fa-cube';
                 iconHtml = `<div class="asset-item-icon"><i class="fas ${iconClass}"></i></div>`;
@@ -1439,7 +1448,7 @@ export class UI {
                 <div class="asset-item-details">
                     <div class="asset-item-name" data-asset-id="${item.id}" data-asset-tab="${tab}">${item.name}</div>
                     ${(tab === 'textures' && item.layer?.type) ? `<div class="asset-item-url">${item.layer.type}</div>` : ''}
-                    ${(tab === 'images' || tab === 'media' || tab === 'audio') && item.url ? `<div class="asset-item-url">${item.url}</div>` : ''}
+                    ${(tab === 'images' || tab === 'media' || tab === 'audio' || tab === 'models') && item.url ? `<div class="asset-item-url">${item.url}</div>` : ''}
                 </div>
                 <button class="asset-item-delete" data-asset-id="${item.id}" data-asset-tab="${tab}" title="Delete">&times;</button>
             `;
@@ -1510,7 +1519,7 @@ export class UI {
      */
     seedExampleTextures() {
         const seedKey = 'pixel3d-example-textures-seeded';
-        const seedVersion = '1';
+        const seedVersion = '2';
         try {
             if (localStorage.getItem(seedKey) === seedVersion) return;
         } catch (error) {
@@ -1760,11 +1769,19 @@ export class UI {
             }
         ];
 
+        const modelExamples = [
+            { id: 'example-model-xbot', name: 'Xbot', url: './Art/Xbot.glb', source: 'Pixel3D Art folder', fileName: 'Xbot.glb' },
+            { id: 'example-model-ybot', name: 'Ybot', url: './Art/Ybot.glb', source: 'Pixel3D Art folder', fileName: 'Ybot.glb' },
+            { id: 'example-model-xbot-child', name: 'Child Xbot', url: './Art/Xbot_child.glb', source: 'Pixel3D Art folder', fileName: 'Xbot_child.glb' },
+            { id: 'example-model-ybot-child', name: 'Child Ybot', url: './Art/Ybot_child.glb', source: 'Pixel3D Art folder', fileName: 'Ybot_child.glb' }
+        ];
+
         const added =
             addExamples('colors', colorExamples) |
             addExamples('images', imageExamples) |
             addExamples('media', mediaExamples) |
-            addExamples('audio', audioExamples);
+            addExamples('audio', audioExamples) |
+            addExamples('models', modelExamples);
         if (added) this.saveAssetLibrary();
         try {
             localStorage.setItem(seedKey, seedVersion);
@@ -1870,7 +1887,8 @@ export class UI {
             colors: 'color-asset-modal',
             images: 'image-asset-modal',
             media: 'video-asset-modal',
-            audio: 'audio-asset-modal'
+            audio: 'audio-asset-modal',
+            models: 'model-asset-modal'
         };
 
         const modalId = modalMap[type];
@@ -1991,6 +2009,13 @@ export class UI {
             }
         }
 
+        if (type === 'audio') {
+            const urlInput = document.getElementById('audio-asset-url');
+            if (urlInput) {
+                urlInput.onchange = () => this.setAudioPreviewSource(urlInput.value.trim());
+            }
+        }
+
         // Initialize color editor
         if (type === 'colors') {
             this.initColorEditor(asset);
@@ -2017,6 +2042,8 @@ export class UI {
         // Show modal
         modal.classList.add('open');
 
+        if (type === 'models') this.initModelPreview(asset);
+
         // Store current editing asset id
         modal.dataset.editingAssetId = assetId || '';
         modal.dataset.editingAssetType = type;
@@ -2029,7 +2056,8 @@ export class UI {
             colors: 'color-asset-modal',
             images: 'image-asset-modal',
             media: 'video-asset-modal',
-            audio: 'audio-asset-modal'
+            audio: 'audio-asset-modal',
+            models: 'model-asset-modal'
         };
 
         const modalId = modalMap[type];
@@ -2041,6 +2069,9 @@ export class UI {
             delete modal.dataset.editingAssetId;
             delete modal.dataset.editingAssetType;
         }
+        if (type === 'audio') document.getElementById('audio-preview')?.pause();
+        if (type === 'media') document.getElementById('video-preview')?.pause();
+        if (type === 'models') this.disposeModelPreview();
     }
 
     initColorEditor(asset) {
@@ -2646,6 +2677,27 @@ export class UI {
         }
     }
 
+    setAudioPreviewSource(url) {
+        const preview = document.getElementById('audio-preview');
+        if (!preview) return;
+        try { preview.pause(); } catch (error) { /* not playing */ }
+        preview.onerror = () => this.showNotification('Audio preview could not be loaded', 'warning');
+        preview.onloadedmetadata = () => {
+            const fileName = document.getElementById('audio-file-name');
+            if (fileName && (!fileName.textContent || fileName.textContent === 'success.mp3')) {
+                const name = url.split('/').pop()?.split('?')[0];
+                if (name) fileName.textContent = decodeURIComponent(name);
+            }
+        };
+        if (url) {
+            preview.src = url;
+            preview.load();
+        } else {
+            preview.removeAttribute('src');
+            preview.load();
+        }
+    }
+
     setVideoPreviewSource(url) {
         const preview = document.getElementById('video-preview');
         if (!preview) return;
@@ -2767,6 +2819,15 @@ export class UI {
             if (nameInput) nameInput.value = '';
             if (fileName) fileName.textContent = 'success.mp3';
             if (urlInput) urlInput.value = '';
+            this.setAudioPreviewSource('');
+        } else if (type === 'models') {
+            const nameInput = document.getElementById('model-asset-name');
+            const urlInput = document.getElementById('model-asset-url');
+            const status = document.getElementById('model-preview-status');
+            if (nameInput) nameInput.value = '';
+            if (urlInput) urlInput.value = '';
+            if (status) status.textContent = 'Loading…';
+            this.disposeModelPreview();
         }
 
         // If editing existing asset, populate form
@@ -2853,6 +2914,7 @@ export class UI {
                 if (nameInput) nameInput.value = asset.name || '';
                 if (fileName && asset.fileName) fileName.textContent = asset.fileName;
                 if (urlInput) urlInput.value = asset.url || '';
+                this.setAudioPreviewSource(asset.url || '');
             }
         }
     }
@@ -2949,9 +3011,16 @@ export class UI {
             const nameInput = document.getElementById('audio-asset-name');
             const fileName = document.getElementById('audio-file-name');
             const urlInput = document.getElementById('audio-asset-url');
+            const preview = document.getElementById('audio-preview');
             data.name = nameInput ? nameInput.value.trim() : 'New Audio';
             data.fileName = fileName ? fileName.textContent : '';
-            data.url = urlInput ? urlInput.value.trim() : '';
+            data.url = urlInput?.value.trim() || preview?.currentSrc || preview?.src || '';
+        } else if (type === 'models') {
+            const nameInput = document.getElementById('model-asset-name');
+            const urlInput = document.getElementById('model-asset-url');
+            data.name = nameInput?.value.trim() || 'New Model';
+            data.url = urlInput?.value.trim() || this.modelPreview?.sourceUrl || '';
+            data.fileName = data.url.split('/').pop()?.split('?')[0] || '';
         }
 
         let savedAsset = null;
@@ -2964,6 +3033,170 @@ export class UI {
         if (type === 'materials' && savedAsset) this.app.materialsManager?.compileAssetMaterial(savedAsset);
 
         this.closeAssetModal(type);
+    }
+
+    initModelPreview(asset = null) {
+        this.disposeModelPreview();
+        const canvas = document.getElementById('model-preview-canvas');
+        const container = canvas?.parentElement;
+        if (!canvas || !container) return;
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111827);
+        const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x445066, 2.2));
+        const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+        sun.position.set(3, 6, 4);
+        scene.add(sun);
+        const grid = new THREE.GridHelper(10, 20, 0x4a5163, 0x2f3442);
+        scene.add(grid);
+
+        const controls = new OrbitControls(camera, canvas);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.target.set(0, 1, 0);
+
+        const clock = new THREE.Clock();
+        const resize = () => {
+            const width = Math.max(1, container.clientWidth);
+            const height = Math.max(1, container.clientHeight);
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+        };
+        const resizeObserver = new ResizeObserver(resize);
+        resizeObserver.observe(container);
+        resize();
+
+        const state = {
+            renderer, scene, camera, controls, grid, clock,
+            loader: new GLTFLoader(),
+            model: null, mixer: null, animationFrame: 0,
+            resizeObserver, sourceUrl: ''
+        };
+        this.modelPreview = state;
+
+        const animate = () => {
+            if (this.modelPreview !== state) return;
+            state.animationFrame = requestAnimationFrame(animate);
+            state.controls.update();
+            if (state.mixer) state.mixer.update(state.clock.getDelta());
+            state.renderer.render(state.scene, state.camera);
+        };
+        animate();
+
+        const nameInput = document.getElementById('model-asset-name');
+        const urlInput = document.getElementById('model-asset-url');
+        if (asset) {
+            if (nameInput) nameInput.value = asset.name || '';
+            if (urlInput) urlInput.value = asset.url || '';
+        }
+
+        const fileInput = document.getElementById('model-file-input');
+        if (fileInput) {
+            fileInput.onchange = (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                const url = URL.createObjectURL(file);
+                if (urlInput) urlInput.value = url;
+                if (nameInput && !nameInput.value.trim()) nameInput.value = file.name.replace(/\.(glb|gltf)$/i, '');
+                this.loadPreviewModel(url);
+                event.target.value = '';
+            };
+        }
+
+        if (urlInput) {
+            urlInput.onchange = () => this.loadPreviewModel(urlInput.value.trim());
+        }
+
+        const initialUrl = asset?.url || urlInput?.value.trim() || './Art/Ybot_child.glb';
+        this.loadPreviewModel(initialUrl);
+    }
+
+    loadPreviewModel(url) {
+        const state = this.modelPreview;
+        if (!state || !url) return;
+        const status = document.getElementById('model-preview-status');
+        const meta = document.getElementById('model-preview-meta');
+        if (status) status.textContent = 'Loading model…';
+        state.sourceUrl = url;
+
+        state.loader.load(url, (gltf) => {
+            if (this.modelPreview !== state) return;
+            if (state.model) {
+                state.scene.remove(state.model);
+                state.mixer = null;
+            }
+
+            const model = gltf.scene;
+            model.traverse(object => {
+                if (object.isMesh) {
+                    object.castShadow = true;
+                    object.receiveShadow = true;
+                    if (object.geometry) object.geometry.computeBoundingSphere?.();
+                }
+            });
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            model.position.x -= center.x;
+            model.position.z -= center.z;
+            model.position.y -= box.min.y;
+            state.scene.add(model);
+            state.model = model;
+
+            const maxDim = Math.max(size.x, size.y, size.z, 0.5);
+            state.camera.near = maxDim / 100;
+            state.camera.far = maxDim * 100;
+            state.camera.position.set(maxDim * 1.6, maxDim * 1.05, maxDim * 2.1);
+            state.camera.updateProjectionMatrix();
+            state.controls.target.set(0, size.y * 0.45, 0);
+            state.controls.update();
+            state.grid.scale.setScalar(Math.max(0.25, maxDim * 1.4 / 10));
+            state.grid.position.y = 0;
+
+            if (gltf.animations?.length) {
+                state.mixer = new THREE.AnimationMixer(model);
+                const action = state.mixer.clipAction(gltf.animations[0]);
+                action.reset().play();
+            }
+
+            if (status) status.textContent = `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`;
+            if (meta) meta.textContent = `${gltf.animations?.length || 0} clip(s) · Drag to orbit · scroll to zoom`;
+        }, (event) => {
+            if (status && event.total) {
+                status.textContent = `Loading ${Math.round((event.loaded / event.total) * 100)}%`;
+            }
+        }, (error) => {
+            console.warn('Could not preview model:', error);
+            if (status) status.textContent = 'Could not load model';
+            if (meta) meta.textContent = 'Check the URL or load a local GLB file.';
+        });
+    }
+
+    disposeModelPreview() {
+        const state = this.modelPreview;
+        if (!state) return;
+        this.modelPreview = null;
+        cancelAnimationFrame(state.animationFrame);
+        state.resizeObserver?.disconnect();
+        state.controls?.dispose();
+        if (state.model) state.scene.remove(state.model);
+        state.scene.traverse(object => {
+            if (object.geometry) object.geometry.dispose?.();
+            const materials = Array.isArray(object.material) ? object.material : [object.material];
+            materials.forEach(material => {
+                if (!material) return;
+                Object.values(material).forEach(value => { if (value?.isTexture) value.dispose(); });
+                material.dispose?.();
+            });
+        });
+        state.renderer?.dispose();
     }
 
     initTextureAssetEditor(asset = null) {
