@@ -60,6 +60,7 @@ export class UI {
             ['hierarchy', () => this.renderHierarchyPanel()],
             ['example textures', () => this.seedExampleTextures()],
             ['example assets', () => this.seedExampleAssets()],
+            ['pose editor', () => this.setupPoseEditorEvents()],
             ['assets', () => this.renderAssetsPanel('components')]
         ];
 
@@ -3848,6 +3849,7 @@ export class UI {
         const isText = isShape2D && obj.userData.shapeType === 'text';
         let isFigurePart = false;
         const isFigure = obj.userData.type === 'figure';
+        const isCharacter = obj.userData.type === 'character';
 
         // Determine Title based on name override or type
         if (obj.userData.name) {
@@ -3861,6 +3863,8 @@ export class UI {
             title = obj.userData.lightType.toUpperCase() + " LIGHT";
         } else if (obj.userData.type === 'figure') {
             title = obj.userData.gender.toUpperCase() + " FIGURE";
+        } else if (obj.userData.type === 'character') {
+            title = (obj.userData.name || obj.userData.characterType || 'CHARACTER').toUpperCase();
         }
 
         // Header
@@ -3950,6 +3954,10 @@ export class UI {
         transformGroup.appendChild(createVec3Row('Scale', 'scl', obj.scale, () => { }));
 
         this.propsContent.appendChild(transformGroup);
+
+        if (isCharacter) {
+            this.addCharacterPoseControls(obj);
+        }
 
         if (isShape2D) {
             try {
@@ -4970,6 +4978,241 @@ export class UI {
         enableToggle.addEventListener('change', syncPhysicsSettingsVisibility);
 
         this.propsContent.appendChild(physicsGroup);
+    }
+
+    // Character pose presets and per-bone posing controls
+    addCharacterPoseControls(obj) {
+        const characterManager = this.app.characterManager;
+        const char = characterManager?.getCharacter(obj);
+        const poser = char?.poser;
+
+        const group = document.createElement('div');
+        group.className = 'property-group character-pose-group';
+        group.innerHTML = `<div class="property-label" style="color: var(--accent-secondary);"><i class="fas fa-person-rays" style="margin-right: 6px;"></i>Character Poses</div>`;
+
+        if (!poser) {
+            const note = document.createElement('div');
+            note.style.cssText = 'font-size:0.72rem;color:var(--text-secondary);line-height:1.4;';
+            note.textContent = 'This character has no pose rig available.';
+            group.appendChild(note);
+            this.propsContent.appendChild(group);
+            return;
+        }
+
+        const poseNames = characterManager.getPoseNames(obj);
+        const poseRow = document.createElement('div');
+        poseRow.className = 'input-row';
+        poseRow.style.marginBottom = '6px';
+        const poseSelect = document.createElement('select');
+        poseSelect.style.cssText = 'flex:1;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 8px;font-size:0.72rem;color:var(--text-primary);';
+        if (!poseNames.length) {
+            const option = document.createElement('option');
+            option.textContent = 'No poses available';
+            poseSelect.appendChild(option);
+        }
+        poseNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name.replace(/_/g, ' ');
+            if (obj.userData.poseName === name) option.selected = true;
+            poseSelect.appendChild(option);
+        });
+        poseRow.appendChild(poseSelect);
+        group.appendChild(poseRow);
+
+        const presetButtons = document.createElement('div');
+        presetButtons.className = 'input-row';
+        presetButtons.style.marginBottom = '6px';
+        const applyPoseBtn = document.createElement('button');
+        applyPoseBtn.type = 'button';
+        applyPoseBtn.className = 'btn primary';
+        applyPoseBtn.style.cssText = 'flex:1;font-size:0.7rem;';
+        applyPoseBtn.textContent = 'Apply Pose';
+        applyPoseBtn.addEventListener('click', () => {
+            if (!poseSelect.value) return;
+            characterManager.applyPose(obj, poseSelect.value, 0.3);
+            this.renderPropertiesPanel(obj);
+        });
+        const resetPoseBtn = document.createElement('button');
+        resetPoseBtn.type = 'button';
+        resetPoseBtn.className = 'btn';
+        resetPoseBtn.style.cssText = 'flex:1;font-size:0.7rem;';
+        resetPoseBtn.textContent = 'T-Pose';
+        resetPoseBtn.addEventListener('click', () => {
+            characterManager.resetPose(obj);
+            this.renderPropertiesPanel(obj);
+        });
+        const idleBtn = document.createElement('button');
+        idleBtn.type = 'button';
+        idleBtn.className = 'btn';
+        idleBtn.style.cssText = 'flex:1;font-size:0.7rem;';
+        idleBtn.textContent = 'Idle Anim';
+        idleBtn.addEventListener('click', () => {
+            characterManager.resumeAnimation(obj, 'idle');
+            this.renderPropertiesPanel(obj);
+        });
+        presetButtons.append(applyPoseBtn, resetPoseBtn, idleBtn);
+        group.appendChild(presetButtons);
+
+        const boneSelect = document.createElement('select');
+        boneSelect.style.cssText = 'width:100%;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 8px;font-size:0.72rem;color:var(--text-primary);margin-bottom:6px;';
+        const bones = characterManager.getBones(obj);
+        bones.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name.replace(/([a-z])([A-Z0-9])/g, '$1 $2');
+            boneSelect.appendChild(option);
+        });
+        group.appendChild(boneSelect);
+
+        const sliderRow = (axis, index) => {
+            const row = document.createElement('div');
+            row.className = 'input-row';
+            row.style.marginBottom = '4px';
+            const label = document.createElement('span');
+            label.style.cssText = 'font-size:0.68rem;color:var(--text-secondary);width:16px;';
+            label.textContent = axis.toUpperCase();
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = '-180';
+            slider.max = '180';
+            slider.step = '1';
+            slider.style.flex = '1';
+            const value = document.createElement('span');
+            value.style.cssText = 'font-size:0.68rem;color:var(--text-primary);width:34px;text-align:right;';
+            value.textContent = '0';
+            row.append(label, slider, value);
+            group.appendChild(row);
+            return { slider, value, index };
+        };
+        const sliders = [sliderRow('x', 0), sliderRow('y', 1), sliderRow('z', 2)];
+
+        const selectedBone = () => poser.bones.get(boneSelect.value);
+        const syncBoneSliders = () => {
+            const bone = selectedBone();
+            if (!bone) return;
+            const rest = poser.rest.get(boneSelect.value);
+            const delta = bone.quaternion.clone();
+            if (rest) delta.multiply(rest.clone().invert());
+            const euler = new THREE.Euler().setFromQuaternion(delta, 'ZYX');
+            const degrees = [THREE.MathUtils.radToDeg(euler.x), THREE.MathUtils.radToDeg(euler.y), THREE.MathUtils.radToDeg(euler.z)];
+            sliders.forEach(({ slider, value, index }) => {
+                const rounded = Math.round(degrees[index]);
+                slider.value = rounded;
+                value.textContent = rounded;
+            });
+        };
+        const applyBoneSliders = () => {
+            const values = sliders.map(({ slider }) => parseFloat(slider.value) || 0);
+            sliders.forEach(({ value, index }) => { value.textContent = Math.round(values[index]); });
+            characterManager.setBone(obj, boneSelect.value, values[0], values[1], values[2]);
+        };
+        sliders.forEach(({ slider }) => slider.addEventListener('input', applyBoneSliders));
+        boneSelect.addEventListener('change', syncBoneSliders);
+        syncBoneSliders();
+
+        const resetBoneBtn = document.createElement('button');
+        resetBoneBtn.type = 'button';
+        resetBoneBtn.className = 'btn';
+        resetBoneBtn.style.cssText = 'width:100%;font-size:0.7rem;margin-top:4px;';
+        resetBoneBtn.textContent = 'Reset Selected Bone';
+        resetBoneBtn.addEventListener('click', () => {
+            characterManager.resetBone(obj, boneSelect.value);
+            syncBoneSliders();
+        });
+        group.appendChild(resetBoneBtn);
+
+        const hipsRow = document.createElement('div');
+        hipsRow.className = 'input-row';
+        hipsRow.style.marginTop = '6px';
+        const hipsLabel = document.createElement('span');
+        hipsLabel.style.cssText = 'font-size:0.68rem;color:var(--text-secondary);width:48px;';
+        hipsLabel.textContent = 'Hips:';
+        const hipsSlider = document.createElement('input');
+        hipsSlider.type = 'range';
+        hipsSlider.min = '-0.8';
+        hipsSlider.max = '0.2';
+        hipsSlider.step = '0.01';
+        hipsSlider.style.flex = '1';
+        const hipsValue = document.createElement('span');
+        hipsValue.style.cssText = 'font-size:0.68rem;color:var(--text-primary);width:34px;text-align:right;';
+        const hipsFraction = poser.hips && poser.restHipsY ? poser.hips.position.y / poser.restHipsY - 1 : 0;
+        hipsSlider.value = hipsFraction;
+        hipsValue.textContent = hipsFraction.toFixed(2);
+        hipsSlider.addEventListener('input', () => {
+            const value = parseFloat(hipsSlider.value) || 0;
+            hipsValue.textContent = value.toFixed(2);
+            characterManager.setHipsDrop(obj, value);
+        });
+        hipsRow.append(hipsLabel, hipsSlider, hipsValue);
+        group.appendChild(hipsRow);
+
+        const openEditorBtn = document.createElement('button');
+        openEditorBtn.type = 'button';
+        openEditorBtn.className = 'btn primary';
+        openEditorBtn.style.cssText = 'width:100%;font-size:0.72rem;margin-top:8px;';
+        openEditorBtn.innerHTML = '<i class="fas fa-up-right-from-square" style="margin-right:6px;"></i>Open Full Pose Editor';
+        openEditorBtn.addEventListener('click', () => this.openPoseEditor(obj));
+        group.appendChild(openEditorBtn);
+
+        this.propsContent.appendChild(group);
+    }
+
+    setupPoseEditorEvents() {
+        if (this._poseEditorEventsBound) return;
+        this._poseEditorEventsBound = true;
+        window.addEventListener('message', (event) => {
+            const message = event.data;
+            if (!message || message.type !== 'pixelstaging-pose' || !message.pose) return;
+            const selected = this.app.selectedObject;
+            if (!selected || selected.userData?.type !== 'character') {
+                this.showNotification('Select a character before applying an external pose', 'warning');
+                return;
+            }
+            const applied = this.app.characterManager?.applyCustomPose(selected, message.pose);
+            if (applied) {
+                this.renderPropertiesPanel(selected);
+                this.showNotification(`Pose applied: ${message.name || 'Custom pose'}`, 'success');
+            }
+        });
+    }
+
+    openPoseEditor(obj) {
+        if (!obj || obj.userData?.type !== 'character') {
+            this.showNotification('Select a character to open the pose editor', 'warning');
+            return;
+        }
+        document.getElementById('pose-editor-modal')?.remove();
+
+        const modelPath = this.app.characterManager?.models?.[obj.userData.characterType] || './Art/Ybot_child.glb';
+        const modelFile = modelPath.split('/').pop();
+        const overlay = document.createElement('div');
+        overlay.id = 'pose-editor-modal';
+        overlay.className = 'modal-overlay open';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.cssText = 'width:min(1200px,95vw);height:min(820px,90vh);max-width:none;max-height:none;padding:0;overflow:hidden;position:relative;background:#0f0f1b;';
+
+        const iframe = document.createElement('iframe');
+        iframe.src = `Art/pose_editor.html?model=${encodeURIComponent(modelFile)}`;
+        iframe.title = 'Character Pose Editor';
+        iframe.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'modal-close-btn';
+        close.innerHTML = '&times;';
+        close.title = 'Close pose editor';
+        close.style.cssText = 'position:absolute;top:8px;right:10px;z-index:10;font-size:1.6rem;line-height:1;background:rgba(15,23,42,.85);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);cursor:pointer;width:36px;height:36px;';
+        close.addEventListener('click', () => overlay.remove());
+
+        modal.append(iframe, close);
+        overlay.appendChild(modal);
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) overlay.remove();
+        });
+        document.body.appendChild(overlay);
     }
 
     // Add 2D Text Controls to Properties Panel

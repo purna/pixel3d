@@ -421,12 +421,18 @@ class StageApp {
     }
 
     addToScene(obj) {
-        this.scene.add(obj);
-        // Add to interactable objects list if it's a root selectable item
-        if (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light') {
+        if (!obj) return;
+        if (!obj.parent) this.scene.add(obj);
+        // Add to interactable objects list if it's a root selectable item.
+        // Guard against duplicates because character loading and the history
+        // command can both register the same model.
+        const selectable = obj.userData?.type === 'shape'
+            || obj.userData?.type === 'shape2d'
+            || obj.userData?.type === 'light'
+            || obj.userData?.type === 'figure'
+            || obj.userData?.type === 'character';
+        if (selectable && !this.objects.includes(obj)) {
             this.objects.push(obj);
-        } else if (obj.userData.type === 'figure') {
-            this.objects.push(obj); // Store the group as the main object
         }
     }
 
@@ -594,7 +600,7 @@ class StageApp {
         // Track hover for scene objects
         const allSceneObjects = [];
         this.scene.traverse((obj) => {
-            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure' || obj.userData.type === 'character')) {
                 allSceneObjects.push(obj);
             }
         });
@@ -666,7 +672,7 @@ this.raycaster.setFromCamera(this.mouse, this.camera);
 
         const allSceneObjects = [];
         this.scene.traverse((obj) => {
-            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure' || obj.userData.type === 'character')) {
                 allSceneObjects.push(obj);
             }
         });
@@ -715,7 +721,7 @@ this.raycaster.setFromCamera(this.mouse, this.camera);
 // Not over gizmo, check if we clicked on an object
         const allSceneObjects = [];
         this.scene.traverse((obj) => {
-            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure')) {
+            if (obj.userData && (obj.userData.type === 'shape' || obj.userData.type === 'shape2d' || obj.userData.type === 'light' || obj.userData.type === 'figure' || obj.userData.type === 'character')) {
                 allSceneObjects.push(obj);
             }
         });
@@ -727,7 +733,7 @@ this.raycaster.setFromCamera(this.mouse, this.camera);
 
             // Walk up hierarchy to find root selectable object
             while (target.parent && target.parent !== this.scene) {
-                if (target.userData && (target.userData.type === 'shape' || target.userData.type === 'shape2d' || target.userData.type === 'light' || target.userData.type === 'figure')) {
+                if (target.userData && (target.userData.type === 'shape' || target.userData.type === 'shape2d' || target.userData.type === 'light' || target.userData.type === 'figure' || target.userData.type === 'character')) {
                     break;
                 }
                 target = target.parent;
@@ -918,7 +924,7 @@ this.raycaster.setFromCamera(this.mouse, this.camera);
             if (!o.geometry || !o.userData) return;
             // Only snap against shapes, lights, and figures.
             const t = o.userData.type;
-            if (t !== 'shape' && t !== 'light' && t !== 'figure') return;
+            if (t !== 'shape' && t !== 'light' && t !== 'figure' && t !== 'character') return;
             const bb = new THREE.Box3().setFromObject(o);
             // Per-axis distance check – objects must be close in the
             // perpendicular directions before we even consider this hit.

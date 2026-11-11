@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { CharacterPoser } from '../Art/CharacterPoser.js';
 
 export class CharacterManager {
     constructor(app) {
@@ -7,11 +8,37 @@ export class CharacterManager {
         this.characters = [];
         this.loader = new GLTFLoader();
         
-        // Models from Three.js examples (Mixamo Xbot/Ybot)
+        // Mixamo Xbot/Ybot models plus the child variants that include pose clips.
         this.models = {
             'xbot': './Art/Xbot.glb',
-            'ybot': './Art/Ybot.glb'
+            'ybot': './Art/Ybot.glb',
+            'xbot-child': './Art/Xbot_child.glb',
+            'ybot-child': './Art/Ybot_child.glb'
         };
+        this.labels = {
+            'xbot': 'Xbot Character',
+            'ybot': 'Ybot Character',
+            'xbot-child': 'Child Xbot',
+            'ybot-child': 'Child Ybot'
+        };
+        this.poseLibrary = null;
+        this.poseLibraryPromise = this.loadPoseLibrary();
+    }
+
+    async loadPoseLibrary() {
+        try {
+            const response = await fetch('./Art/poses.json');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            this.poseLibrary = await response.json();
+        } catch (error) {
+            console.warn('Could not load Art/poses.json; pose controls will use clip poses only.', error);
+        }
+        return this.poseLibrary;
+    }
+
+    async ensurePoseLibrary() {
+        if (!this.poseLibrary && this.poseLibraryPromise) await this.poseLibraryPromise;
+        return this.poseLibrary;
     }
 
     addCharacter(type = 'xbot') {
@@ -21,7 +48,7 @@ export class CharacterManager {
         document.body.style.cursor = 'wait';
 
         return new Promise((resolve, reject) => {
-            this.loader.load(url, (gltf) => {
+            this.loader.load(url, async (gltf) => {
                 try {
                     const model = gltf.scene;
                     
@@ -32,6 +59,15 @@ export class CharacterManager {
                         }
                     });
                     model.position.set(0, 0, 0);
+
+                    // Create the poser before mixer actions start moving the bones.
+                    const library = await this.ensurePoseLibrary();
+                    let poser = null;
+                    try {
+                        poser = new CharacterPoser(model, gltf.animations || [], library);
+                    } catch (error) {
+                        console.warn('Character posing is unavailable for this model:', error);
+                    }
 
                     // 2. Setup Animation Mixer
                     const mixer = new THREE.AnimationMixer(model);
@@ -71,6 +107,7 @@ export class CharacterManager {
                     model.userData = {
                         type: 'character',
                         characterType: type,
+                        name: this.labels[type] || 'Character',
                         id: Date.now(),
                         manager: this,
                         mixer: mixer,
@@ -81,17 +118,25 @@ export class CharacterManager {
                         model: model,
                         mixer: mixer,
                         actions: actions,
-                        state: 'idle'
+                        poser: poser,
+                        state: 'idle',
+                        posing: false
                     };
 
                     this.characters.push(charData);
+
+                    // Register the loaded model immediately so it appears in the
+                    // Hierarchy even before the history command selects it.
+                    if (this.app.objects && !this.app.objects.includes(model)) {
+                        this.app.objects.push(model);
+                    }
+                    this.app.ui?.renderHierarchyPanel?.();
                     
                     document.body.style.cursor = 'default';
                     
                     // Show notification if UI is available
                     if (this.app.ui && this.app.ui.showNotification) {
-                        const gender = type === 'xbot' ? 'Female' : 'Male';
-                        this.app.ui.showNotification(`${gender} character loaded!`, 'success');
+                        this.app.ui.showNotification(`${this.labels[type] || 'Character'} loaded!`, 'success');
                     }
                     
                     resolve(model);
@@ -115,12 +160,118 @@ export class CharacterManager {
     }
 
     update(delta) {
-        // Update all mixers (advances animation frames)
         for (const char of this.characters) {
-            if (char.mixer) {
-                char.mixer.update(delta);
-            }
+            if (char.mixer) char.mixer.update(delta);
+            if (char.poser) char.poser.update(delta);
         }
+    }
+
+    getCharacter(model) {
+        return this.characters.find(char => char.model === model) || null;
+    }
+
+    getPoser(model) {
+        return this.getCharacter(model)?.poser || null;
+    }
+
+    getPoseNames(model) {
+        return this.getPoser(model)?.list() || [];
+    }
+
+    getBones(model) {
+        const poser = this.getPoser(model);
+        return poser ? [...poser.bones.keys()] : [];
+    }
+
+    _beginPosing(char) {
+        if (!char) return false;
+        char.posing = true;
+        char.state = 'pose';
+        char.mixer?.stopAllAction();
+        return true;
+    }
+
+    applyPose(model, name, duration = 0.3) {
+        const char = this.getCharacter(model);
+        if (!char?.poser || !char.poser.has(name)) return false;
+        this._beginPosing(char);
+        char.poser.apply(name, { duration });
+        model.userData.poseName = name;
+        delete model.userData.poseData;
+        return true;
+    }
+
+    applyCustomPose(model, pose, duration = 0.2) {
+        const char = this.getCharacter(model);
+        if (!char?.poser || !pose?.rotations) return false;
+        this._beginPosing(char);
+        char.poser.applyPose(pose, { duration });
+        model.userData.poseData = pose;
+        delete model.userData.poseName;
+        return true;
+    }
+
+    setBone(model, boneName, x, y, z) {
+        const char = this.getCharacter(model);
+        if (!char?.poser) return false;
+        this._beginPosing(char);
+        char.poser.setBone(boneName, x, y, z);
+        model.userData.poseData = char.poser.getPose();
+        delete model.userData.poseName;
+        return true;
+    }
+
+    setHipsDrop(model, value) {
+        const char = this.getCharacter(model);
+        if (!char?.poser) return false;
+        this._beginPosing(char);
+        char.poser.setHipsDrop(value);
+        model.userData.poseData = char.poser.getPose();
+        delete model.userData.poseName;
+        return true;
+    }
+
+    resetBone(model, boneName) {
+        const char = this.getCharacter(model);
+        if (!char?.poser) return false;
+        char.poser.resetBone(boneName);
+        model.userData.poseData = char.poser.getPose();
+        delete model.userData.poseName;
+        return true;
+    }
+
+    resetPose(model, duration = 0.2) {
+        const char = this.getCharacter(model);
+        if (!char?.poser) return false;
+        this._beginPosing(char);
+        char.poser.reset({ duration });
+        model.userData.poseData = char.poser.getPose();
+        delete model.userData.poseName;
+        return true;
+    }
+
+    resumeAnimation(model, state = 'idle') {
+        const char = this.getCharacter(model);
+        if (!char) return false;
+        char.posing = false;
+        const action = char.actions[state] || char.actions.idle;
+        if (!action) return false;
+        char.mixer.stopAllAction();
+        action.reset();
+        action.enabled = true;
+        action.setEffectiveWeight(1);
+        action.play();
+        char.state = state;
+        delete model.userData.poseData;
+        delete model.userData.poseName;
+        return true;
+    }
+
+    applySavedPose(model) {
+        const userData = model.userData || {};
+        if (userData.poseData) return this.applyCustomPose(model, userData.poseData, 0);
+        if (userData.poseName) return this.applyPose(model, userData.poseName, 0);
+        return false;
     }
 
     // --- Blending Logic from character.html ---

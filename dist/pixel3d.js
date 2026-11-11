@@ -30912,6 +30912,7 @@
         ["hierarchy", () => this.renderHierarchyPanel()],
         ["example textures", () => this.seedExampleTextures()],
         ["example assets", () => this.seedExampleAssets()],
+        ["pose editor", () => this.setupPoseEditorEvents()],
         ["assets", () => this.renderAssetsPanel("components")]
       ];
       initializers.forEach(([name, initialize]) => {
@@ -34407,6 +34408,7 @@
       const isText = isShape2D && obj.userData.shapeType === "text";
       let isFigurePart = false;
       const isFigure = obj.userData.type === "figure";
+      const isCharacter = obj.userData.type === "character";
       if (obj.userData.name) {
         title = obj.userData.name;
         if (obj.userData.name.includes("Joint")) isFigurePart = true;
@@ -34418,6 +34420,8 @@
         title = obj.userData.lightType.toUpperCase() + " LIGHT";
       } else if (obj.userData.type === "figure") {
         title = obj.userData.gender.toUpperCase() + " FIGURE";
+      } else if (obj.userData.type === "character") {
+        title = (obj.userData.name || obj.userData.characterType || "CHARACTER").toUpperCase();
       }
       const header = document.createElement("div");
       header.className = "property-group";
@@ -34500,6 +34504,9 @@
       transformGroup.appendChild(createVec3Row("Scale", "scl", obj.scale, () => {
       }));
       this.propsContent.appendChild(transformGroup);
+      if (isCharacter) {
+        this.addCharacterPoseControls(obj);
+      }
       if (isShape2D) {
         try {
           this.add2DProperties(obj);
@@ -35363,6 +35370,224 @@
       syncPhysicsSettingsVisibility();
       enableToggle.addEventListener("change", syncPhysicsSettingsVisibility);
       this.propsContent.appendChild(physicsGroup);
+    }
+    // Character pose presets and per-bone posing controls
+    addCharacterPoseControls(obj) {
+      const characterManager = this.app.characterManager;
+      const char = characterManager?.getCharacter(obj);
+      const poser = char?.poser;
+      const group = document.createElement("div");
+      group.className = "property-group character-pose-group";
+      group.innerHTML = `<div class="property-label" style="color: var(--accent-secondary);"><i class="fas fa-person-rays" style="margin-right: 6px;"></i>Character Poses</div>`;
+      if (!poser) {
+        const note = document.createElement("div");
+        note.style.cssText = "font-size:0.72rem;color:var(--text-secondary);line-height:1.4;";
+        note.textContent = "This character has no pose rig available.";
+        group.appendChild(note);
+        this.propsContent.appendChild(group);
+        return;
+      }
+      const poseNames = characterManager.getPoseNames(obj);
+      const poseRow = document.createElement("div");
+      poseRow.className = "input-row";
+      poseRow.style.marginBottom = "6px";
+      const poseSelect = document.createElement("select");
+      poseSelect.style.cssText = "flex:1;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 8px;font-size:0.72rem;color:var(--text-primary);";
+      if (!poseNames.length) {
+        const option = document.createElement("option");
+        option.textContent = "No poses available";
+        poseSelect.appendChild(option);
+      }
+      poseNames.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name.replace(/_/g, " ");
+        if (obj.userData.poseName === name) option.selected = true;
+        poseSelect.appendChild(option);
+      });
+      poseRow.appendChild(poseSelect);
+      group.appendChild(poseRow);
+      const presetButtons = document.createElement("div");
+      presetButtons.className = "input-row";
+      presetButtons.style.marginBottom = "6px";
+      const applyPoseBtn = document.createElement("button");
+      applyPoseBtn.type = "button";
+      applyPoseBtn.className = "btn primary";
+      applyPoseBtn.style.cssText = "flex:1;font-size:0.7rem;";
+      applyPoseBtn.textContent = "Apply Pose";
+      applyPoseBtn.addEventListener("click", () => {
+        if (!poseSelect.value) return;
+        characterManager.applyPose(obj, poseSelect.value, 0.3);
+        this.renderPropertiesPanel(obj);
+      });
+      const resetPoseBtn = document.createElement("button");
+      resetPoseBtn.type = "button";
+      resetPoseBtn.className = "btn";
+      resetPoseBtn.style.cssText = "flex:1;font-size:0.7rem;";
+      resetPoseBtn.textContent = "T-Pose";
+      resetPoseBtn.addEventListener("click", () => {
+        characterManager.resetPose(obj);
+        this.renderPropertiesPanel(obj);
+      });
+      const idleBtn = document.createElement("button");
+      idleBtn.type = "button";
+      idleBtn.className = "btn";
+      idleBtn.style.cssText = "flex:1;font-size:0.7rem;";
+      idleBtn.textContent = "Idle Anim";
+      idleBtn.addEventListener("click", () => {
+        characterManager.resumeAnimation(obj, "idle");
+        this.renderPropertiesPanel(obj);
+      });
+      presetButtons.append(applyPoseBtn, resetPoseBtn, idleBtn);
+      group.appendChild(presetButtons);
+      const boneSelect = document.createElement("select");
+      boneSelect.style.cssText = "width:100%;background:var(--bg-light);border:1px solid var(--border-color);border-radius:4px;padding:4px 8px;font-size:0.72rem;color:var(--text-primary);margin-bottom:6px;";
+      const bones = characterManager.getBones(obj);
+      bones.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name.replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+        boneSelect.appendChild(option);
+      });
+      group.appendChild(boneSelect);
+      const sliderRow = (axis, index) => {
+        const row = document.createElement("div");
+        row.className = "input-row";
+        row.style.marginBottom = "4px";
+        const label = document.createElement("span");
+        label.style.cssText = "font-size:0.68rem;color:var(--text-secondary);width:16px;";
+        label.textContent = axis.toUpperCase();
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "-180";
+        slider.max = "180";
+        slider.step = "1";
+        slider.style.flex = "1";
+        const value = document.createElement("span");
+        value.style.cssText = "font-size:0.68rem;color:var(--text-primary);width:34px;text-align:right;";
+        value.textContent = "0";
+        row.append(label, slider, value);
+        group.appendChild(row);
+        return { slider, value, index };
+      };
+      const sliders = [sliderRow("x", 0), sliderRow("y", 1), sliderRow("z", 2)];
+      const selectedBone = () => poser.bones.get(boneSelect.value);
+      const syncBoneSliders = () => {
+        const bone = selectedBone();
+        if (!bone) return;
+        const rest = poser.rest.get(boneSelect.value);
+        const delta = bone.quaternion.clone();
+        if (rest) delta.multiply(rest.clone().invert());
+        const euler = new Euler().setFromQuaternion(delta, "ZYX");
+        const degrees = [MathUtils.radToDeg(euler.x), MathUtils.radToDeg(euler.y), MathUtils.radToDeg(euler.z)];
+        sliders.forEach(({ slider, value, index }) => {
+          const rounded = Math.round(degrees[index]);
+          slider.value = rounded;
+          value.textContent = rounded;
+        });
+      };
+      const applyBoneSliders = () => {
+        const values = sliders.map(({ slider }) => parseFloat(slider.value) || 0);
+        sliders.forEach(({ value, index }) => {
+          value.textContent = Math.round(values[index]);
+        });
+        characterManager.setBone(obj, boneSelect.value, values[0], values[1], values[2]);
+      };
+      sliders.forEach(({ slider }) => slider.addEventListener("input", applyBoneSliders));
+      boneSelect.addEventListener("change", syncBoneSliders);
+      syncBoneSliders();
+      const resetBoneBtn = document.createElement("button");
+      resetBoneBtn.type = "button";
+      resetBoneBtn.className = "btn";
+      resetBoneBtn.style.cssText = "width:100%;font-size:0.7rem;margin-top:4px;";
+      resetBoneBtn.textContent = "Reset Selected Bone";
+      resetBoneBtn.addEventListener("click", () => {
+        characterManager.resetBone(obj, boneSelect.value);
+        syncBoneSliders();
+      });
+      group.appendChild(resetBoneBtn);
+      const hipsRow = document.createElement("div");
+      hipsRow.className = "input-row";
+      hipsRow.style.marginTop = "6px";
+      const hipsLabel = document.createElement("span");
+      hipsLabel.style.cssText = "font-size:0.68rem;color:var(--text-secondary);width:48px;";
+      hipsLabel.textContent = "Hips:";
+      const hipsSlider = document.createElement("input");
+      hipsSlider.type = "range";
+      hipsSlider.min = "-0.8";
+      hipsSlider.max = "0.2";
+      hipsSlider.step = "0.01";
+      hipsSlider.style.flex = "1";
+      const hipsValue = document.createElement("span");
+      hipsValue.style.cssText = "font-size:0.68rem;color:var(--text-primary);width:34px;text-align:right;";
+      const hipsFraction = poser.hips && poser.restHipsY ? poser.hips.position.y / poser.restHipsY - 1 : 0;
+      hipsSlider.value = hipsFraction;
+      hipsValue.textContent = hipsFraction.toFixed(2);
+      hipsSlider.addEventListener("input", () => {
+        const value = parseFloat(hipsSlider.value) || 0;
+        hipsValue.textContent = value.toFixed(2);
+        characterManager.setHipsDrop(obj, value);
+      });
+      hipsRow.append(hipsLabel, hipsSlider, hipsValue);
+      group.appendChild(hipsRow);
+      const openEditorBtn = document.createElement("button");
+      openEditorBtn.type = "button";
+      openEditorBtn.className = "btn primary";
+      openEditorBtn.style.cssText = "width:100%;font-size:0.72rem;margin-top:8px;";
+      openEditorBtn.innerHTML = '<i class="fas fa-up-right-from-square" style="margin-right:6px;"></i>Open Full Pose Editor';
+      openEditorBtn.addEventListener("click", () => this.openPoseEditor(obj));
+      group.appendChild(openEditorBtn);
+      this.propsContent.appendChild(group);
+    }
+    setupPoseEditorEvents() {
+      if (this._poseEditorEventsBound) return;
+      this._poseEditorEventsBound = true;
+      window.addEventListener("message", (event) => {
+        const message = event.data;
+        if (!message || message.type !== "pixelstaging-pose" || !message.pose) return;
+        const selected = this.app.selectedObject;
+        if (!selected || selected.userData?.type !== "character") {
+          this.showNotification("Select a character before applying an external pose", "warning");
+          return;
+        }
+        const applied = this.app.characterManager?.applyCustomPose(selected, message.pose);
+        if (applied) {
+          this.renderPropertiesPanel(selected);
+          this.showNotification(`Pose applied: ${message.name || "Custom pose"}`, "success");
+        }
+      });
+    }
+    openPoseEditor(obj) {
+      if (!obj || obj.userData?.type !== "character") {
+        this.showNotification("Select a character to open the pose editor", "warning");
+        return;
+      }
+      document.getElementById("pose-editor-modal")?.remove();
+      const modelPath = this.app.characterManager?.models?.[obj.userData.characterType] || "./Art/Ybot_child.glb";
+      const modelFile = modelPath.split("/").pop();
+      const overlay = document.createElement("div");
+      overlay.id = "pose-editor-modal";
+      overlay.className = "modal-overlay open";
+      const modal = document.createElement("div");
+      modal.className = "modal";
+      modal.style.cssText = "width:min(1200px,95vw);height:min(820px,90vh);max-width:none;max-height:none;padding:0;overflow:hidden;position:relative;background:#0f0f1b;";
+      const iframe = document.createElement("iframe");
+      iframe.src = `Art/pose_editor.html?model=${encodeURIComponent(modelFile)}`;
+      iframe.title = "Character Pose Editor";
+      iframe.style.cssText = "width:100%;height:100%;border:0;display:block;";
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "modal-close-btn";
+      close.innerHTML = "&times;";
+      close.title = "Close pose editor";
+      close.style.cssText = "position:absolute;top:8px;right:10px;z-index:10;font-size:1.6rem;line-height:1;background:rgba(15,23,42,.85);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);cursor:pointer;width:36px;height:36px;";
+      close.addEventListener("click", () => overlay.remove());
+      modal.append(iframe, close);
+      overlay.appendChild(modal);
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) overlay.remove();
+      });
+      document.body.appendChild(overlay);
     }
     // Add 2D Text Controls to Properties Panel
     addTextControls(obj) {
@@ -38701,6 +38926,8 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
       if (obj.userData.type === "figure") {
         if (obj.userData.gender === "female") iconClass = "fa-female";
         else iconClass = "fa-male";
+      } else if (obj.userData.type === "character") {
+        iconClass = String(obj.userData.characterType || "").includes("child") ? "fa-child" : "fa-user";
       } else if (obj.userData.type === "light") {
         switch (obj.userData.lightType) {
           case "point":
@@ -43592,6 +43819,232 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
     });
   }
 
+  // Art/CharacterPoser.js
+  init_three_module();
+  var short = (name) => name.replace(/^mixamorig:?/, "");
+  var smooth = (t) => t * t * (3 - 2 * t);
+  var CharacterPoser = class {
+    /**
+     * @param {THREE.Object3D} root       gltf.scene (or any object containing the skeleton)
+     * @param {THREE.AnimationClip[]} clips  gltf.animations; every clip named 'pose_*' becomes a pose
+     * @param {object} [library]          optional parsed poses.json (works on any Mixamo-rigged character)
+     */
+    constructor(root, clips = [], library = null) {
+      this.root = root;
+      this.bones = /* @__PURE__ */ new Map();
+      root.traverse((o) => {
+        if (o.isBone) this.bones.set(short(o.name), o);
+      });
+      if (!this.bones.size) throw new Error("CharacterPoser: no bones found");
+      this.hips = this.bones.get("Hips") ?? null;
+      this.rest = /* @__PURE__ */ new Map();
+      this.restPositions = /* @__PURE__ */ new Map();
+      for (const [n, b2] of this.bones) {
+        this.rest.set(n, b2.quaternion.clone());
+        this.restPositions.set(n, b2.position.clone());
+      }
+      this.restHipsY = this.hips ? this.hips.position.y : 0;
+      this.poses = /* @__PURE__ */ new Map();
+      this._clips = /* @__PURE__ */ new Map();
+      for (const clip of clips) if (clip.name.startsWith("pose_")) this._readClip(clip);
+      if (library) this.addLibrary(library);
+      this._from = null;
+      this._to = null;
+      this._t = 1;
+      this._dur = 0;
+    }
+    // ---- loading poses -------------------------------------------------------------------------------------------
+    _readClip(clip) {
+      const rotations = /* @__PURE__ */ new Map();
+      let hipsScale = 1;
+      for (const tr of clip.tracks) {
+        const dot2 = tr.name.lastIndexOf(".");
+        const node = short(tr.name.slice(0, dot2));
+        const prop = tr.name.slice(dot2 + 1);
+        if (prop === "quaternion") rotations.set(node, new Quaternion().fromArray(tr.values, 0));
+        else if (prop === "position" && node === "Hips" && this.restHipsY) hipsScale = tr.values[1] / this.restHipsY;
+      }
+      const name = clip.name.slice(5);
+      this.poses.set(name, { rotations, hipsScale });
+      this._clips.set(name, clip);
+    }
+    /** Add poses from poses.json (portable library). Does not overwrite poses already read from the file's own clips. */
+    addLibrary(lib) {
+      for (const [name, p] of Object.entries(lib.poses ?? {})) {
+        if (this.poses.has(name)) continue;
+        const rotations = /* @__PURE__ */ new Map();
+        for (const [bn, q] of Object.entries(p.rotations)) rotations.set(short(bn), new Quaternion().fromArray(q));
+        this.poses.set(name, { rotations, hipsScale: 1 + (p.hipsDrop ?? 0) });
+      }
+    }
+    list() {
+      return [...this.poses.keys()];
+    }
+    has(name) {
+      return this.poses.has(name);
+    }
+    /** Add a static pose sampled from an animation clip (walk/run/etc). */
+    addPoseFromClip(name, clip, time = null) {
+      if (!clip || this.poses.has(name)) return this;
+      const sampleTime = time == null ? clip.duration * 0.5 : time;
+      for (const [n, b2] of this.bones) {
+        b2.quaternion.copy(this.rest.get(n));
+        const p = this.restPositions.get(n);
+        if (p) b2.position.copy(p);
+      }
+      for (const track of clip.tracks) {
+        const dot2 = track.name.lastIndexOf(".");
+        if (dot2 === -1) continue;
+        const boneName = short(track.name.slice(0, dot2));
+        const prop = track.name.slice(dot2 + 1);
+        const bone = this.bones.get(boneName);
+        if (!bone) continue;
+        let index = 0;
+        while (index < track.times.length - 1 && track.times[index + 1] <= sampleTime) index++;
+        const valueSize = track.getValueSize();
+        const offset = index * valueSize;
+        if (prop === "quaternion") bone.quaternion.fromArray(track.values, offset);
+        if (prop === "position" && boneName === "Hips") bone.position.fromArray(track.values, offset);
+      }
+      const rotations = /* @__PURE__ */ new Map();
+      for (const [n, b2] of this.bones) rotations.set(n, b2.quaternion.clone());
+      const hipsScale = this.hips && this.restHipsY ? this.hips.position.y / this.restHipsY : 1;
+      this.poses.set(name, { rotations, hipsScale });
+      this._clips.set(name, clip);
+      for (const [n, b2] of this.bones) {
+        b2.quaternion.copy(this.rest.get(n));
+        const p = this.restPositions.get(n);
+        if (p) b2.position.copy(p);
+      }
+      return this;
+    }
+    /** Add a pose defined as bone rotation offsets in degrees. */
+    addDeltaPose(name, degrees = {}, hipsDrop = 0) {
+      if (this.poses.has(name)) return this;
+      const rotations = /* @__PURE__ */ new Map();
+      for (const [n] of this.bones) {
+        const euler = degrees[n] || [0, 0, 0];
+        const delta = new Quaternion().setFromEuler(new Euler(
+          MathUtils.degToRad(euler[0] || 0),
+          MathUtils.degToRad(euler[1] || 0),
+          MathUtils.degToRad(euler[2] || 0),
+          "ZYX"
+        ));
+        rotations.set(n, delta.multiply(this.rest.get(n)));
+      }
+      this.poses.set(name, { rotations, hipsScale: 1 + hipsDrop });
+      return this;
+    }
+    // ---- applying poses ------------------------------------------------------------------------------------------
+    /** Pose the character. duration = seconds to blend from the current pose (0 = instant). Call update(dt) each frame. */
+    apply(name, { duration = 0 } = {}) {
+      const p = this.poses.get(name);
+      if (!p) throw new Error(`CharacterPoser: unknown pose "${name}". Available: ${this.list().join(", ")}`);
+      return this._blendTo(this._targetFrom(p), duration);
+    }
+    /** Back to the rest (T-pose) state. */
+    reset({ duration = 0 } = {}) {
+      return this.apply("t_pose", { duration }) ?? this;
+    }
+    /** Apply a pose object as returned by getPose(). */
+    applyPose(pose, { duration = 0 } = {}) {
+      const rotations = new Map(Object.entries(pose.rotations).map(([n, q]) => [short(n), new Quaternion().fromArray(q)]));
+      if (pose.positions) {
+        for (const [name, pos] of Object.entries(pose.positions)) {
+          const bone = this.bones.get(short(name));
+          if (bone) bone.position.fromArray(pos);
+        }
+      }
+      return this._blendTo(this._targetFrom({ rotations, hipsScale: pose.hipsScale ?? 1 }), duration);
+    }
+    /** Current pose as plain JSON (save it, then pass it to applyPose later). */
+    getPose() {
+      const rotations = {};
+      const positions = {};
+      for (const [n, b2] of this.bones) {
+        rotations[n] = b2.quaternion.toArray();
+        positions[n] = b2.position.toArray();
+      }
+      return { rotations, positions, hipsScale: this.hips && this.restHipsY ? this.hips.position.y / this.restHipsY : 1 };
+    }
+    /** Pose a single bone in degrees (X first, then Y, then Z, on top of the rest rotation). Instant. */
+    setBone(boneName, x = 0, y = 0, z = 0) {
+      const b2 = this.bones.get(short(boneName));
+      if (!b2) throw new Error(`CharacterPoser: no bone "${boneName}"`);
+      this._cancel();
+      b2.quaternion.copy(new Quaternion().setFromEuler(new Euler(MathUtils.degToRad(x), MathUtils.degToRad(y), MathUtils.degToRad(z), "ZYX")).multiply(this.rest.get(short(boneName))));
+      return this;
+    }
+    /** Lower/raise the hips by a fraction of their rest height (e.g. -0.4 for sitting). Instant. */
+    setHipsDrop(fraction) {
+      if (this.hips) {
+        this._cancel();
+        this.hips.position.y = this.restHipsY * (1 + fraction);
+      }
+      return this;
+    }
+    resetBone(name) {
+      const key = short(name);
+      const bone = this.bones.get(key);
+      if (!bone) return this;
+      this._cancel();
+      bone.quaternion.copy(this.rest.get(key));
+      const restPos = this.restPositions.get(key);
+      if (restPos) bone.position.copy(restPos);
+      return this;
+    }
+    /** Call every frame with the frame time in seconds. */
+    update(dt) {
+      if (!this._to || this._t >= 1) return;
+      this._t = Math.min(1, this._t + (this._dur > 0 ? dt / this._dur : 1));
+      this._write(smooth(this._t));
+      if (this._t >= 1) {
+        this._from = this._to = null;
+      }
+    }
+    get blending() {
+      return !!this._to && this._t < 1;
+    }
+    // ---- optional: use the file's own pose clips with an AnimationMixer ------------------------------------------
+    /** Crossfade a mixer to a pose clip and hold it. Returns the action. */
+    playClip(mixer, name, fade = 0.25) {
+      const clip = this._clips.get(name);
+      if (!clip) throw new Error(`No pose clip "${name}" in this file`);
+      const a2 = mixer.clipAction(clip);
+      a2.reset();
+      a2.setLoop(2200, 1);
+      a2.clampWhenFinished = true;
+      a2.fadeIn(fade).play();
+      return a2;
+    }
+    // ---- internals -----------------------------------------------------------------------------------------------
+    _targetFrom(p) {
+      const rot = /* @__PURE__ */ new Map();
+      for (const [n] of this.bones) rot.set(n, (p.rotations.get(n) ?? this.rest.get(n)).clone());
+      return { rot, hipsY: this.restHipsY * p.hipsScale };
+    }
+    _blendTo(target, duration) {
+      this._from = { rot: new Map([...this.bones].map(([n, b2]) => [n, b2.quaternion.clone()])), hipsY: this.hips ? this.hips.position.y : 0 };
+      this._to = target;
+      this._dur = duration;
+      this._t = 0;
+      if (duration <= 0) {
+        this._write(1);
+        this._t = 1;
+        this._from = this._to = null;
+      }
+      return this;
+    }
+    _write(k) {
+      for (const [n, b2] of this.bones) b2.quaternion.slerpQuaternions(this._from.rot.get(n), this._to.rot.get(n), k);
+      if (this.hips) this.hips.position.y = this._from.hipsY + (this._to.hipsY - this._from.hipsY) * k;
+    }
+    _cancel() {
+      this._from = this._to = null;
+      this._t = 1;
+    }
+  };
+
   // js/characterManager.js
   var CharacterManager = class {
     constructor(app) {
@@ -43600,14 +44053,38 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
       this.loader = new GLTFLoader();
       this.models = {
         "xbot": "./Art/Xbot.glb",
-        "ybot": "./Art/Ybot.glb"
+        "ybot": "./Art/Ybot.glb",
+        "xbot-child": "./Art/Xbot_child.glb",
+        "ybot-child": "./Art/Ybot_child.glb"
       };
+      this.labels = {
+        "xbot": "Xbot Character",
+        "ybot": "Ybot Character",
+        "xbot-child": "Child Xbot",
+        "ybot-child": "Child Ybot"
+      };
+      this.poseLibrary = null;
+      this.poseLibraryPromise = this.loadPoseLibrary();
+    }
+    async loadPoseLibrary() {
+      try {
+        const response = await fetch("./Art/poses.json");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        this.poseLibrary = await response.json();
+      } catch (error) {
+        console.warn("Could not load Art/poses.json; pose controls will use clip poses only.", error);
+      }
+      return this.poseLibrary;
+    }
+    async ensurePoseLibrary() {
+      if (!this.poseLibrary && this.poseLibraryPromise) await this.poseLibraryPromise;
+      return this.poseLibrary;
     }
     addCharacter(type = "xbot") {
       const url = this.models[type] || this.models["xbot"];
       document.body.style.cursor = "wait";
       return new Promise((resolve, reject) => {
-        this.loader.load(url, (gltf) => {
+        this.loader.load(url, async (gltf) => {
           try {
             const model = gltf.scene;
             model.traverse((object) => {
@@ -43616,6 +44093,13 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
               }
             });
             model.position.set(0, 0, 0);
+            const library = await this.ensurePoseLibrary();
+            let poser = null;
+            try {
+              poser = new CharacterPoser(model, gltf.animations || [], library);
+            } catch (error) {
+              console.warn("Character posing is unavailable for this model:", error);
+            }
             const mixer = new AnimationMixer(model);
             const animations = gltf.animations;
             const actions = {};
@@ -43646,6 +44130,7 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
             model.userData = {
               type: "character",
               characterType: type,
+              name: this.labels[type] || "Character",
               id: Date.now(),
               manager: this,
               mixer,
@@ -43655,13 +44140,18 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
               model,
               mixer,
               actions,
-              state: "idle"
+              poser,
+              state: "idle",
+              posing: false
             };
             this.characters.push(charData);
+            if (this.app.objects && !this.app.objects.includes(model)) {
+              this.app.objects.push(model);
+            }
+            this.app.ui?.renderHierarchyPanel?.();
             document.body.style.cursor = "default";
             if (this.app.ui && this.app.ui.showNotification) {
-              const gender = type === "xbot" ? "Female" : "Male";
-              this.app.ui.showNotification(`${gender} character loaded!`, "success");
+              this.app.ui.showNotification(`${this.labels[type] || "Character"} loaded!`, "success");
             }
             resolve(model);
           } catch (error) {
@@ -43679,10 +44169,104 @@ Use sensible positions and scales; place objects on or above the floor. Do not i
     }
     update(delta) {
       for (const char of this.characters) {
-        if (char.mixer) {
-          char.mixer.update(delta);
-        }
+        if (char.mixer) char.mixer.update(delta);
+        if (char.poser) char.poser.update(delta);
       }
+    }
+    getCharacter(model) {
+      return this.characters.find((char) => char.model === model) || null;
+    }
+    getPoser(model) {
+      return this.getCharacter(model)?.poser || null;
+    }
+    getPoseNames(model) {
+      return this.getPoser(model)?.list() || [];
+    }
+    getBones(model) {
+      const poser = this.getPoser(model);
+      return poser ? [...poser.bones.keys()] : [];
+    }
+    _beginPosing(char) {
+      if (!char) return false;
+      char.posing = true;
+      char.state = "pose";
+      char.mixer?.stopAllAction();
+      return true;
+    }
+    applyPose(model, name, duration = 0.3) {
+      const char = this.getCharacter(model);
+      if (!char?.poser || !char.poser.has(name)) return false;
+      this._beginPosing(char);
+      char.poser.apply(name, { duration });
+      model.userData.poseName = name;
+      delete model.userData.poseData;
+      return true;
+    }
+    applyCustomPose(model, pose, duration = 0.2) {
+      const char = this.getCharacter(model);
+      if (!char?.poser || !pose?.rotations) return false;
+      this._beginPosing(char);
+      char.poser.applyPose(pose, { duration });
+      model.userData.poseData = pose;
+      delete model.userData.poseName;
+      return true;
+    }
+    setBone(model, boneName, x, y, z) {
+      const char = this.getCharacter(model);
+      if (!char?.poser) return false;
+      this._beginPosing(char);
+      char.poser.setBone(boneName, x, y, z);
+      model.userData.poseData = char.poser.getPose();
+      delete model.userData.poseName;
+      return true;
+    }
+    setHipsDrop(model, value) {
+      const char = this.getCharacter(model);
+      if (!char?.poser) return false;
+      this._beginPosing(char);
+      char.poser.setHipsDrop(value);
+      model.userData.poseData = char.poser.getPose();
+      delete model.userData.poseName;
+      return true;
+    }
+    resetBone(model, boneName) {
+      const char = this.getCharacter(model);
+      if (!char?.poser) return false;
+      char.poser.resetBone(boneName);
+      model.userData.poseData = char.poser.getPose();
+      delete model.userData.poseName;
+      return true;
+    }
+    resetPose(model, duration = 0.2) {
+      const char = this.getCharacter(model);
+      if (!char?.poser) return false;
+      this._beginPosing(char);
+      char.poser.reset({ duration });
+      model.userData.poseData = char.poser.getPose();
+      delete model.userData.poseName;
+      return true;
+    }
+    resumeAnimation(model, state = "idle") {
+      const char = this.getCharacter(model);
+      if (!char) return false;
+      char.posing = false;
+      const action = char.actions[state] || char.actions.idle;
+      if (!action) return false;
+      char.mixer.stopAllAction();
+      action.reset();
+      action.enabled = true;
+      action.setEffectiveWeight(1);
+      action.play();
+      char.state = state;
+      delete model.userData.poseData;
+      delete model.userData.poseName;
+      return true;
+    }
+    applySavedPose(model) {
+      const userData = model.userData || {};
+      if (userData.poseData) return this.applyCustomPose(model, userData.poseData, 0);
+      if (userData.poseName) return this.applyPose(model, userData.poseName, 0);
+      return false;
     }
     // --- Blending Logic from character.html ---
     setAnimation(model, targetState) {
@@ -59162,10 +59746,10 @@ ${elements.join("\n")}
       this.historyManager.executeCommand(addCommand);
     }
     addToScene(obj) {
-      this.scene.add(obj);
-      if (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light") {
-        this.objects.push(obj);
-      } else if (obj.userData.type === "figure") {
+      if (!obj) return;
+      if (!obj.parent) this.scene.add(obj);
+      const selectable = obj.userData?.type === "shape" || obj.userData?.type === "shape2d" || obj.userData?.type === "light" || obj.userData?.type === "figure" || obj.userData?.type === "character";
+      if (selectable && !this.objects.includes(obj)) {
         this.objects.push(obj);
       }
     }
@@ -59296,7 +59880,7 @@ ${elements.join("\n")}
       }
       const allSceneObjects = [];
       this.scene.traverse((obj) => {
-        if (obj.userData && (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light" || obj.userData.type === "figure")) {
+        if (obj.userData && (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light" || obj.userData.type === "figure" || obj.userData.type === "character")) {
           allSceneObjects.push(obj);
         }
       });
@@ -59352,7 +59936,7 @@ ${elements.join("\n")}
       this.raycaster.setFromCamera(this.mouse, this.camera);
       const allSceneObjects = [];
       this.scene.traverse((obj) => {
-        if (obj.userData && (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light" || obj.userData.type === "figure")) {
+        if (obj.userData && (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light" || obj.userData.type === "figure" || obj.userData.type === "character")) {
           allSceneObjects.push(obj);
         }
       });
@@ -59384,7 +59968,7 @@ ${elements.join("\n")}
       }
       const allSceneObjects = [];
       this.scene.traverse((obj) => {
-        if (obj.userData && (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light" || obj.userData.type === "figure")) {
+        if (obj.userData && (obj.userData.type === "shape" || obj.userData.type === "shape2d" || obj.userData.type === "light" || obj.userData.type === "figure" || obj.userData.type === "character")) {
           allSceneObjects.push(obj);
         }
       });
@@ -59392,7 +59976,7 @@ ${elements.join("\n")}
       if (intersects2.length > 0) {
         let target = intersects2[0].object;
         while (target.parent && target.parent !== this.scene) {
-          if (target.userData && (target.userData.type === "shape" || target.userData.type === "shape2d" || target.userData.type === "light" || target.userData.type === "figure")) {
+          if (target.userData && (target.userData.type === "shape" || target.userData.type === "shape2d" || target.userData.type === "light" || target.userData.type === "figure" || target.userData.type === "character")) {
             break;
           }
           target = target.parent;
@@ -59547,7 +60131,7 @@ ${elements.join("\n")}
         if (o === curObj || o === curObj.parent) return;
         if (!o.geometry || !o.userData) return;
         const t = o.userData.type;
-        if (t !== "shape" && t !== "light" && t !== "figure") return;
+        if (t !== "shape" && t !== "light" && t !== "figure" && t !== "character") return;
         const bb = new Box3().setFromObject(o);
         const c2 = new Vector3();
         bb.getCenter(c2);

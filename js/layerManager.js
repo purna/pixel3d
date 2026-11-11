@@ -191,6 +191,9 @@ export class LayerManager {
             if (obj.userData.gender === 'female') iconClass = 'fa-female';
             else iconClass = 'fa-male';
         }
+        else if (obj.userData.type === 'character') {
+            iconClass = String(obj.userData.characterType || '').includes('child') ? 'fa-child' : 'fa-user';
+        }
         else if (obj.userData.type === 'light') {
             switch(obj.userData.lightType) {
                 case 'point': iconClass = 'fa-lightbulb'; break;

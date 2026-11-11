@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rig Pose Editor</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0f0f1b;color:#e0e7ff;font:13px system-ui,sans-serif}
+  #app{display:grid;grid-template-columns:210px 1fr 270px;height:100%}
+  aside{padding:12px;overflow:auto;background:#1a1a2e}
+  #left{border-right:1px solid #2d3748}#right{border-left:1px solid #2d3748}
+  h3{margin:14px 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a93a6}
+  h3:first-child{margin-top:0}
+  select,button{width:100%;padding:6px 8px;margin:2px 0;background:#1e293b;color:inherit;border:1px solid #2d3748;border-radius:5px;font:inherit}
+  button{cursor:pointer}button:hover{background:#16213e;border-color:#00ff41;color:#00ff41}
+  #presets{display:grid;grid-template-columns:1fr 1fr;gap:4px}#presets button{margin:0}
+  #presets button.on{background:#00ff41;border-color:#00ff41;color:#07110a}
+  .row{display:grid;grid-template-columns:18px 1fr 42px;gap:6px;align-items:center;margin:6px 0}
+  .row input{width:100%}.row span:last-child{text-align:right;color:#9aa3b8;font-variant-numeric:tabular-nums}
+  label.chk{display:block;margin:4px 0}
+  #view{position:relative;min-width:0}#view canvas{display:block;width:100%;height:100%}
+  #bone{font-size:15px;font-weight:600;margin-bottom:4px}
+  #msg{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#3a2330;border:1px solid #7a3a52;padding:8px 14px;border-radius:6px;max-width:80vw;display:none}
+  .fb{width:46px;height:46px;padding:0;margin:0;border-radius:50%;font-size:18px;line-height:1;background:rgba(32,36,48,.78);border:1px solid rgba(255,255,255,.18);color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;backdrop-filter:blur(4px)}
+  .fb:active,.fb.held{background:#2f6fed}
+  #pad,#zoom,#views{position:absolute;z-index:3}
+  #pad{right:14px;bottom:14px;display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:4px}
+  #pad [data-h=u]{grid-area:1/2}#pad [data-h=l]{grid-area:2/1}#pad [data-h=r]{grid-area:2/3}#pad [data-h=d]{grid-area:3/2}#pad [data-v=home]{grid-area:2/2}
+  #zoom{left:14px;bottom:14px;display:flex;flex-direction:column;gap:8px}
+  #views{right:14px;top:14px;display:flex;gap:8px}
+  @media (max-width:800px){
+    html,body{height:auto;overflow:auto}
+    #app{display:block;height:auto}
+    #view{position:sticky;top:0;z-index:5;height:55vh;border-bottom:1px solid #2a2e3a}
+    aside{border:0!important;overflow:visible}
+    .fb{width:52px;height:52px}
+    #pad{grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,52px)}
+  }
+  .hint{color:#7d869a;font-size:12px;line-height:1.4}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+"three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="left">
+    <h3>Model</h3>
+    <select id="model">
+      <option>Ybot.glb</option><option>Xbot.glb</option>
+      <option>Ybot_child.glb</option><option>Xbot_child.glb</option>
+    </select>
+    <button id="openGlb">Open .glb file…</button>
+    <h3>Presets</h3>
+    <div id="presets"></div>
+    <button id="openLib" style="margin-top:8px">Load poses.json…</button>
+    <h3>View</h3>
+    <label class="chk"><input type="checkbox" id="showJoints" checked> Show joint handles</label>
+    <label class="chk"><input type="checkbox" id="showFingers"> Include fingers</label>
+    <p class="hint">Tap a joint handle (or the body) to select it. Drag the rings to rotate. Use the on-screen pad to turn and zoom the view (hold to keep moving).</p>
+  </aside>
+  <main id="view">
+    <div id="views"><button class="fb" data-v="0" title="Front">F</button><button class="fb" data-v="90" title="Side">S</button><button class="fb" data-v="180" title="Back">B</button></div>
+    <div id="zoom"><button class="fb" data-h="in" title="Zoom in">+</button><button class="fb" data-h="out" title="Zoom out">&minus;</button></div>
+    <div id="pad">
+      <button class="fb" data-h="u" title="Rotate up">&#9650;</button><button class="fb" data-h="l" title="Rotate left">&#9664;</button>
+      <button class="fb" data-v="home" title="Reset view">&#8962;</button>
+      <button class="fb" data-h="r" title="Rotate right">&#9654;</button><button class="fb" data-h="d" title="Rotate down">&#9660;</button>
+    </div>
+  </main>
+  <aside id="right">
+    <h3>Selected bone</h3>
+    <div id="bone">none</div>
+    <select id="boneList"></select>
+    <h3>Rotation (degrees)</h3>
+    <div class="row"><span>X</span><input type="range" id="rx" min="-180" max="180" step="1"><span id="vx">0</span></div>
+    <div class="row"><span>Y</span><input type="range" id="ry" min="-180" max="180" step="1"><span id="vy">0</span></div>
+    <div class="row"><span>Z</span><input type="range" id="rz" min="-180" max="180" step="1"><span id="vz">0</span></div>
+    <button id="resetBone">Reset this bone</button>
+    <h3>Hips height</h3>
+    <div class="row" style="grid-template-columns:1fr 42px"><input type="range" id="hips" min="-0.8" max="0.2" step="0.01"><span id="vh">0</span></div>
+    <h3>Pose</h3>
+    <button id="resetAll">Reset to T-pose</button>
+    <button id="savePreset">Save as preset…</button>
+    <button id="useInScene">Use on selected scene character</button>
+    <button id="exportPose">Download pose .json</button>
+    <button id="importPose">Load pose .json…</button>
+  </aside>
+</div>
+<div id="msg"></div>
+<input type="file" id="fileGlb" accept=".glb,.gltf" hidden>
+<input type="file" id="fileLib" accept=".json" hidden>
+<input type="file" id="filePose" accept=".json" hidden>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+const $ = (id) => document.getElementById(id);
+const note = (t) => { const m = $('msg'); m.textContent = t; m.style.display = t ? 'block' : 'none'; };
+
+let CharacterPoser;
+try { ({ CharacterPoser } = await import('./CharacterPoser.js')); }
+catch (e) { note('Could not load ./CharacterPoser.js. Open this page through a local server (e.g. "python3 -m http.server") with CharacterPoser.js beside it.'); throw e; }
+
+// ---------- scene ----------
+const view = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2a2a4e);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445066, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2); sun.position.set(2, 4, 3); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 1000);
+const orbit = new OrbitControls(camera, renderer.domElement); orbit.enableDamping = true;
+const tc = new TransformControls(camera, renderer.domElement);
+tc.setMode('rotate'); tc.setSpace('local'); scene.add(tc);
+tc.addEventListener('dragging-changed', (e) => { orbit.enabled = !e.value; if (e.value) poser?._cancel(); });
+tc.addEventListener('objectChange', () => syncUI());
+let grid = null;
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+// ---------- state ----------
+let poser = null, modelRoot = null, meshes = [], handles = new Map(), selected = null, height = 1;
+let library = null, homePos = new THREE.Vector3(), homeTarget = new THREE.Vector3();
+const handleGeo = new THREE.SphereGeometry(1, 12, 8);
+const HIDE_ALWAYS = /_End$|Eye|HeadTop/;
+const FINGER = /Hand(Thumb|Index|Middle|Ring|Pinky)\d/;
+const pretty = (k) => k.replace(/([a-z])([A-Z0-9])/g, '$1 $2');
+
+try { library = await (await fetch('poses.json')).json(); } catch { /* optional, can be loaded by button */ }
+
+// ---------- loading ----------
+async function loadModel(url, isBlob) {
+  note('');
+  let gltf;
+  try { gltf = await new GLTFLoader().loadAsync(url); }
+  catch (e) {
+    note(isBlob ? 'Could not read that model.' : `Could not load ${url}. Use a local server, or choose the file with "Open .glb file…".`);
+    return;
+  }
+  if (modelRoot) { scene.remove(modelRoot); handles.forEach((h) => scene.remove(h)); handles.clear(); }
+  tc.detach(); selected = null;
+  modelRoot = gltf.scene; scene.add(modelRoot);
+  meshes = [];
+  modelRoot.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; meshes.push(o); } });
+  try { poser = new CharacterPoser(modelRoot, gltf.animations, library); }
+  catch (e) { note(e.message); poser = null; return; }
+
+  modelRoot.updateMatrixWorld(true);
+  const box = new THREE.Box3(), p = new THREE.Vector3();
+  poser.bones.forEach((b) => box.expandByPoint(b.getWorldPosition(p)));
+  height = Math.max(box.max.y - box.min.y, 1e-3);
+  const c = box.getCenter(new THREE.Vector3());
+  camera.near = height / 100; camera.far = height * 50; camera.updateProjectionMatrix();
+  camera.position.set(c.x, c.y + height * 0.1, c.z + height * 2.2);
+  orbit.target.copy(c); orbit.update();
+  homePos.copy(camera.position); homeTarget.copy(c);
+  if (grid) scene.remove(grid);
+  grid = new THREE.GridHelper(height * 3, 20, 0x4a5163, 0x2f3442); grid.position.y = box.min.y; scene.add(grid);
+  tc.size = 0.8;
+
+  for (const [key] of poser.bones) {
+    if (HIDE_ALWAYS.test(key)) continue;
+    const m = new THREE.Mesh(handleGeo, new THREE.MeshBasicMaterial({ color: 0x4fc3f7, transparent: true, opacity: 0.85, depthTest: false }));
+    m.scale.setScalar(height * (FINGER.test(key) ? 0.006 : 0.011));
+    m.renderOrder = 10; m.userData.bone = key; scene.add(m); handles.set(key, m);
+  }
+  buildBoneList(); buildPresets(); applyHandleVisibility();
+  poser.setBone('Hips', 0, 0, 0); // ensures the poser is in a clean rest state
+  select('Hips');
+}
+
+function buildBoneList() {
+  const sel = $('boneList'); sel.innerHTML = '';
+  for (const key of poser.bones.keys()) sel.add(new Option(pretty(key), key));
+}
+function buildPresets() {
+  const box = $('presets'); box.innerHTML = '';
+  for (const name of poser.list()) {
+    const b = document.createElement('button'); b.textContent = name.replace(/_/g, ' ');
+    b.onclick = () => { poser.apply(name, { duration: 0.3 }); [...box.children].forEach((x) => x.classList.toggle('on', x === b)); };
+    box.appendChild(b);
+  }
+  if (!poser.list().length) box.innerHTML = '<span class="hint">No presets. Load poses.json.</span>';
+}
+
+// ---------- selection ----------
+function select(key) {
+  if (!poser?.bones.has(key)) return;
+  selected = key; tc.attach(poser.bones.get(key));
+  $('bone').textContent = pretty(key); $('boneList').value = key;
+  handles.forEach((h, k) => h.material.color.set(k === key ? 0xffb300 : 0x4fc3f7));
+  syncUI();
+}
+const _q = new THREE.Quaternion(), _e = new THREE.Euler();
+function syncUI() {
+  if (!poser) return;
+  if (selected) {
+    const d = _q.copy(poser.bones.get(selected).quaternion).multiply(poser.rest.get(selected).clone().invert());
+    _e.setFromQuaternion(d, 'ZYX');
+    [['x', _e.x], ['y', _e.y], ['z', _e.z]].forEach(([a, v]) => {
+      const deg = Math.round(THREE.MathUtils.radToDeg(v)); $('r' + a).value = deg; $('v' + a).textContent = deg;
+    });
+  }
+  if (poser.hips && poser.restHipsY) {
+    const f = poser.hips.position.y / poser.restHipsY - 1; $('hips').value = f; $('vh').textContent = f.toFixed(2);
+  }
+}
+function applyHandleVisibility() {
+  const on = $('showJoints').checked, fingers = $('showFingers').checked;
+  handles.forEach((h, k) => { h.visible = on && (fingers || !FINGER.test(k)); });
+}
+
+// ---------- picking ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let down = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4 || tc.axis || !poser) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const vis = [...handles.values()].filter((h) => h.visible);
+  const hit = ray.intersectObjects(vis, false)[0];
+  if (hit) return select(hit.object.userData.bone);
+  const mh = ray.intersectObjects(meshes, false)[0];
+  if (mh) { // nearest visible joint to the clicked point on the body
+    let best = null, bd = Infinity; const p = new THREE.Vector3();
+    for (const h of vis) { const d = h.getWorldPosition(p).distanceTo(mh.point); if (d < bd) { bd = d; best = h.userData.bone; } }
+    if (best) select(best);
+  }
+});
+
+// ---------- UI wiring ----------
+$('model').onchange = (e) => loadModel(e.target.value);
+$('openGlb').onclick = () => $('fileGlb').click();
+$('fileGlb').onchange = (e) => { const f = e.target.files[0]; if (f) loadModel(URL.createObjectURL(f), true); e.target.value = ''; };
+addEventListener('dragover', (e) => e.preventDefault());
+addEventListener('drop', (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && /\.(glb|gltf)$/i.test(f.name)) loadModel(URL.createObjectURL(f), true); });
+$('openLib').onclick = () => $('fileLib').click();
+$('fileLib').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  library = JSON.parse(await f.text());
+  if (poser) { poser.addLibrary(library); buildPresets(); }
+};
+$('showJoints').onchange = $('showFingers').onchange = applyHandleVisibility;
+$('boneList').onchange = (e) => select(e.target.value);
+['x', 'y', 'z'].forEach((a) => { $('r' + a).oninput = () => {
+  if (!selected) return;
+  poser.setBone(selected, +$('rx').value, +$('ry').value, +$('rz').value); syncUI();
+}; });
+$('hips').oninput = (e) => { poser?.setHipsDrop(+e.target.value); syncUI(); };
+$('resetBone').onclick = () => { if (selected) { poser.resetBone(selected); syncUI(); } };
+$('resetAll').onclick = () => { if (!poser) return; for (const k of poser.bones.keys()) poser.resetBone(k); poser.setHipsDrop(0); syncUI(); };
+
+const r5 = (n) => Math.round(n * 1e5) / 1e5;
+function currentPose() {
+  const rotations = {};
+  for (const [k, b] of poser.bones) rotations[k] = b.quaternion.toArray().map(r5);
+  return { rotations, hipsDrop: r5(poser.hips.position.y / poser.restHipsY - 1) };
+}
+$('savePreset').onclick = () => {
+  const name = prompt('Preset name (no spaces):'); if (!name || !poser) return;
+  poser.addLibrary({ poses: { [name.trim().replace(/\s+/g, '_')]: currentPose() } }); buildPresets();
+};
+$('useInScene').onclick = () => {
+  if (!poser || !window.parent || window.parent === window) return;
+  const name = prompt('Pose name for the scene character:', 'Custom pose');
+  if (!name) return;
+  const pose = currentPose();
+  window.parent.postMessage({ type: 'pixelstaging-pose', name: name.trim(), pose }, window.location.origin);
+};
+$('exportPose').onclick = () => {
+  if (!poser) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(currentPose())], { type: 'application/json' }));
+  a.download = 'my_pose.json'; a.click();
+};
+$('importPose').onclick = () => $('filePose').click();
+$('filePose').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f || !poser) return;
+  const p = JSON.parse(await f.text());
+  poser.applyPose({ rotations: p.rotations, hipsScale: 1 + (p.hipsDrop ?? 0) }, { duration: 0.2 });
+};
+
+// ---------- floating camera controls ----------
+const held = new Set(), off = new THREE.Vector3(), sph = new THREE.Spherical();
+const clamp = THREE.MathUtils.clamp;
+function placeCamera() { camera.position.copy(orbit.target).add(off.setFromSpherical(sph)); camera.lookAt(orbit.target); }
+function nudgeCamera(dt) {
+  if (!held.size) return;
+  sph.setFromVector3(off.copy(camera.position).sub(orbit.target));
+  if (held.has('l')) sph.theta += 1.6 * dt;
+  if (held.has('r')) sph.theta -= 1.6 * dt;
+  if (held.has('u')) sph.phi += 1.2 * dt;
+  if (held.has('d')) sph.phi -= 1.2 * dt;
+  if (held.has('in')) sph.radius *= Math.pow(0.4, dt);
+  if (held.has('out')) sph.radius /= Math.pow(0.4, dt);
+  sph.phi = clamp(sph.phi, 0.05, Math.PI - 0.05); sph.radius = clamp(sph.radius, height * 0.3, height * 12);
+  placeCamera();
+}
+document.querySelectorAll('.fb[data-h]').forEach((b) => {
+  const k = b.dataset.h;
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); held.add(k); b.classList.add('held'); });
+  const up = () => { held.delete(k); b.classList.remove('held'); };
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => b.addEventListener(ev, up));
+  b.addEventListener('contextmenu', (e) => e.preventDefault());
+});
+document.querySelectorAll('.fb[data-v]').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.v === 'home') { orbit.target.copy(homeTarget); camera.position.copy(homePos); orbit.update(); return; }
+  sph.setFromVector3(off.copy(camera.position).sub(orbit.target));
+  sph.theta = THREE.MathUtils.degToRad(+b.dataset.v); sph.phi = Math.PI / 2 - 0.1; placeCamera();
+}));
+addEventListener('blur', () => held.clear());
+
+// ---------- loop ----------
+const clock = new THREE.Clock(), wp = new THREE.Vector3();
+renderer.setAnimationLoop(() => {
+  const dt = clock.getDelta();
+  if (poser) {
+    const blending = poser.blending; poser.update(dt); if (blending) syncUI();
+    handles.forEach((h, k) => { if (h.visible) h.position.copy(poser.bones.get(k).getWorldPosition(wp)); });
+  }
+  nudgeCamera(dt); orbit.update(); renderer.render(scene, camera);
+});
+
+const requestedModel = new URLSearchParams(location.search).get('model');
+if (requestedModel) $('model').value = requestedModel;
+loadModel($('model').value);
+</script>
+</body>
+</html>
