@@ -1984,6 +1984,13 @@ export class UI {
 
         if (type === 'textures') this.initTextureAssetEditor(asset);
 
+        if (type === 'media') {
+            const urlInput = document.getElementById('video-asset-url');
+            if (urlInput) {
+                urlInput.onchange = () => this.setVideoPreviewSource(urlInput.value.trim());
+            }
+        }
+
         // Initialize color editor
         if (type === 'colors') {
             this.initColorEditor(asset);
@@ -2639,6 +2646,29 @@ export class UI {
         }
     }
 
+    setVideoPreviewSource(url) {
+        const preview = document.getElementById('video-preview');
+        if (!preview) return;
+        try { preview.pause(); } catch (error) { /* not playing */ }
+        preview.onerror = () => preview.classList.add('broken');
+        preview.onloadedmetadata = () => {
+            preview.classList.remove('broken');
+            const size = document.getElementById('video-size');
+            if (size && preview.videoWidth && preview.videoHeight) {
+                size.textContent = `${preview.videoWidth} x ${preview.videoHeight}`;
+            }
+        };
+        if (url) {
+            preview.src = url;
+            preview.classList.remove('broken');
+            preview.load();
+        } else {
+            preview.removeAttribute('src');
+            preview.classList.add('broken');
+            preview.load();
+        }
+    }
+
     resetAssetModal(type, assetId = null) {
         if (type === 'materials') {
             const nameInput = document.getElementById('material-asset-name');
@@ -2726,15 +2756,9 @@ export class UI {
             if (urlInput) urlInput.value = '';
         } else if (type === 'media') {
             const nameInput = document.getElementById('video-asset-name');
-            const preview = document.getElementById('video-preview');
             const urlInput = document.getElementById('video-asset-url');
             if (nameInput) nameInput.value = '';
-            if (preview) {
-                preview.classList.add('broken');
-                preview.src = '';
-                preview.onerror = () => { preview.classList.add('broken'); };
-                preview.onload = () => { preview.classList.remove('broken'); };
-            }
+            this.setVideoPreviewSource('');
             if (urlInput) urlInput.value = '';
         } else if (type === 'audio') {
             const nameInput = document.getElementById('audio-asset-name');
@@ -2818,19 +2842,9 @@ export class UI {
                 if (urlInput) urlInput.value = asset.url || '';
             } else if (type === 'media') {
                 const nameInput = document.getElementById('video-asset-name');
-                const preview = document.getElementById('video-preview');
                 const urlInput = document.getElementById('video-asset-url');
                 if (nameInput) nameInput.value = asset.name || '';
-                if (preview) {
-                    preview.onerror = () => { preview.classList.add('broken'); };
-                    preview.onload = () => { preview.classList.remove('broken'); };
-                    if (asset.url) {
-                        preview.src = asset.url;
-                    } else {
-                        preview.classList.add('broken');
-                        preview.src = '';
-                    }
-                }
+                this.setVideoPreviewSource(asset.url || '');
                 if (urlInput) urlInput.value = asset.url || '';
             } else if (type === 'audio') {
                 const nameInput = document.getElementById('audio-asset-name');
@@ -2930,7 +2944,7 @@ export class UI {
             const preview = document.getElementById('video-preview');
             const urlInput = document.getElementById('video-asset-url');
             data.name = nameInput ? nameInput.value.trim() : 'New Video';
-            data.url = urlInput ? urlInput.value.trim() : (preview?.src || '');
+            data.url = urlInput ? urlInput.value.trim() : (preview?.currentSrc || preview?.src || '');
         } else if (type === 'audio') {
             const nameInput = document.getElementById('audio-asset-name');
             const fileName = document.getElementById('audio-file-name');

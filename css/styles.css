@@ -3116,6 +3116,21 @@ input[type="number"].color-slider-value-compact {
     color: var(--text-primary);
 }
 
+
+.file-upload-video {
+    background: #000;
+    object-fit: contain;
+}
+
+.file-upload-video.broken,
+.file-upload-video:not([src]) {
+    background: var(--bg-medium);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='5' width='20' height='14' rx='2'/%3E%3Cpolygon points='10 9 15 12 10 15'/%3E%3C/svg%3E");
+    background-size: 48px 48px;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 /* Video Asset Modal */
 .video-asset-container {
     display: flex;

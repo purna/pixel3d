@@ -1527,13 +1527,14 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
                             <div class="file-upload-container">
                                 <label class="file-upload-label">
                                     <div class="file-upload-preview">
-                                        <img class="file-upload-image" id="video-preview" src="" alt="Video preview">
+                                        <video class="file-upload-image file-upload-video" id="video-preview"
+                                            controls playsinline preload="metadata"></video>
                                     </div>
                                     <div class="file-upload-ui">
-                                        <div class="file-upload-main-btn">Replace Video (MP4)</div>
+                                        <div class="file-upload-main-btn">Replace Video</div>
                                         <div class="file-upload-size" id="video-size">640 x 360</div>
                                     </div>
-                                    <input type="file" accept="video/mp4" id="video-file-input"
+                                    <input type="file" accept="video/mp4,video/webm,video/ogg,.ogv,.webm,.mp4" id="video-file-input"
                                         style="position:absolute;border:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;">
                                 </label>
                                 <button class="download-btn" title="Download"><i class="fas fa-download"></i></button>
@@ -1584,7 +1585,7 @@ Sky and ground lighting"><span class="icon-svg"><svg viewBox="0 0 24 24" fill="n
         </div>
 
         <!-- Self-contained app bundle: works over http:// and when index.html is opened directly. -->
-        <script src="dist/pixel3d.js?v=20261111-6"></script>
+        <script src="dist/pixel3d.js?v=20261111-7"></script>
 
         <!-- ANIMATION TIMELINE PANEL -->
         <div id="anim-panel" style="display:none;">
