@@ -3425,6 +3425,37 @@ export class UI {
         this.activeSubmenu = null;
     }
 
+     showPropertiesPanel() {
+         const panel = document.getElementById('right-panel');
+         const toggle = document.getElementById('panel-toggle');
+         const workspace = document.querySelector('.workspace');
+         if (!panel) return;
+
+         const wasHidden = panel.classList.contains('hidden');
+         if (wasHidden) {
+             panel.classList.remove('hidden');
+             if (toggle) {
+                 toggle.classList.remove('panel-hidden');
+                 const icon = toggle.querySelector('i');
+                 if (icon) icon.className = 'fas fa-chevron-right';
+                 toggle.title = 'Hide Panel';
+             }
+             if (workspace) workspace.classList.remove('panel-hidden');
+         }
+
+         const propertiesTab = document.querySelector('.right-tab[data-right-tab="object-properties"]');
+         if (propertiesTab && !propertiesTab.classList.contains('active')) {
+             document.querySelectorAll('.right-tab').forEach(tab => tab.classList.remove('active'));
+             document.querySelectorAll('.right-tab-content').forEach(content => content.classList.remove('active'));
+             propertiesTab.classList.add('active');
+             document.getElementById('tab-object-properties')?.classList.add('active');
+         }
+
+         if (wasHidden) {
+             window.setTimeout(() => this.app.onWindowResize?.(), 320);
+         }
+     }
+
      togglePropertiesPanel() {
          const panel = document.getElementById('right-panel');
          const toggle = document.getElementById('panel-toggle');
@@ -3717,6 +3748,10 @@ export class UI {
                 infoBox.classList.add('hidden');
             }
         }
+
+        // Selecting an object should always bring the Properties panel forward,
+        // even if the right panel was hidden or another tab was open.
+        if (selectedObject) this.showPropertiesPanel();
 
         // Always render the properties panel first to create the inputs
         this.renderPropertiesPanel(selectedObject);
