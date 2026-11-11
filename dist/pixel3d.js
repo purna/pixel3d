@@ -29981,6 +29981,7 @@
         ["color editor", () => this.setupColorEditor()],
         ["hierarchy", () => this.renderHierarchyPanel()],
         ["example textures", () => this.seedExampleTextures()],
+        ["example assets", () => this.seedExampleAssets()],
         ["assets", () => this.renderAssetsPanel("components")]
       ];
       initializers.forEach(([name, initialize]) => {
@@ -31240,6 +31241,166 @@
         });
         added = true;
       });
+      if (added) this.saveAssetLibrary();
+      try {
+        localStorage.setItem(seedKey, seedVersion);
+      } catch (error) {
+      }
+    }
+    /**
+     * Seed colours, images, videos and sounds for common game-design needs.
+     * Remote media is hosted by Wikimedia Commons under open licences; the
+     * attribution is kept on each asset so it can be surfaced elsewhere.
+     */
+    seedExampleAssets() {
+      const seedKey = "pixel3d-example-assets-seeded";
+      const seedVersion = "1";
+      try {
+        if (localStorage.getItem(seedKey) === seedVersion) return;
+      } catch (error) {
+      }
+      const commons = "Wikimedia Commons";
+      const addExamples = (category, examples) => {
+        let added2 = false;
+        examples.forEach((example) => {
+          if (this.assets[category].some((asset) => asset.id === example.id)) return;
+          this.assets[category].push({ type: category, ...example });
+          added2 = true;
+        });
+        return added2;
+      };
+      const gamePalette = [
+        ["Player Cyan", "#22d3ee"],
+        ["Enemy Red", "#ef4444"],
+        ["Coin Gold", "#f59e0b"],
+        ["Health Green", "#22c55e"],
+        ["Mana Blue", "#3b82f6"],
+        ["Magic Purple", "#a855f7"],
+        ["Stone Grey", "#64748b"],
+        ["Lava Orange", "#f97316"],
+        ["Toxic Green", "#84cc16"],
+        ["Neon Pink", "#ec4899"],
+        ["Night Sky", "#111827"],
+        ["UI Slate", "#334155"]
+      ];
+      const colorExamples = gamePalette.map(([name, hex]) => {
+        const hsl = rgbToHsl(hexToRgb(hex));
+        return {
+          id: "example-color-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          name,
+          hex,
+          alpha: 1,
+          hsl,
+          source: "Pixel3D game palette"
+        };
+      });
+      const imageExamples = [
+        {
+          id: "example-image-grass-ground",
+          name: "Grass Ground Texture",
+          url: "https://upload.wikimedia.org/wikipedia/commons/0/05/Grass_texture.jpg",
+          source: commons,
+          license: "Public domain",
+          credit: "Titus Tscharntke"
+        },
+        {
+          id: "example-image-concrete-wall",
+          name: "Concrete Wall Texture",
+          url: "https://upload.wikimedia.org/wikipedia/commons/5/52/Concrete_texture.jpg",
+          source: commons,
+          license: "CC BY-SA 4.0"
+        },
+        {
+          id: "example-image-rusted-metal",
+          name: "Rusted Metal Texture",
+          url: "https://upload.wikimedia.org/wikipedia/commons/8/8a/Rust_texture.jpg",
+          source: commons,
+          license: "CC BY-SA 4.0"
+        },
+        {
+          id: "example-image-wood-planks",
+          name: "Wood Plank Texture",
+          url: "https://upload.wikimedia.org/wikipedia/commons/2/2c/Wood_texture.jpg",
+          source: commons,
+          license: "CC BY-SA 4.0"
+        },
+        {
+          id: "example-image-uv-checker",
+          name: "UV Checker Reference",
+          url: "https://upload.wikimedia.org/wikipedia/commons/7/70/Checkerboard_pattern.svg",
+          source: commons,
+          license: "Public domain"
+        }
+      ];
+      const mediaExamples = [
+        {
+          id: "example-media-explosion-vfx",
+          name: "Explosion VFX Reference",
+          url: "https://upload.wikimedia.org/wikipedia/commons/8/85/Trinity_test.ogv",
+          source: commons,
+          license: "Public domain",
+          credit: "U.S. Government"
+        },
+        {
+          id: "example-media-blast-vfx",
+          name: "Blast VFX Reference",
+          url: "https://upload.wikimedia.org/wikipedia/commons/a/a2/Operation_Upshot_test_2.ogv",
+          source: commons,
+          license: "Public domain",
+          credit: "U.S. Government"
+        }
+      ];
+      const audioExamples = [
+        {
+          id: "example-audio-ui-blip",
+          name: "UI Blip",
+          url: "https://upload.wikimedia.org/wikipedia/commons/4/43/Blip.ogg",
+          fileName: "Blip.ogg",
+          source: commons,
+          license: "Public domain"
+        },
+        {
+          id: "example-audio-ui-error",
+          name: "UI Error",
+          url: "https://upload.wikimedia.org/wikipedia/commons/1/1c/Error.ogg",
+          fileName: "Error.ogg",
+          source: commons,
+          license: "CC BY-SA 4.0"
+        },
+        {
+          id: "example-audio-success-applause",
+          name: "Success Applause",
+          url: "https://upload.wikimedia.org/wikipedia/commons/8/8e/Applause.ogg",
+          fileName: "Applause.ogg",
+          source: commons,
+          license: "CC BY-SA 3.0"
+        },
+        {
+          id: "example-audio-rain-loop",
+          name: "Rain Loop",
+          url: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Rain.ogg",
+          fileName: "Rain.ogg",
+          source: commons,
+          license: "Public domain"
+        },
+        {
+          id: "example-audio-thunder",
+          name: "Thunder Crack",
+          url: "https://upload.wikimedia.org/wikipedia/commons/9/93/Thunder.ogg",
+          fileName: "Thunder.ogg",
+          source: commons,
+          license: "CC BY 3.0"
+        },
+        {
+          id: "example-audio-forest-birds",
+          name: "Forest Birds",
+          url: "https://upload.wikimedia.org/wikipedia/commons/4/42/Bird_singing.ogg",
+          fileName: "Bird_singing.ogg",
+          source: commons,
+          license: "Public domain"
+        }
+      ];
+      const added = addExamples("colors", colorExamples) | addExamples("images", imageExamples) | addExamples("media", mediaExamples) | addExamples("audio", audioExamples);
       if (added) this.saveAssetLibrary();
       try {
         localStorage.setItem(seedKey, seedVersion);
