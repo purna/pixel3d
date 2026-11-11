@@ -29980,6 +29980,7 @@
         ["panel tabs", () => this.setupPanelTabs()],
         ["color editor", () => this.setupColorEditor()],
         ["hierarchy", () => this.renderHierarchyPanel()],
+        ["example textures", () => this.seedExampleTextures()],
         ["assets", () => this.renderAssetsPanel("components")]
       ];
       initializers.forEach(([name, initialize]) => {
@@ -31155,6 +31156,96 @@
       });
     }
     // --- ASSET MANAGEMENT ---
+    /**
+     * Add a small procedural texture starter library the first time this build
+     * runs. A version flag keeps user deletions from being undone on reload.
+     */
+    seedExampleTextures() {
+      const seedKey = "pixel3d-example-textures-seeded";
+      const seedVersion = "1";
+      try {
+        if (localStorage.getItem(seedKey) === seedVersion) return;
+      } catch (error) {
+      }
+      const examples = [
+        {
+          id: "example-texture-blueprint-grid",
+          name: "Blueprint Grid",
+          type: "pattern",
+          layer: { pattern: "stripes", colorA: "#1d4ed8", colorB: "#0b1b3a", scale: 12, opacity: 100 }
+        },
+        {
+          id: "example-texture-pixel-checker",
+          name: "Pixel Checker",
+          type: "pattern",
+          layer: { pattern: "checker", colorA: "#f8fafc", colorB: "#1e293b", scale: 6, opacity: 100 }
+        },
+        {
+          id: "example-texture-sunset-gradient",
+          name: "Sunset Gradient",
+          type: "gradient",
+          layer: { colorA: "#ff512f", colorB: "#dd2476", angle: 45, opacity: 100 }
+        },
+        {
+          id: "example-texture-ocean-depth",
+          name: "Ocean Depth",
+          type: "gradient",
+          layer: { colorA: "#22d3ee", colorB: "#03045e", angle: 90, opacity: 100 }
+        },
+        {
+          id: "example-texture-lava-flow",
+          name: "Lava Flow",
+          type: "noise",
+          layer: { colorA: "#ff4500", colorB: "#2b0000", scale: 10, seed: 7, opacity: 100 }
+        },
+        {
+          id: "example-texture-neon-circuit",
+          name: "Neon Circuit",
+          type: "duct",
+          layer: { colorA: "#00f5ff", colorB: "#06121f", width: 5, spacing: 18, opacity: 100 }
+        },
+        {
+          id: "example-texture-rainbow-swirl",
+          name: "Rainbow Swirl",
+          type: "rainbow",
+          layer: { saturation: 85, brightness: 90, angle: 30, opacity: 100 }
+        },
+        {
+          id: "example-texture-toon-bands",
+          name: "Toon Bands",
+          type: "toon",
+          layer: { steps: 5, opacity: 100 }
+        },
+        {
+          id: "example-texture-glass-panel",
+          name: "Glass Panel",
+          type: "glass",
+          layer: { transmission: 0.92, ior: 1.5, thickness: 0.5, roughness: 0.05, opacity: 100 }
+        },
+        {
+          id: "example-texture-brushed-metal",
+          name: "Brushed Metal",
+          type: "reflection",
+          layer: { intensity: 1.5, metalness: 1, roughness: 0.15, opacity: 100 }
+        }
+      ];
+      let added = false;
+      examples.forEach((example) => {
+        if (this.assets.textures.some((texture) => texture.id === example.id)) return;
+        this.assets.textures.push({
+          id: example.id,
+          name: example.name,
+          type: "textures",
+          layer: { ...this.defaultTextureLayer(example.type), ...example.layer }
+        });
+        added = true;
+      });
+      if (added) this.saveAssetLibrary();
+      try {
+        localStorage.setItem(seedKey, seedVersion);
+      } catch (error) {
+      }
+    }
     syncPresetMaterialAssets() {
       for (const material of this.app.materialsManager?.materials || []) {
         const stableId = material.sourceAssetId || `preset-${material.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
